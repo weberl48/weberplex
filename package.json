@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/logic.test.mjs && firebase emulators:exec --only firestore --project demo-picture-show \"node --test tests/rules.test.mjs tests/status.test.mjs\"",
+    "test": "node --test tests/logic.test.mjs && firebase emulators:exec --only firestore --project demo-picture-show \"node --test --test-concurrency=1 tests/rules.test.mjs tests/status.test.mjs\"",
     "test:logic": "node --test tests/logic.test.mjs"
   },
   "devDependencies": {
