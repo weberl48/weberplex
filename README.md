@@ -1,0 +1,101 @@
+# Speakeasy Picture Show
+
+Movie night for the Speakeasy. Friends open one link, tick the nights they can
+make, suggest up to **five** movies each, and thumbs-up the ballot. The host
+locks the night and the picture; Home Assistant takes it from there.
+
+- Guest site: https://speakeasy-picture-show.vercel.app
+- Host console: https://speakeasy-picture-show.vercel.app/host (the ready-made
+  link with the key is `HOST_LINK` in `.env.local`, which git ignores)
+- HA endpoint: https://speakeasy-picture-show.vercel.app/api/status
+
+## What guests can do
+
+| Phase | What shows |
+| --- | --- |
+| No night booked | Dark marquee, last movie, past screenings |
+| Voting open | Name gate, showtimes to tick, five-frame filmstrip of your picks, catalog search + "Surprise me", the ballot (posters, trailer, plot, votes, front-runner/tie ribbons), concessions |
+| Locked (before showtime) | Admit-one ticket with a ticket number, Add to calendar (.ics with a 2-hour alert), trailer, "Can't make it", who's coming, final vote tally, concessions |
+| Showing (after showtime) | Same ticket, plus star ratings and one-line reviews |
+| Finished | Moves to Past screenings with the average rating |
+
+The host console books a night (title plus any number of candidate times),
+adds or removes nights, removes picks, renames, **spins the reel** to break a
+tie (or to pick at random), locks, reopens, marks a night watched, or cancels.
+
+Everything updates live on every open phone.
+
+## How it's built
+
+There is no server. The static site in `public/` talks straight to Firestore
+(project `speakeasy-picture-show`, owned by weberlucasdev@gmail.com), and
+**`firestore.rules` is the whole backend**:
+
+- Guests are identified by name only (a deliberate choice: no accounts).
+  `logic.nameKey()` turns a name into the key the rules validate.
+- **Five picks:** each movie is written with a slot doc `slots/<nameKey>__<1..5>`
+  that points back at it. Slots can't be updated, so nobody can hold a sixth.
+- **One movie per ballot:** movie doc id = IMDb id; a second create is refused.
+- **Host-only changes:** a host write is a batch that also creates
+  `hostops/<fresh id>` holding the key. The rules compare it with
+  `config/host` (never readable) and require the op doc to be new in that
+  batch, so an old op id can't be replayed.
+- Picks and votes freeze when a night locks; RSVPs and snacks stay open;
+  reviews open once the locked showtime has passed.
+
+Movie data comes from Stremio's public Cinemeta catalog (keyless, CORS-open),
+so every pick carries the IMDb id the Shield's Stremio deep link needs.
+
+```
+public/            static site (Vercel serves it; cleanUrls)
+  js/logic.js      pure helpers: tally, slots, tickets, .ics, Cinemeta mapping
+  js/actions.js    every write batch (injected SDK, shared with the tests)
+  js/store.js      live subscriptions
+  js/app.js        guest page          js/host.js   host console
+  js/reel.js       spin-the-reel       js/ui.js     DOM helpers
+lib/status.js      flattens the current night for HA (Firestore REST, no creds)
+api/status.js      Vercel function wrapping lib/status.js (60 s edge cache)
+firestore.rules    the backend
+tests/             logic + rules + status (emulator) and e2e.py (Playwright)
+```
+
+## Home Assistant
+
+`/config/packages/movie_night.yaml` on the Pi (the canonical copy) defines:
+
+- `sensor.movie_night` (REST, every 5 min): state `none` / `open` / `locked`,
+  with movie, poster, showtime, warm-up time, attendees, leader, snacks.
+- `sensor.movie_night_showtime`: timestamp of the locked showtime.
+- `script.movie_night_start`: Movie scene, then the winner's Stremio detail page
+  by IMDb id, then a "Now showing" announcement on the Voice PE if it's online.
+- `script.movie_night_open_in_stremio`: the deep link on its own.
+- `automation.movie_night_warm_up_the_basement`: runs
+  `script.speakeasy_warmup_basement` 30 minutes before showtime and pushes.
+- `automation.movie_night_locked_notification`: pushes the poster when a night
+  locks, and again if the date or movie changes.
+
+The tablet card lives in `/config/dashboards/speakeasy.yaml`, bar view, right
+under the greeting hero. Tap it (with a confirm) to start the show.
+
+## Tests
+
+```bash
+npm test                              # logic, then rules + status in the emulator
+python tests/e2e.py <screenshot-dir>  # needs the emulator on :8181 and the site on :5173
+```
+
+`e2e.py` runs a host and two guests through a whole night: five picks and a
+refused sixth, a duplicate, a tie broken by the reel, lock, ticket and .ics,
+reopen, reviews, then "We watched it". Run the site locally with
+`python -m http.server 5173 --directory public` and open `/?emu` to use the
+emulator.
+
+## Operations
+
+- Deploy: `vercel deploy --prod` from this folder.
+- Rules: `firebase deploy --only firestore:rules`.
+- Delete a night for good: `firebase firestore:delete nights/<id> --recursive -P speakeasy-picture-show`.
+- Rotate the host key: delete `config/host` in the Firebase console, then create
+  it again (the rules allow a one-time create), and update `.env.local`.
+- Spark plan quota: 50k reads a day. HA's poll costs a few dozen reads every
+  5 minutes; a full guest page load reads every doc of the current night once.
