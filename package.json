@@ -1,0 +1,13 @@
+{
+  "name": "speakeasy-picture-show",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/logic.test.mjs && firebase emulators:exec --only firestore --project demo-picture-show \"node --test tests/rules.test.mjs tests/status.test.mjs\"",
+    "test:logic": "node --test tests/logic.test.mjs"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "3.0.4",
+    "firebase": "10.14.1"
+  }
+}

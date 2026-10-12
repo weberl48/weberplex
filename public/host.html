@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Picture Show Host Console</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#140a0f">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%237d1b35'/%3E%3Crect x='10' y='18' width='44' height='30' rx='3' fill='%23fbf3e2'/%3E%3Cg fill='%23ffc76e'%3E%3Ccircle cx='14' cy='12' r='3'/%3E%3Ccircle cx='26' cy='12' r='3'/%3E%3Ccircle cx='38' cy='12' r='3'/%3E%3Ccircle cx='50' cy='12' r='3'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Courier+Prime:wght@700&family=Limelight&display=swap">
+  <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <a class="house" href="/">The Speakeasy</a>
+      <div class="whoami"><span>Host console</span> <button class="linkish" type="button" id="forget" hidden>Forget key</button></div>
+    </header>
+
+    <section class="marquee">
+      <div class="board">
+        <p class="kicker">Projection booth</p>
+        <h1>Host console</h1>
+        <p class="sub" id="boothSub">Book a night, watch the votes, lock the show</p>
+      </div>
+    </section>
+
+    <section class="section" id="keySec" hidden>
+      <div class="host-card">
+        <h3>Enter the host key</h3>
+        <p class="hint">It's in your host link, or in <code>.env.local</code> in the project folder. This browser will remember it.</p>
+        <form class="row" id="keyForm">
+          <label class="sr-only" for="keyInput">Host key</label>
+          <input class="field" id="keyInput" type="password" autocomplete="current-password" style="flex:1 1 14rem" required>
+          <button class="btn btn-bulb" type="submit">Unlock</button>
+        </form>
+        <p class="msg" id="keyMsg" role="status"></p>
+      </div>
+    </section>
+
+    <section class="section" id="shareSec" hidden>
+      <div class="section-head"><h2>Guest link</h2><span class="aside">Text this to everyone</span></div>
+      <div class="share">
+        <label class="sr-only" for="shareUrl">Guest link</label>
+        <input class="field" id="shareUrl" readonly>
+        <button class="btn btn-ghost" type="button" id="copyShare">Copy</button>
+      </div>
+    </section>
+
+    <section class="section" id="newSec" hidden>
+      <div class="section-head"><h2>Book a new night</h2></div>
+      <form class="host-card" id="newForm">
+        <label class="label" for="newTitle">Theme or title (optional)</label>
+        <input class="field" id="newTitle" maxlength="60" placeholder="e.g. Spooky Season, Sequel Saturday">
+        <span class="label">Candidate nights</span>
+        <div id="newDates" class="date-list"></div>
+        <div class="row">
+          <button class="btn btn-ghost btn-small" type="button" id="addNewDate">+ Another night</button>
+        </div>
+        <div class="row"><button class="btn btn-primary" type="submit">Open voting</button></div>
+        <p class="msg" id="newMsg" role="status"></p>
+      </form>
+    </section>
+
+    <section class="section" id="nightSec" hidden>
+      <div class="section-head"><h2 id="nightTitle">Tonight's ballot</h2><span class="status-pill" id="nightStatus"></span></div>
+
+      <div class="host-card" id="openCard" hidden>
+        <h3>Nights on offer</h3>
+        <ul class="date-list" id="dateList"></ul>
+        <form class="row" id="addDateForm">
+          <label class="sr-only" for="addDateInput">Add a night</label>
+          <input class="field" id="addDateInput" type="datetime-local" style="flex:1 1 14rem" required>
+          <button class="btn btn-ghost" type="submit">Add night</button>
+        </form>
+        <form class="row" id="renameForm">
+          <label class="sr-only" for="renameInput">Title</label>
+          <input class="field" id="renameInput" maxlength="60" placeholder="Theme or title" style="flex:1 1 14rem">
+          <button class="btn btn-ghost" type="submit">Rename</button>
+        </form>
+      </div>
+
+      <div class="host-card" id="lockCard" hidden style="margin-top:14px">
+        <h3>Lock the show</h3>
+        <span class="label">Night</span>
+        <div class="pick-list" id="lockDates"></div>
+        <span class="label">Picture</span>
+        <div class="pick-list" id="lockMovies"></div>
+        <div class="row">
+          <button class="btn btn-ghost" type="button" id="spinBtn">Spin the reel</button>
+          <button class="btn btn-bulb" type="button" id="lockBtn">Lock it in</button>
+        </div>
+        <p class="hint" id="spinHint"></p>
+        <p class="msg" id="lockMsg" role="status"></p>
+      </div>
+
+      <div class="host-card" id="lockedCard" hidden>
+        <h3 id="lockedWhat"></h3>
+        <p class="hint" id="lockedWhen"></p>
+        <div class="lineup" id="lockedWho"></div>
+        <div class="row">
+          <button class="btn btn-ghost" type="button" id="reopenBtn">Reopen voting</button>
+          <button class="btn btn-primary" type="button" id="finishBtn">We watched it</button>
+          <button class="btn btn-ghost" type="button" id="cancelBtn">Cancel the night</button>
+        </div>
+        <p class="hint">"We watched it" moves the night to Past screenings. Reviews stay open there.</p>
+      </div>
+    </section>
+
+    <section class="section" id="ha" hidden>
+      <div class="section-head"><h2>Home Assistant</h2></div>
+      <p class="hint">HA polls <code id="statusUrl"></code> for the tablet card, the warm-up and the lock notification.</p>
+    </section>
+
+    <footer class="footer"><span>Speakeasy Picture Show</span><a href="/">Guest page</a></footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/js/host.js"></script>
+</body>
+</html>

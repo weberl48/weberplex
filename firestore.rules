@@ -1,0 +1,168 @@
+rules_version = '2';
+
+// Speakeasy Picture Show — every rule the site depends on lives here.
+// There is no server: the browser writes straight to Firestore, so these
+// rules ARE the backend. Guests are identified by name only (by design);
+// the host proves itself by writing a fresh `hostops/{op}` doc carrying the
+// host key in the same batch as the change (the key doc is never readable).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers -----------------------------------------------------------
+    function validKey(k) {
+      return k is string && k.size() >= 1 && k.size() <= 32
+        && k.matches('^[a-z0-9]+(-[a-z0-9]+)*$');
+    }
+    function validName(s) { return s is string && s.size() >= 1 && s.size() <= 24; }
+    function stamped(d) { return d.at == request.time; }
+
+    function hostKey() { return get(/databases/$(database)/documents/config/host).data.key; }
+
+    // A host op is valid only if its hostops doc is created in THIS batch
+    // (so an old op id seen in a night doc can't be replayed) and carries
+    // the key.
+    function freshHostOp(op) {
+      return op is string && op.matches('^[A-Za-z0-9]{16,48}$')
+        && !exists(/databases/$(database)/documents/hostops/$(op))
+        && getAfter(/databases/$(database)/documents/hostops/$(op)).data.key == hostKey();
+    }
+    function nightNow(n) { return get(/databases/$(database)/documents/nights/$(n)).data; }
+    // True when this batch also re-stamps the night with a fresh host op.
+    function hostTouched(n) {
+      return freshHostOp(getAfter(/databases/$(database)/documents/nights/$(n)).data.op);
+    }
+
+    // ---- host plumbing -----------------------------------------------------
+    match /config/host {
+      allow read, update, delete: if false;
+      // One-shot: once it exists, a second set() is an update and is refused.
+      allow create: if request.resource.data.keys().hasOnly(['key'])
+        && request.resource.data.key is string && request.resource.data.key.size() >= 20;
+    }
+    match /hostops/{op} {
+      allow read, update, delete: if false;
+      allow create: if op.matches('^[A-Za-z0-9]{16,48}$')
+        && request.resource.data.keys().hasOnly(['key', 'at'])
+        && request.resource.data.key is string && stamped(request.resource.data);
+    }
+
+    // ---- the guest list ----------------------------------------------------
+    match /people/{key} {
+      allow read: if true;
+      allow create: if validKey(key) && validName(request.resource.data.name)
+        && request.resource.data.keys().hasOnly(['name', 'at']) && stamped(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // ---- nights ------------------------------------------------------------
+    match /nights/{n} {
+      allow read: if true;
+      allow create, update: if freshHostOp(request.resource.data.op)
+        && request.resource.data.status in ['open', 'locked', 'done', 'cancelled']
+        && request.resource.data.title is string && request.resource.data.title.size() <= 60;
+      allow delete: if false;
+
+      match /dates/{d} {
+        allow read: if true;
+        allow create: if hostTouched(n) && request.resource.data.startsAt is timestamp
+          && request.resource.data.keys().hasOnly(['startsAt']);
+        allow delete: if hostTouched(n);
+        allow update: if false;
+      }
+
+      match /rsvps/{id} {
+        allow read: if true;
+        allow create: if nightNow(n).status in ['open', 'locked']
+          && request.resource.data.keys().hasOnly(['dateId', 'nameKey', 'name', 'at'])
+          && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
+          && request.resource.data.dateId is string
+          && id == request.resource.data.dateId + '__' + request.resource.data.nameKey
+          && exists(/databases/$(database)/documents/nights/$(n)/dates/$(request.resource.data.dateId))
+          && stamped(request.resource.data);
+        allow delete: if nightNow(n).status in ['open', 'locked'] || hostTouched(n);
+        allow update: if false;
+      }
+
+      // A movie and its slot doc are written together. Slot ids are
+      // `<nameKey>__<1..5>` and each points at exactly one movie that points
+      // back, so nobody can hold more than five movies per night.
+      match /movies/{m} {
+        allow read: if true;
+        allow create: if nightNow(n).status == 'open'
+          && m.matches('^tt[0-9]{5,10}$')
+          && request.resource.data.keys().hasOnly(['imdbId', 'title', 'year', 'poster', 'runtime',
+               'rating', 'genres', 'trailer', 'description', 'by', 'byName', 'slot', 'at'])
+          && request.resource.data.imdbId == m
+          && request.resource.data.title is string && request.resource.data.title.size() >= 1
+          && request.resource.data.title.size() <= 120
+          && request.resource.data.description is string && request.resource.data.description.size() <= 600
+          && request.resource.data.poster is string && request.resource.data.poster.size() <= 300
+          && request.resource.data.genres is list && request.resource.data.genres.size() <= 6
+          && validKey(request.resource.data.by) && validName(request.resource.data.byName)
+          && request.resource.data.slot is int
+          && request.resource.data.slot >= 1 && request.resource.data.slot <= 5
+          && getAfter(/databases/$(database)/documents/nights/$(n)/slots/$(request.resource.data.by + '__' + string(request.resource.data.slot))).data.movie == m
+          && stamped(request.resource.data);
+        allow delete: if (nightNow(n).status == 'open'
+            && !existsAfter(/databases/$(database)/documents/nights/$(n)/slots/$(resource.data.by + '__' + string(resource.data.slot))))
+          || hostTouched(n);
+        allow update: if false;
+      }
+
+      match /slots/{id} {
+        allow read: if true;
+        allow create: if nightNow(n).status == 'open'
+          && request.resource.data.keys().hasOnly(['movie', 'by', 'slot'])
+          && validKey(request.resource.data.by)
+          && request.resource.data.slot is int
+          && request.resource.data.slot >= 1 && request.resource.data.slot <= 5
+          && id == request.resource.data.by + '__' + string(request.resource.data.slot)
+          && request.resource.data.movie is string
+          && getAfter(/databases/$(database)/documents/nights/$(n)/movies/$(request.resource.data.movie)).data.by == request.resource.data.by
+          && getAfter(/databases/$(database)/documents/nights/$(n)/movies/$(request.resource.data.movie)).data.slot == request.resource.data.slot;
+        allow delete: if !existsAfter(/databases/$(database)/documents/nights/$(n)/movies/$(resource.data.movie));
+        allow update: if false;
+      }
+
+      match /votes/{id} {
+        allow read: if true;
+        allow create: if nightNow(n).status == 'open'
+          && request.resource.data.keys().hasOnly(['movie', 'nameKey', 'name', 'at'])
+          && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
+          && request.resource.data.movie is string
+          && id == request.resource.data.movie + '__' + request.resource.data.nameKey
+          && exists(/databases/$(database)/documents/nights/$(n)/movies/$(request.resource.data.movie))
+          && stamped(request.resource.data);
+        allow delete: if nightNow(n).status == 'open' || hostTouched(n);
+        allow update: if false;
+      }
+
+      match /snacks/{id} {
+        allow read: if true;
+        allow create: if nightNow(n).status in ['open', 'locked']
+          && request.resource.data.keys().hasOnly(['item', 'nameKey', 'name', 'at'])
+          && request.resource.data.item is string
+          && request.resource.data.item.size() >= 1 && request.resource.data.item.size() <= 40
+          && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
+          && stamped(request.resource.data);
+        allow delete: if nightNow(n).status in ['open', 'locked'] || hostTouched(n);
+        allow update: if false;
+      }
+
+      // Reviews open once the locked showtime has passed.
+      match /reviews/{key} {
+        allow read: if true;
+        allow create, update: if nightNow(n).status in ['locked', 'done']
+          && nightNow(n).lockedStartsAt is timestamp && request.time > nightNow(n).lockedStartsAt
+          && request.resource.data.keys().hasOnly(['stars', 'line', 'nameKey', 'name', 'at'])
+          && key == request.resource.data.nameKey && validKey(key)
+          && validName(request.resource.data.name)
+          && request.resource.data.stars is int
+          && request.resource.data.stars >= 1 && request.resource.data.stars <= 5
+          && request.resource.data.line is string && request.resource.data.line.size() <= 140
+          && stamped(request.resource.data);
+        allow delete: if false;
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "cleanUrls": true,
+  "outputDirectory": "public",
+  "installCommand": "echo no-install",
+  "buildCommand": "echo static site",
+  "headers": [
+    { "source": "/js/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] }
+  ]
+}
