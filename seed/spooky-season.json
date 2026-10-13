@@ -223,7 +223,74 @@
         "Found footage"
       ],
       "imdb": "tt18968540"
+    },
+    {
+      "q": "It Follows",
+      "year": 2014,
+      "imdb": "tt3235888",
+      "tags": [
+        "Rewatch"
+      ]
+    },
+    {
+      "q": "The Wailing",
+      "year": 2016,
+      "imdb": "tt5215952",
+      "tags": [
+        "Foreign",
+        "Rewatch"
+      ]
+    },
+    {
+      "q": "Host",
+      "year": 2020,
+      "imdb": "tt12749596",
+      "tags": [
+        "Unseen",
+        "Found footage"
+      ]
+    },
+    {
+      "q": "Anything for Jackson",
+      "year": 2020,
+      "imdb": "tt12137964",
+      "tags": [
+        "Unseen"
+      ]
+    },
+    {
+      "q": "Speak No Evil",
+      "year": 2022,
+      "imdb": "tt14253846",
+      "tags": [
+        "Foreign",
+        "Unseen"
+      ]
+    },
+    {
+      "q": "Talk to Me",
+      "year": 2023,
+      "imdb": "tt10638522",
+      "tags": [
+        "Rewatch"
+      ]
+    },
+    {
+      "q": "Nosferatu",
+      "year": 2024,
+      "imdb": "tt5040012",
+      "tags": [
+        "Unseen"
+      ]
+    },
+    {
+      "q": "28 Years Later",
+      "year": 2025,
+      "imdb": "tt10548174",
+      "tags": [
+        "Unseen"
+      ]
     }
   ],
-  "source": "Lucas's horror list, pasted 2026-10-13"
+  "source": "Lucas's horror lists, pasted 2026-10-13 (two batches)"
 }
