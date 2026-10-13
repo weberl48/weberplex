@@ -43,7 +43,7 @@ Everything updates live on every open phone.
 ## How it's built
 
 There is no server. The static site in `public/` talks straight to Firestore
-(project id `speakeasy-picture-show`, which Firebase can't rename; owned by weberlucasdev@gmail.com), and
+(project id `speakeasy-picture-show`, which Firebase can't rename), and
 **`firestore.rules` is the whole backend**:
 
 - Guests are identified by name only (a deliberate choice: no accounts).
@@ -122,3 +122,22 @@ emulator.
   only RSVPs + snacks once a night is locked; a guest page load reads every doc
   of the current night once. Watch usage in the Firebase console before
   shortening either poll.
+
+## Making changes
+
+Anyone can open a pull request; people Lucas adds as collaborators can push.
+
+1. Clone it, then `npm install` (Node 18+; Java is needed for the Firestore
+   emulator the tests use).
+2. Run the site locally with `python -m http.server 5173 --directory public`
+   and open http://localhost:5173/?emu with the emulator running
+   (`firebase emulators:start --only firestore --project speakeasy-picture-show`),
+   so you never touch the real ballot.
+3. Before opening a PR: `npm test` and `npm run test:e2e`.
+4. When a change lands on `main`, the site redeploys to weberplex.vercel.app.
+   Changes to `firestore.rules` go live only when Lucas runs
+   `firebase deploy --only firestore:rules`, so call them out in the PR.
+
+Never commit `.env.local` (it holds the host key; `.gitignore` already
+excludes it). The Firebase web config in `public/js/config.js` is public by
+design: `firestore.rules` is what protects the data.
