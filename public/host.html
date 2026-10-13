@@ -82,6 +82,19 @@
         </form>
       </div>
 
+      <div class="host-card" id="houseCard" hidden style="margin-top:14px">
+        <h3>House picks</h3>
+        <p class="hint">Movies you add here go straight onto the ballot and don't use anyone's five.</p>
+        <div class="chips" id="houseTags" role="group" aria-label="Tags for the next house pick"></div>
+        <form class="row" id="houseForm">
+          <label class="sr-only" for="houseQ">Search for a house pick</label>
+          <input class="field" id="houseQ" type="search" placeholder="Search a movie…" autocomplete="off" style="flex:1 1 14rem" required>
+          <button class="btn btn-ghost" type="submit">Search</button>
+        </form>
+        <div class="results" id="houseResults" hidden></div>
+        <p class="msg" id="houseMsg" role="status"></p>
+      </div>
+
       <div class="host-card" id="lockCard" hidden style="margin-top:14px">
         <h3>Lock the show</h3>
         <span class="label">Night</span>

@@ -1,11 +1,14 @@
 """End-to-end run of a whole movie night against the Firestore emulator.
 
-Needs: the emulator on :8181 (`firebase emulators:start --only firestore
---project speakeasy-picture-show`) and the site on :5173
-(`python -m http.server 5173 --directory public`). Run: python tests/e2e.py [shots_dir]
+Run: npm run test:e2e   (wraps this in the emulator; serves public/ itself
+on :5173 unless something is already listening there).
+Screenshots go to the first argument, default ./e2e-shots.
 """
+import functools
+import http.server
 import json
 import sys
+import threading
 import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -27,6 +30,22 @@ def emu(method, path, body=None):
                                  headers={'Content-Type': 'application/json'})
     with urllib.request.urlopen(req) as r:
         return r.read()
+
+
+class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+
+def ensure_site():
+    try:
+        urllib.request.urlopen(SITE, timeout=1)
+        return
+    except OSError:
+        pass
+    public = Path(__file__).resolve().parent.parent / 'public'
+    srv = http.server.ThreadingHTTPServer(('127.0.0.1', 5173), functools.partial(QuietHandler, directory=str(public)))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
 
 
 def reset():
@@ -67,6 +86,7 @@ def pick(page, term, expect_msg='Added'):
 
 
 def main():
+    ensure_site()
     reset()
     errors = []
     with sync_playwright() as p:
@@ -101,6 +121,15 @@ def main():
         expect(host.locator('#nightSec')).to_be_visible()
         expect(host.locator('#dateList .date-item')).to_have_count(2)
 
+        # Host adds a tagged house pick from the console.
+        host.click('#houseTags [data-house-tag="Rewatch"]')
+        host.fill('#houseQ', 'the descent')
+        host.click('#houseForm button[type=submit]')
+        house_first = host.locator('#houseResults .result').first
+        expect(house_first).to_be_visible(timeout=10000)
+        house_first.click()
+        expect(host.locator('#houseMsg')).to_contain_text('as a house pick', timeout=10000)
+
         # Guests sign in and RSVP.
         join(sam, 'Sam')
         expect(sam.locator('#board')).to_contain_text('Spooky Season')
@@ -125,6 +154,17 @@ def main():
         taken.click()
         expect(jo.locator('#pickMsg')).to_contain_text('already on the ballot')
         jo_title = pick(jo, 'ratatouille')
+
+        # The house pick shows its tag, doesn't use anyone's five, and filters.
+        house_card = sam.locator('.card', has_text='House pick')
+        expect(house_card).to_have_count(1)
+        expect(house_card.locator('.tag-chip')).to_have_text('Rewatch')
+        sam.click('#shelfChips [data-tag="Rewatch"]')
+        expect(sam.locator('#ballot .card')).to_have_count(1)
+        sam.click('#shelfChips [data-tag="Guest picks"]')
+        expect(sam.locator('#ballot .card')).to_have_count(6)
+        sam.click('#shelfChips [data-tag="All"]')
+        expect(sam.locator('#ballot .card')).to_have_count(7)
 
         # Votes: one each -> tie at the top.
         sam.locator('.card', has_text=titles[0]).locator('.vote').click()

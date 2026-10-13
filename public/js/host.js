@@ -7,6 +7,7 @@ import { watchNights, watchNight } from './store.js';
 import * as L from './logic.js';
 import { $, esc, faces, posterImg, saveLocal, loadLocal, toast, writeError, armed } from './ui.js';
 import { spinReel } from './reel.js';
+import { searchMovies, movieMeta } from './cinemeta.js';
 
 const A = makeActions(db, F);
 const S = { key: null, nights: [], current: null, sub: null, chosenDate: null, chosenMovie: null, verified: false };
@@ -73,6 +74,7 @@ function render() {
     ? `${tal.movies.length} pictures · ${new Set((S.sub?.votes || []).map((v) => v.nameKey)).size} voters`
     : `${n.lockedMovie?.title} · ${L.showtimeLong(n.lockedStartsAt)}`;
   $('#openCard').hidden = n.status !== 'open';
+  $('#houseCard').hidden = n.status !== 'open';
   $('#lockCard').hidden = n.status !== 'open';
   $('#lockedCard').hidden = n.status !== 'locked';
   if (n.status === 'open') renderOpen(tal);
@@ -223,6 +225,64 @@ $('#lockBtn').addEventListener('click', async () => {
   } catch (err) {
     $('#lockMsg').textContent = writeError(err);
     $('#lockMsg').className = 'msg bad';
+  }
+});
+
+// ---- house picks -----------------------------------------------------------
+const houseTags = new Set();
+$('#houseTags').innerHTML = L.SHELF_ORDER.map((t) =>
+  `<button class="chip" type="button" data-house-tag="${esc(t)}" aria-pressed="false">${esc(t)}</button>`).join('');
+$('#houseTags').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-house-tag]');
+  if (!b) return;
+  const t = b.dataset.houseTag;
+  if (houseTags.has(t)) houseTags.delete(t); else houseTags.add(t);
+  b.classList.toggle('on', houseTags.has(t));
+  b.setAttribute('aria-pressed', String(houseTags.has(t)));
+});
+
+let houseResults = [];
+$('#houseForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const q = $('#houseQ').value.trim();
+  if (q.length < 2) return;
+  $('#houseResults').hidden = false;
+  $('#houseResults').innerHTML = '<p class="empty">Searching…</p>';
+  try {
+    houseResults = await searchMovies(q);
+    const pool = new Set((S.sub?.movies || []).map((m) => m.imdbId));
+    $('#houseResults').innerHTML = houseResults.length
+      ? houseResults.map((m) => {
+        const id = m.imdb_id || m.id;
+        const taken = pool.has(id);
+        return `<button class="result${taken ? ' taken' : ''}" type="button" data-house-add="${esc(id)}">
+            ${posterImg(m.poster, '')}
+            <span><span class="t">${esc(m.name)}</span><br><span class="y">${esc(m.releaseInfo || '')}</span></span>
+            <span class="add">${taken ? 'On the ballot' : 'Add'}</span></button>`;
+      }).join('')
+      : `<p class="empty">Nothing called “${esc(q)}”.</p>`;
+  } catch (err) {
+    $('#houseResults').innerHTML = `<p class="empty">${esc(err.message)}</p>`;
+  }
+});
+$('#houseResults').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-house-add]');
+  if (!b || b.classList.contains('taken')) return;
+  const id = b.dataset.houseAdd;
+  const fromList = houseResults.find((m) => (m.imdb_id || m.id) === id);
+  $('#houseMsg').textContent = 'Adding…';
+  $('#houseMsg').className = 'msg';
+  try {
+    const meta = (await movieMeta(id).catch(() => null)) || fromList;
+    const movie = { ...L.movieFromMeta({ ...meta, poster: meta.poster || fromList?.poster }), shelf: [...houseTags] };
+    await A.addHousePicks(S.key, S.current.id, [movie], S.sub?.movies || []);
+    $('#houseMsg').textContent = `Added ${movie.title} as a house pick.`;
+    $('#houseMsg').className = 'msg good';
+    $('#houseQ').value = '';
+    $('#houseResults').hidden = true;
+  } catch (err) {
+    $('#houseMsg').textContent = writeError(err);
+    $('#houseMsg').className = 'msg bad';
   }
 });
 

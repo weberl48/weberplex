@@ -21,6 +21,7 @@ const S = {
   openPlots: new Set(),
   lastVotes: new Map(),
   stars: 0,
+  shelf: 'All',
 };
 let unNight = null;
 const busy = new Set();
@@ -177,14 +178,33 @@ function renderPicks() {
   }).join('');
 }
 
+function renderShelfChips(tal) {
+  const tags = L.shelfTags(tal.movies);
+  if (S.shelf !== 'All' && S.shelf !== 'Guest picks' && !tags.includes(S.shelf)) S.shelf = 'All';
+  $('#shelfChips').hidden = !tags.length;
+  if (!tags.length) return;
+  const count = (t) => tal.movies.filter((m) => (m.shelf || []).includes(t)).length;
+  const options = [['All', tal.movies.length], ...tags.map((t) => [t, count(t)])];
+  const picked = tal.movies.filter((m) => !L.isHouse(m)).length;
+  if (picked) options.push(['Guest picks', picked]);
+  $('#shelfChips').innerHTML = options.map(([t, n]) =>
+    `<button class="chip${S.shelf === t ? ' on' : ''}" type="button" data-action="shelf" data-tag="${esc(t)}" aria-pressed="${S.shelf === t}">${esc(t)} <span class="n">${n}</span></button>`).join('');
+}
+
+const inShelf = (m) => S.shelf === 'All'
+  || (S.shelf === 'Guest picks' ? !L.isHouse(m) : (m.shelf || []).includes(S.shelf));
+
 function renderBallot(tal) {
+  renderShelfChips(tal);
   if (!tal.movies.length) {
     $('#ballot').innerHTML = '<p class="empty">No pictures yet. Search above and put the first one up.</p>';
     return;
   }
   const leadIds = new Set(tal.leaders.map((m) => m.imdbId));
   $('#ballot').innerHTML = tal.movies.map((m, i) => {
+    if (!inShelf(m)) return '';
     const mine = S.me && m.by === S.me.nameKey;
+    const house = L.isHouse(m);
     const voted = S.me && m.voters.some((v) => v.nameKey === S.me.nameKey);
     const lead = leadIds.has(m.imdbId);
     const prev = S.lastVotes.get(m.imdbId);
@@ -198,7 +218,8 @@ function renderBallot(tal) {
         <div class="card-body">
           <h3>${esc(m.title)}</h3>
           ${meta ? `<p class="meta">${esc(meta)}</p>` : ''}
-          <p class="by">Picked by ${mine ? 'you' : esc(m.byName)}</p>
+          ${m.shelf?.length ? `<div class="tags">${m.shelf.map((t) => `<span class="tag-chip" data-tag="${esc(t)}">${esc(t)}</span>`).join('')}</div>` : ''}
+          <p class="by">${house ? 'House pick' : `Picked by ${mine ? 'you' : esc(m.byName)}`}</p>
           <div class="card-actions">
             <button class="vote${voted ? ' on' : ''}${bump ? ' bump' : ''}" type="button" data-action="vote" data-id="${esc(m.imdbId)}"
               aria-pressed="${!!voted}" aria-label="I'd watch ${esc(m.title)} (${m.votes} vote${m.votes === 1 ? '' : 's'})">${THUMB}<span class="n">${m.votes}</span></button>
@@ -391,6 +412,10 @@ document.addEventListener('click', (e) => {
       once(`vote:${id}`, () => A.setVote(night.id, id, me, on));
       break;
     }
+    case 'shelf':
+      S.shelf = el.dataset.tag;
+      render();
+      break;
     case 'plot':
       if (S.openPlots.has(id)) S.openPlots.delete(id); else S.openPlots.add(id);
       render();

@@ -83,27 +83,33 @@ service cloud.firestore {
         allow update: if false;
       }
 
-      // A movie and its slot doc are written together. Slot ids are
+      // A guest's movie and its slot doc are written together. Slot ids are
       // `<nameKey>__<1..5>` and each points at exactly one movie that points
       // back, so nobody can hold more than five movies per night.
+      // House picks (host-seeded) carry by == '' and slot 0: no guest name
+      // can produce an empty key, and they never touch anyone's five.
       match /movies/{m} {
         allow read: if true;
-        allow create: if nightNow(n).status == 'open'
-          && m.matches('^tt[0-9]{5,10}$')
+        allow create: if m.matches('^tt[0-9]{5,10}$')
           && request.resource.data.keys().hasOnly(['imdbId', 'title', 'year', 'poster', 'runtime',
-               'rating', 'genres', 'trailer', 'description', 'by', 'byName', 'slot', 'at'])
+               'rating', 'genres', 'trailer', 'description', 'by', 'byName', 'slot', 'shelf', 'at'])
           && request.resource.data.imdbId == m
           && request.resource.data.title is string && request.resource.data.title.size() >= 1
           && request.resource.data.title.size() <= 120
           && request.resource.data.description is string && request.resource.data.description.size() <= 600
           && request.resource.data.poster is string && request.resource.data.poster.size() <= 300
           && request.resource.data.genres is list && request.resource.data.genres.size() <= 6
-          && validKey(request.resource.data.by) && validName(request.resource.data.byName)
+          && (!('shelf' in request.resource.data)
+              || (request.resource.data.shelf is list && request.resource.data.shelf.size() <= 4))
+          && validName(request.resource.data.byName)
           && request.resource.data.slot is int
-          && request.resource.data.slot >= 1 && request.resource.data.slot <= 5
-          && getAfter(/databases/$(database)/documents/nights/$(n)/slots/$(request.resource.data.by + '__' + string(request.resource.data.slot))).data.movie == m
-          && stamped(request.resource.data);
-        allow delete: if (nightNow(n).status == 'open'
+          && stamped(request.resource.data)
+          && ((nightNow(n).status == 'open'
+               && validKey(request.resource.data.by)
+               && request.resource.data.slot >= 1 && request.resource.data.slot <= 5
+               && getAfter(/databases/$(database)/documents/nights/$(n)/slots/$(request.resource.data.by + '__' + string(request.resource.data.slot))).data.movie == m)
+            || (hostTouched(n) && request.resource.data.by == '' && request.resource.data.slot == 0));
+        allow delete: if (nightNow(n).status == 'open' && resource.data.slot >= 1
             && !existsAfter(/databases/$(database)/documents/nights/$(n)/slots/$(resource.data.by + '__' + string(resource.data.slot))))
           || hostTouched(n);
         allow update: if false;

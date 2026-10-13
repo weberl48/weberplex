@@ -322,6 +322,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .mini:hover { color: var(--screen); border-color: var(--faint); }
 .plot { margin: 0; font-size: 12px; color: var(--dim); }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag-chip {
+  padding: 2px 7px; border-radius: 3px; border: 1px solid var(--rule);
+  font: 700 10px/1.4 var(--f-body); font-stretch: 80%; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim);
+}
+.tag-chip[data-tag="Unseen"] { border-color: var(--bulb); color: var(--bulb); }
+.tag-chip[data-tag="Rewatch"] { border-color: var(--go); color: var(--go); }
+.tag-chip[data-tag="Recent favorite"] { background: var(--bulb); border-color: var(--bulb); color: var(--board-ink); }
+.tag-chip[data-tag="Foreign"] { border-color: var(--curtain-hi); color: #f0a9b8; }
+.shelf-filter { margin-bottom: 14px; }
+.chip.on { background: var(--bulb); border-color: var(--bulb); color: var(--board-ink); }
+.chip .n { font-family: var(--f-mono); font-size: 11px; opacity: 0.75; margin-left: 2px; }
 .voters { display: flex; align-items: center; gap: 6px; min-height: 24px; }
 .voters .faces .face { border-color: var(--velvet-2); }
 

@@ -1,7 +1,7 @@
 // Every write the site makes. Firestore functions are injected (`F`) so the
 // browser passes the CDN SDK and the rules tests pass the npm SDK — the tests
 // exercise exactly these batches against firestore.rules.
-import { MAX_PICKS, cleanName, nameKey, nextFreeSlot } from './logic.js';
+import { HOUSE, MAX_PICKS, cleanName, nameKey, nextFreeSlot } from './logic.js';
 
 function secureId(len = 24) {
   const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -186,11 +186,28 @@ export function makeActions(db, F) {
       await batch.commit();
     },
 
+    // House picks: host-seeded, tagged, and outside everyone's five (slot 0).
+    // Skips titles already on the ballot. Returns the ids it added.
+    async addHousePicks(hostKey, nightId, movies, pool = []) {
+      const taken = new Set(pool.map((m) => m.imdbId));
+      const fresh = movies.filter((m) => !taken.has(m.imdbId));
+      if (!fresh.length) return [];
+      const { batch, op } = hostBatch(hostKey);
+      batch.update(night(nightId), { op });
+      for (const m of fresh) {
+        batch.set(sub(nightId, 'movies', m.imdbId), {
+          ...m, shelf: (m.shelf || []).slice(0, 4), by: HOUSE, byName: 'The house', slot: 0, at: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+      return fresh.map((m) => m.imdbId);
+    },
+
     async removeMovie(hostKey, nightId, movie, voteNameKeys = []) {
       const { batch, op } = hostBatch(hostKey);
       batch.update(night(nightId), { op });
       batch.delete(sub(nightId, 'movies', movie.imdbId));
-      batch.delete(sub(nightId, 'slots', `${movie.by}__${movie.slot}`));
+      if (movie.slot >= 1) batch.delete(sub(nightId, 'slots', `${movie.by}__${movie.slot}`));
       for (const k of voteNameKeys) batch.delete(sub(nightId, 'votes', `${movie.imdbId}__${k}`));
       await batch.commit();
     },

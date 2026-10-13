@@ -184,6 +184,34 @@ test('names are validated', async () => {
   assert.deepEqual(await A.join('  Zoë   Q '), { name: 'Zoë Q', nameKey: 'zoe-q' });
 });
 
+test('house picks: host-only, tagged, outside everyone’s five', async () => {
+  const { id } = await openNight();
+  const house = Array.from({ length: 27 }, (_, i) => movie(i + 10, { shelf: i % 2 ? ['Rewatch'] : ['Foreign', 'Found footage'] }));
+  await assert.rejects(A.addHousePicks('wrong-key-wrong-key-wrong', id, house));
+  assert.equal((await A.addHousePicks(KEY, id, house)).length, 27);
+  assert.deepEqual(await A.addHousePicks(KEY, id, house.slice(0, 3), house), []); // already on the ballot
+  const m = (await getDoc(doc(db, 'nights', id, 'movies', house[0].imdbId))).data();
+  assert.equal(m.by, '');
+  assert.equal(m.slot, 0);
+  assert.deepEqual(m.shelf, ['Foreign', 'Found footage']);
+
+  // A guest still has all five picks, and can vote on house picks.
+  const sam = await A.join('Sam');
+  for (let i = 1; i <= 5; i++) await A.suggest(id, sam, movie(i));
+  await assertSucceeds(A.setVote(id, house[0].imdbId, sam, true));
+
+  // Guests can't forge a house pick or delete one.
+  const forged = writeBatch(db);
+  forged.set(doc(db, 'nights', id, 'movies', 'tt9999990'), { ...movie(99), imdbId: 'tt9999990', by: '', byName: 'The house', slot: 0, at: serverTimestamp() });
+  await assertFails(forged.commit());
+  const del = writeBatch(db);
+  del.delete(doc(db, 'nights', id, 'movies', house[1].imdbId));
+  await assertFails(del.commit());
+
+  // The host can remove one (no slot doc to clean up).
+  await assertSucceeds(A.removeMovie(KEY, id, m, ['sam']));
+});
+
 test('cancelled and done nights accept nothing from guests', async () => {
   const { id, dates } = await openNight();
   const sam = await A.join('Sam');

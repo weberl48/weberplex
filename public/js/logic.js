@@ -2,6 +2,22 @@
 
 export const MAX_PICKS = 5;
 
+// House picks (host-seeded) are owned by the empty key, which no guest name
+// can produce (see validKey in firestore.rules).
+export const HOUSE = '';
+export const isHouse = (m) => m?.by === HOUSE;
+
+// Shelf tags in display order; anything else sorts after these.
+export const SHELF_ORDER = ['Unseen', 'Rewatch', 'Recent favorite', 'Foreign', 'Found footage'];
+
+// The filter chips a ballot needs: tags actually present, in shelf order.
+export function shelfTags(movies) {
+  const present = new Set(movies.flatMap((m) => m.shelf || []));
+  const known = SHELF_ORDER.filter((t) => present.has(t));
+  const rest = [...present].filter((t) => !SHELF_ORDER.includes(t)).sort();
+  return [...known, ...rest];
+}
+
 export function cleanName(raw) {
   return String(raw ?? '').replace(/\s+/g, ' ').trim().slice(0, 24);
 }
@@ -159,11 +175,4 @@ export function movieFromMeta(meta) {
     trailer: String(trailer).slice(0, 32),
     description: String(meta.description || '').slice(0, 600),
   };
-}
-
-export function randomId(len = 24, rand = Math.random) {
-  const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let out = '';
-  for (let i = 0; i < len; i++) out += abc[Math.floor(rand() * abc.length)];
-  return out;
 }
