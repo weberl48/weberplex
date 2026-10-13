@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   nameKey, cleanName, initials, tally, nextFreeSlot, countdownParts, countdownText, buildIcs,
   ticketNumber, reviewSummary, pickRandom, movieFromMeta, parseRuntime,
-  tasteProfile, recommend, isForeign, ballotGenre, stremioUrl,
+  tasteProfile, recommend, isForeign, ballotGenre, stremioUrl, nextPlace, placeLabel,
 } from '../public/js/logic.js';
 
 test('names normalize to rule-safe keys', () => {
@@ -101,6 +101,16 @@ test('recommendations rank shared directors first and explain why', () => {
   assert.equal(isForeign({ country: 'United States, Canada' }), false);
   assert.equal(ballotGenre([{ genres: ['Horror', 'Drama'] }, { genres: ['Horror'] }, { genres: ['Comedy'] }]), 'Horror');
   assert.equal(stremioUrl('tt1'), 'https://web.stremio.com/#/detail/movie/tt1');
+});
+
+test('hosting rotates Weber -> Ferger -> Libby', () => {
+  const P = ['Weber', 'Ferger', 'Libby'];
+  assert.equal(nextPlace([], P), 'Weber');
+  assert.equal(nextPlace([{ status: 'open' }, { status: 'done', lockedPlace: 'Weber' }], P), 'Ferger');
+  assert.equal(nextPlace([{ status: 'locked', lockedPlace: 'Libby' }], P), 'Weber');
+  assert.equal(nextPlace([{ status: 'cancelled', lockedPlace: 'Ferger' }, { status: 'done', lockedPlace: 'Ferger' }], P), 'Libby');
+  assert.equal(placeLabel('Ferger'), "Ferger's");
+  assert.equal(placeLabel(''), '');
 });
 
 test('movieFromMeta maps Cinemeta fields within rule limits', () => {

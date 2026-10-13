@@ -20,6 +20,11 @@ locks the night and the picture; Home Assistant takes it from there.
 | Showing (after showtime) | Same ticket, plus star ratings and one-line reviews |
 | Finished | Moves to Past screenings with the average rating |
 
+Hosting rotates between the Webers, the Fergers and Libby (`PLACES` in
+`public/js/config.js`). Each candidate night carries whose house it's at; a
+new night defaults to the next house after the last one. The house shows on
+the showtimes, marquee, ticket and calendar file.
+
 The host console books a night (title plus any number of candidate times),
 adds or removes nights, adds **house picks** (tagged, outside everyone's five;
 same browse tabs, with "For the crowd"), removes picks, renames, sends any
@@ -134,7 +139,8 @@ Anyone can open a pull request; people Lucas adds as collaborators can push.
    (`firebase emulators:start --only firestore --project speakeasy-picture-show`),
    so you never touch the real ballot.
 3. Before opening a PR: `npm test` and `npm run test:e2e`.
-4. When a change lands on `main`, the site redeploys to weberplex.vercel.app.
+4. When a change lands on `master`, Vercel redeploys weberplex.vercel.app
+   (pull requests get their own preview link).
    Changes to `firestore.rules` go live only when Lucas runs
    `firebase deploy --only firestore:rules`, so call them out in the PR.
 

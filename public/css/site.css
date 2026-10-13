@@ -215,6 +215,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .st-main { min-width: 0; display: grid; gap: 4px; }
 .st-time { font-weight: 700; font-size: var(--step-1); }
 .st-going { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: var(--step--1); min-width: 0; }
+.st-place { font: 600 var(--step--1)/1 var(--f-body); color: var(--bulb); margin-left: 4px; }
 .st-flag { font: 700 10px/1 var(--f-body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--board-ink); background: var(--bulb); padding: 4px 6px; border-radius: 3px; }
 .st-check {
   font: 700 var(--step--1)/1 var(--f-body); font-stretch: 80%; letter-spacing: 0.06em; text-transform: uppercase;
@@ -454,7 +455,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .host-card { padding: 1rem; border-radius: var(--radius); background: var(--velvet-2); border: 1px solid var(--rule); display: grid; gap: 12px; }
 .host-card h3 { margin: 0; font-size: var(--step-1); }
 .date-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.date-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 4px; background: var(--velvet-3); font-size: var(--step--1); }
+.date-item { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 8px 10px; border-radius: 4px; background: var(--velvet-3); font-size: var(--step--1); }
+.date-item .field[type=datetime-local] { flex: 1 1 12rem; }
+.field.place { flex: 0 1 9rem; width: auto; }
 .pick-list { display: grid; gap: 6px; }
 .pick-opt { display: grid; grid-template-columns: auto 36px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 4px; background: var(--velvet-3); cursor: pointer; font-size: var(--step--1); }
 .pick-opt img, .pick-opt .noimg { width: 36px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 2px; background: var(--velvet); }

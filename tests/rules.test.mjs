@@ -224,6 +224,22 @@ test('only the host can point the Shield at a movie', async () => {
   await assertFails(A.showOnShield(KEY, { ...movie(3), imdbId: 'not-an-id' }));
 });
 
+test('nights carry whose house they are at, through lock and reopen', async () => {
+  const id = await A.createNight(KEY, { title: 'At Libby', dates: [{ startsAt: new Date(Date.now() + 86400000), place: 'Libby' }] });
+  const [d] = (await getDocs(collection(db, 'nights', id, 'dates'))).docs.map((x) => ({ id: x.id, ...x.data(), startsAt: x.data().startsAt.toDate() }));
+  assert.equal(d.place, 'Libby');
+  const sam = await A.join('Sam');
+  await A.suggest(id, sam, movie(1));
+  const m = (await getDoc(doc(db, 'nights', id, 'movies', movie(1).imdbId))).data();
+  await A.lock(KEY, id, d, m);
+  assert.equal((await getDoc(doc(db, 'nights', id))).data().lockedPlace, 'Libby');
+  await A.reopen(KEY, id);
+  assert.equal((await getDoc(doc(db, 'nights', id))).data().lockedPlace, null);
+  await assertSucceeds(A.addDate(KEY, id, new Date(), 'x'.repeat(40)));
+  const places = (await getDocs(collection(db, 'nights', id, 'dates'))).docs.map((x) => x.data().place);
+  assert.ok(places.includes('x'.repeat(30)), 'long house names are trimmed to the rule limit');
+});
+
 test('cancelled and done nights accept nothing from guests', async () => {
   const { id, dates } = await openNight();
   const sam = await A.join('Sam');

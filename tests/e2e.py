@@ -117,6 +117,7 @@ def main():
         host.locator('#newDates input').first.fill(local_input(future))
         host.click('#addNewDate')
         host.locator('#newDates input').nth(1).fill(local_input(past))
+        host.locator('#newDates select').nth(1).select_option('Ferger')
         host.click('#newForm button[type=submit]')
         expect(host.locator('#nightSec')).to_be_visible()
         expect(host.locator('#dateList .date-item')).to_have_count(2)
@@ -140,6 +141,7 @@ def main():
         jo.locator('.showtime').nth(1).click()  # the future night (dates sort by time)
         expect(jo.locator('.showtime').nth(1)).to_contain_text('2 in')
         expect(jo.locator('.showtime').nth(1)).to_contain_text('Most people')
+        expect(jo.locator('.showtime').nth(0)).to_contain_text("at Ferger's")  # the past night, sorted first
 
         # Five picks, then the sixth is refused.
         titles = [pick(sam, t) for t in ('dune part two', 'alien', 'jaws', 'paddington', 'heat')]
@@ -239,6 +241,8 @@ def main():
         host.locator('#lockDates input').nth(0).check()
         host.click('#lockBtn')
         expect(sam.locator('#board')).to_contain_text('Now showing')
+        expect(sam.locator('#board')).to_contain_text("at Ferger's")
+        expect(sam.locator('.ticket')).to_contain_text("Ferger's")
         expect(sam.locator('#reviewSec')).to_be_visible()
 
         # Reviews.

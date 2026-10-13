@@ -67,8 +67,8 @@ test('open night reports leader, best date and tie', async () => {
 
 test('locked night reports the show, warm-up time and attendees', async () => {
   const t1 = new Date('2030-02-01T01:00:00Z');
-  const id = await A.createNight(KEY, { title: '', dates: [t1] });
-  const [date] = (await getDocs(collection(db, 'nights', id, 'dates'))).docs.map((d) => ({ id: d.id, startsAt: d.data().startsAt.toDate() }));
+  const id = await A.createNight(KEY, { title: '', dates: [{ startsAt: t1, place: 'Ferger' }] });
+  const [date] = (await getDocs(collection(db, 'nights', id, 'dates'))).docs.map((d) => ({ id: d.id, ...d.data(), startsAt: d.data().startsAt.toDate() }));
   const sam = await A.join('Sam'); const al = await A.join('Al');
   await A.setRsvp(id, date.id, sam, true); await A.setRsvp(id, date.id, al, true);
   await A.suggest(id, sam, movie(3));
@@ -77,6 +77,7 @@ test('locked night reports the show, warm-up time and attendees', async () => {
   const s = await status();
   assert.equal(s.state, 'locked');
   assert.equal(s.starts_at, t1.toISOString());
+  assert.equal(s.location, 'Ferger');
   assert.equal(s.warmup_at, new Date(t1.getTime() - 30 * 60000).toISOString());
   assert.equal(s.ends_at, new Date(t1.getTime() + 101 * 60000).toISOString());
   assert.equal(s.movie_title, 'Movie 3');

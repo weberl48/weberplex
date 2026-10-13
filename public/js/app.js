@@ -120,7 +120,7 @@ function renderBoard(p, tal) {
   } else {
     kicker = p === 'showing' ? 'Now showing' : (n.title ? `${n.title} · now booking` : 'Now booking');
     title = n.lockedMovie?.title || 'Movie night';
-    sub = n.lockedStartsAt ? L.showtimeLong(n.lockedStartsAt) : '';
+    sub = [n.lockedStartsAt && L.showtimeLong(n.lockedStartsAt), n.lockedPlace && `at ${L.placeLabel(n.lockedPlace)}`].filter(Boolean).join(' · ');
     count = p === 'showing' ? 'Rolling now' : `Starts in ${L.countdownText(n.lockedStartsAt)}`;
   }
   $('#board').innerHTML = `
@@ -158,10 +158,10 @@ function renderShowtimes(tal) {
     const st = L.showtimeParts(d.startsAt);
     return `
       <button class="showtime${on ? ' on' : ''}" type="button" data-action="rsvp" data-id="${esc(d.id)}" aria-pressed="${on}"
-        aria-label="${esc(L.showtimeLong(d.startsAt))}: ${d.count} going${best ? ', most people' : ''}">
+        aria-label="${esc(L.showtimeLong(d.startsAt))}${d.place ? ` at ${esc(L.placeLabel(d.place))}` : ''}: ${d.count} going${best ? ', most people' : ''}">
         <span class="st-cal" aria-hidden="true"><span class="dow">${esc(st.dow)}</span><span class="day">${esc(st.day)}</span><span class="mon">${esc(st.mon)}</span></span>
         <span class="st-main">
-          <span class="st-time">${esc(st.time)} ${best ? '<span class="st-flag">Most people</span>' : ''}</span>
+          <span class="st-time">${esc(st.time)}${d.place ? ` <span class="st-place">at ${esc(L.placeLabel(d.place))}</span>` : ''} ${best ? '<span class="st-flag">Most people</span>' : ''}</span>
           <span class="st-going">${faces(d.going, S.me?.nameKey)} ${d.count ? `${d.count} in` : 'Nobody yet'}</span>
         </span>
         <span class="st-check">${on ? 'I’m in' : 'Count me in'}</span>
@@ -308,7 +308,7 @@ function renderTicket(tal) {
     $('#ticket').innerHTML = `
       <div class="host-card">
         <h3>You're not on the list for this one yet</h3>
-        <p class="hint">${esc(m.title || 'The movie')} · ${esc(L.showtimeLong(n.lockedStartsAt))}</p>
+        <p class="hint">${esc(m.title || 'The movie')} · ${esc(L.showtimeLong(n.lockedStartsAt))}${n.lockedPlace ? ` · at ${esc(L.placeLabel(n.lockedPlace))}` : ''}</p>
         <div class="row"><button class="btn btn-bulb" type="button" data-action="rsvp" data-id="${esc(n.lockedDateId)}">Count me in</button></div>
       </div>`;
     return;
@@ -321,6 +321,7 @@ function renderTicket(tal) {
         <h3>${esc(m.title)}</h3>
         <dl>
           <dt>When</dt><dd>${esc(L.showtimeLong(n.lockedStartsAt))}</dd>
+          ${n.lockedPlace ? `<dt>Where</dt><dd>${esc(L.placeLabel(n.lockedPlace))}</dd>` : ''}
           <dt>Guest</dt><dd>${esc(S.me.name)}</dd>
           ${meta ? `<dt>Running</dt><dd>${esc(meta)}</dd>` : ''}
           <dt>Seat</dt><dd>First come, first served</dd>
@@ -398,7 +399,7 @@ function renderPast() {
     return `
       <div class="past-row">
         ${posterImg(n.lockedMovie.poster, n.lockedMovie.title)}
-        <div><div class="t">${esc(n.lockedMovie.title)}</div><div class="d">${esc([when, n.title].filter(Boolean).join(' · '))}</div></div>
+        <div><div class="t">${esc(n.lockedMovie.title)}</div><div class="d">${esc([when, n.lockedPlace && L.placeLabel(n.lockedPlace), n.title].filter(Boolean).join(' · '))}</div></div>
         <span class="s">${r.count ? `★ ${r.avg}` : ''}</span>
       </div>`;
   }).join('');
@@ -648,7 +649,7 @@ function downloadIcs() {
     start: n.lockedStartsAt.toDate(),
     minutes: runtime ? runtime + 30 : 150,
     description: `Weberplex: ${m.title}${m.year ? ` (${m.year})` : ''}. ${SITE_URL}`,
-    location: 'The Weberplex',
+    location: n.lockedPlace ? L.placeLabel(n.lockedPlace) : 'Weberplex',
     url: SITE_URL,
   });
   downloadFile('movie-night.ics', ics, 'text/calendar');

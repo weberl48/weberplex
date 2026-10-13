@@ -77,7 +77,9 @@ service cloud.firestore {
       match /dates/{d} {
         allow read: if true;
         allow create: if hostTouched(n) && request.resource.data.startsAt is timestamp
-          && request.resource.data.keys().hasOnly(['startsAt']);
+          && request.resource.data.keys().hasOnly(['startsAt', 'place'])
+          && (!('place' in request.resource.data)
+              || (request.resource.data.place is string && request.resource.data.place.size() <= 30));
         allow delete: if hostTouched(n);
         allow update: if false;
       }

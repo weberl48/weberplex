@@ -1,7 +1,7 @@
 // Host console. Every write goes through actions.js with the host key; the
 // rules reject them if the key is wrong.
 import { db, F } from './firebase.js';
-import { SITE_URL } from './config.js';
+import { SITE_URL, PLACES } from './config.js';
 import { makeActions } from './actions.js';
 import { watchNights, watchNight } from './store.js';
 import * as L from './logic.js';
@@ -83,11 +83,12 @@ function render() {
 }
 
 function renderOpen(tal) {
+  if (!$('#addDatePlace').options.length) $('#addDatePlace').innerHTML = placeOptions(L.nextPlace(S.nights, PLACES));
   if (document.activeElement !== $('#renameInput')) $('#renameInput').value = S.current.title || '';
   $('#dateList').innerHTML = tal.dates.length
     ? tal.dates.map((d) => `
         <li class="date-item">
-          <span>${esc(L.showtimeLong(d.startsAt))} · <b>${d.count}</b> in ${faces(d.going)}</span>
+          <span>${esc(L.showtimeLong(d.startsAt))}${d.place ? ` · at ${esc(L.placeLabel(d.place))}` : ''} · <b>${d.count}</b> in ${faces(d.going)}</span>
           <button class="mini" type="button" data-remove-date="${esc(d.id)}">Remove</button>
         </li>`).join('')
     : '<li class="empty">No nights yet. Add one below.</li>';
@@ -98,7 +99,7 @@ function renderOpen(tal) {
   $('#lockDates').innerHTML = tal.dates.map((d) => `
     <label class="pick-opt" style="grid-template-columns:auto 1fr auto">
       <input type="radio" name="lockDate" value="${esc(d.id)}"${d.id === S.chosenDate ? ' checked' : ''}>
-      <span>${esc(L.showtimeLong(d.startsAt))}${tal.bestDates.includes(d.id) && tal.dates.length > 1 ? ' · most people' : ''}</span>
+      <span>${esc(L.showtimeLong(d.startsAt))}${d.place ? ` · ${esc(L.placeLabel(d.place))}` : ''}${tal.bestDates.includes(d.id) && tal.dates.length > 1 ? ' · most people' : ''}</span>
       <span class="v">${d.count}</span>
     </label>`).join('') || '<p class="empty">Add a night first.</p>';
 
@@ -127,7 +128,7 @@ function renderLocked(tal) {
   const n = S.current;
   const date = tal.dates.find((d) => d.id === n.lockedDateId);
   $('#lockedWhat').textContent = n.lockedMovie?.title || 'Locked';
-  $('#lockedWhen').textContent = `${L.showtimeLong(n.lockedStartsAt)} · ${date?.count || 0} coming`;
+  $('#lockedWhen').textContent = `${L.showtimeLong(n.lockedStartsAt)}${n.lockedPlace ? ` · at ${L.placeLabel(n.lockedPlace)}` : ''} · ${date?.count || 0} coming`;
   $('#lockedWho').innerHTML = (date?.going || []).map((g) => `<span class="guest">${faces([g])}${esc(g.name)}</span>`).join('');
 }
 
@@ -140,6 +141,9 @@ function nextFriday8pm(offsetDays = 0) {
 }
 const toLocalInput = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
+const placeOptions = (selected) => PLACES.map((p) =>
+  `<option value="${esc(p)}"${p === selected ? ' selected' : ''}>${esc(L.placeLabel(p))}</option>`).join('');
+
 function addNewDateRow() {
   const rows = $('#newDates').children.length;
   const li = document.createElement('div');
@@ -147,6 +151,8 @@ function addNewDateRow() {
   const id = `newDate${Date.now()}${rows}`;
   li.innerHTML = `<label class="sr-only" for="${id}">Night ${rows + 1}</label>
     <input class="field" id="${id}" type="datetime-local" value="${toLocalInput(nextFriday8pm(rows))}" required>
+    <label class="sr-only" for="${id}p">House for night ${rows + 1}</label>
+    <select class="field place" id="${id}p">${placeOptions(L.nextPlace(S.nights, PLACES))}</select>
     <button class="mini" type="button" data-drop-row>Remove</button>`;
   $('#newDates').append(li);
 }
@@ -156,7 +162,9 @@ $('#newDates').addEventListener('click', (e) => {
 });
 $('#newForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const dates = [...$('#newDates').querySelectorAll('input')].map((i) => new Date(i.value)).filter((d) => !Number.isNaN(d.getTime()));
+  const dates = [...$('#newDates').querySelectorAll('.date-item')]
+    .map((row) => ({ startsAt: new Date(row.querySelector('input').value), place: row.querySelector('select').value }))
+    .filter((d) => !Number.isNaN(d.startsAt.getTime()));
   if (!dates.length) return;
   $('#newMsg').textContent = 'Booking…';
   try {
@@ -177,7 +185,7 @@ $('#addDateForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const d = new Date($('#addDateInput').value);
   if (Number.isNaN(d.getTime())) return;
-  try { await A.addDate(S.key, S.current.id, d); $('#addDateInput').value = ''; toast('Night added.'); } catch (err) { toast(writeError(err), true); }
+  try { await A.addDate(S.key, S.current.id, d, $('#addDatePlace').value); $('#addDateInput').value = ''; toast('Night added.'); } catch (err) { toast(writeError(err), true); }
 });
 $('#renameForm').addEventListener('submit', async (e) => {
   e.preventDefault();

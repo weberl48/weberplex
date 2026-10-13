@@ -10,6 +10,13 @@ function secureId(len = 24) {
   return Array.from(bytes, (b) => abc[b % abc.length]).join('');
 }
 
+// A candidate night: a time, and optionally whose house it's at.
+function dateDoc(d) {
+  const startsAt = d instanceof Date ? d : d.startsAt;
+  const place = d instanceof Date ? '' : String(d.place || '').trim().slice(0, 30);
+  return place ? { startsAt, place } : { startsAt };
+}
+
 export class PicksFullError extends Error {
   constructor() { super(`You've used all ${MAX_PICKS} picks. Remove one to add another.`); this.code = 'picks-full'; }
 }
@@ -158,9 +165,9 @@ export function makeActions(db, F) {
       batch.set(ref, {
         title: String(title).trim().slice(0, 60), status: 'open', op,
         createdAt: serverTimestamp(), lockedDateId: null, lockedMovieId: null,
-        lockedStartsAt: null, lockedMovie: null, lockedAt: null, finishedAt: null,
+        lockedStartsAt: null, lockedPlace: null, lockedMovie: null, lockedAt: null, finishedAt: null,
       });
-      for (const d of dates) batch.set(doc(collection(db, 'nights', ref.id, 'dates')), { startsAt: d });
+      for (const d of dates) batch.set(doc(collection(db, 'nights', ref.id, 'dates')), dateDoc(d));
       await batch.commit();
       return ref.id;
     },
@@ -171,10 +178,10 @@ export function makeActions(db, F) {
       await batch.commit();
     },
 
-    async addDate(hostKey, nightId, when) {
+    async addDate(hostKey, nightId, when, place = '') {
       const { batch, op } = hostBatch(hostKey);
       batch.update(night(nightId), { op });
-      batch.set(doc(collection(db, 'nights', nightId, 'dates')), { startsAt: when });
+      batch.set(doc(collection(db, 'nights', nightId, 'dates')), dateDoc({ startsAt: when, place }));
       await batch.commit();
     },
 
@@ -226,7 +233,7 @@ export function makeActions(db, F) {
       const { imdbId, title, year, poster, runtime, rating, genres, trailer } = movie;
       batch.update(night(nightId), {
         op, status: 'locked', lockedAt: serverTimestamp(),
-        lockedDateId: date.id, lockedStartsAt: date.startsAt,
+        lockedDateId: date.id, lockedStartsAt: date.startsAt, lockedPlace: date.place || null,
         lockedMovieId: imdbId,
         lockedMovie: { imdbId, title, year, poster, runtime, rating, genres, trailer },
       });
@@ -237,7 +244,7 @@ export function makeActions(db, F) {
       const { batch, op } = hostBatch(hostKey);
       batch.update(night(nightId), {
         op, status: 'open', lockedDateId: null, lockedMovieId: null,
-        lockedStartsAt: null, lockedMovie: null, lockedAt: null,
+        lockedStartsAt: null, lockedPlace: null, lockedMovie: null, lockedAt: null,
       });
       await batch.commit();
     },

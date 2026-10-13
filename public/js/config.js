@@ -8,3 +8,6 @@ export const firebaseConfig = {
 };
 
 export const SITE_URL = 'https://weberplex.vercel.app';
+
+// Hosting rotates between these houses, in this order.
+export const PLACES = ['Weber', 'Ferger', 'Libby'];
