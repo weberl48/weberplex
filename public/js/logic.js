@@ -145,9 +145,9 @@ export function buildIcs({ uid, title, start, minutes = 150, description = '', l
   const startD = toDate(start);
   const end = new Date(startD.getTime() + minutes * 60000);
   const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Speakeasy Picture Show//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Weberplex//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${uid}@speakeasy-picture-show`,
+    `UID:${uid}@weberplex`,
     `DTSTAMP:${fmt(new Date())}`,
     `DTSTART:${fmt(startD)}`,
     `DTEND:${fmt(end)}`,

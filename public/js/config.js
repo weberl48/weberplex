@@ -7,4 +7,4 @@ export const firebaseConfig = {
   messagingSenderId: '1053219659772',
 };
 
-export const SITE_URL = 'https://speakeasy-picture-show.vercel.app';
+export const SITE_URL = 'https://weberplex.vercel.app';

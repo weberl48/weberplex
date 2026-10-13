@@ -4,6 +4,27 @@
   "installCommand": "echo no-install",
   "buildCommand": "echo static site",
   "headers": [
-    { "source": "/js/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] }
+    {
+      "source": "/js/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "speakeasy-picture-show.vercel.app"
+        }
+      ],
+      "destination": "https://weberplex.vercel.app/:path*",
+      "permanent": false
+    }
   ]
 }

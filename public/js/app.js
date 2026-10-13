@@ -105,7 +105,7 @@ function renderBoard(p, tal) {
   const n = S.current;
   let kicker, title, sub, count = '';
   if (p === 'loading') {
-    kicker = 'Tonight'; title = 'Speakeasy Picture Show'; sub = 'Warming up the projector…';
+    kicker = 'Tonight'; title = 'Weberplex'; sub = 'Warming up the projector…';
   } else if (p === 'dark') {
     const last = pastNights()[0];
     kicker = 'The house is dark'; title = 'No show booked';
@@ -647,8 +647,8 @@ function downloadIcs() {
     title: `Movie night: ${m.title}`,
     start: n.lockedStartsAt.toDate(),
     minutes: runtime ? runtime + 30 : 150,
-    description: `Speakeasy Picture Show: ${m.title}${m.year ? ` (${m.year})` : ''}. ${SITE_URL}`,
-    location: 'The Speakeasy',
+    description: `Weberplex: ${m.title}${m.year ? ` (${m.year})` : ''}. ${SITE_URL}`,
+    location: 'The Weberplex',
     url: SITE_URL,
   });
   downloadFile('movie-night.ics', ics, 'text/calendar');

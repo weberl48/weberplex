@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Speakeasy Picture Show — every rule the site depends on lives here.
+// Weberplex — every rule the site depends on lives here.
 // There is no server: the browser writes straight to Firestore, so these
 // rules ARE the backend. Guests are identified by name only (by design);
 // the host proves itself by writing a fresh `hostops/{op}` doc carrying the

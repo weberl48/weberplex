@@ -1,13 +1,14 @@
-# Speakeasy Picture Show
+# Weberplex
 
-Movie night for the Speakeasy. Friends open one link, tick the nights they can
+Movie night at the Webers'. Friends open one link, tick the nights they can
 make, suggest up to **five** movies each, and thumbs-up the ballot. The host
 locks the night and the picture; Home Assistant takes it from there.
 
-- Guest site: https://speakeasy-picture-show.vercel.app
-- Host console: https://speakeasy-picture-show.vercel.app/host (the ready-made
+- Guest site: https://weberplex.vercel.app (the old
+  speakeasy-picture-show.vercel.app address redirects here)
+- Host console: https://weberplex.vercel.app/host (the ready-made
   link with the key is `HOST_LINK` in `.env.local`, which git ignores)
-- HA endpoint: https://speakeasy-picture-show.vercel.app/api/status
+- HA endpoint: https://weberplex.vercel.app/api/status
 
 ## What guests can do
 
@@ -42,7 +43,7 @@ Everything updates live on every open phone.
 ## How it's built
 
 There is no server. The static site in `public/` talks straight to Firestore
-(project `speakeasy-picture-show`, owned by weberlucasdev@gmail.com), and
+(project id `speakeasy-picture-show`, which Firebase can't rename; owned by weberlucasdev@gmail.com), and
 **`firestore.rules` is the whole backend**:
 
 - Guests are identified by name only (a deliberate choice: no accounts).
