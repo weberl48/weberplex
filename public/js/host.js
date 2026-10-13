@@ -8,6 +8,7 @@ import * as L from './logic.js';
 import { $, esc, faces, posterImg, saveLocal, loadLocal, toast, writeError, armed } from './ui.js';
 import { spinReel } from './reel.js';
 import { searchMovies, movieMeta } from './cinemeta.js';
+import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 
 const A = makeActions(db, F);
 const S = { key: null, nights: [], current: null, sub: null, chosenDate: null, chosenMovie: null, verified: false };
@@ -106,8 +107,11 @@ function renderOpen(tal) {
       <input type="radio" name="lockMovie" value="${esc(m.imdbId)}"${m.imdbId === S.chosenMovie ? ' checked' : ''}>
       ${posterImg(m.poster, m.title)}
       <span>${esc(m.title)} <span class="by">· ${esc(m.byName)}</span></span>
-      <span class="row"><span class="v">${m.votes}</span><button class="mini" type="button" data-remove-movie="${esc(m.imdbId)}">Remove</button></span>
+      <span class="row"><span class="v">${m.votes}</span>
+        <button class="mini" type="button" data-shield="${esc(m.imdbId)}" aria-label="Show ${esc(m.title)} on the Shield">Shield</button>
+        <button class="mini" type="button" data-remove-movie="${esc(m.imdbId)}">Remove</button></span>
     </label>`).join('') || '<p class="empty">No pictures suggested yet.</p>';
+  renderHouseBrowse(tal);
 
   const pool = spinPool(tal);
   $('#spinBtn').disabled = pool.length < 2;
@@ -185,7 +189,21 @@ document.addEventListener('change', (e) => {
   if (e.target.name === 'lockMovie') S.chosenMovie = e.target.value;
 });
 
+async function sendToShield(movie) {
+  try {
+    await A.showOnShield(S.key, movie);
+    toast(`Sent ${movie.title} to the Shield. Stremio opens it in a few seconds.`);
+  } catch (err) { toast(writeError(err), true); }
+}
+
 document.addEventListener('click', async (e) => {
+  const shield = e.target.closest('[data-shield]');
+  if (shield) {
+    e.preventDefault();
+    const m = L.tally(S.sub || {}).movies.find((x) => x.imdbId === shield.dataset.shield);
+    if (m) sendToShield(m);
+    return;
+  }
   const rmDate = e.target.closest('[data-remove-date]');
   const rmMovie = e.target.closest('[data-remove-movie]');
   if (rmDate) {
@@ -241,6 +259,46 @@ $('#houseTags').addEventListener('click', (e) => {
   b.setAttribute('aria-pressed', String(houseTags.has(t)));
 });
 
+// Browse tabs for house picks; "For the crowd" learns from what has votes.
+const H = { tab: 'search', items: [], note: '', loading: false };
+let houseToken = 0;
+
+function renderHouseBrowse(tal) {
+  $('#houseTabs').innerHTML = tabsHtml(browseTabs(L.ballotGenre(tal.movies), 'For the crowd'), H.tab);
+  const searching = H.tab === 'search';
+  $('#houseForm').hidden = !searching;
+  if (searching) { $('#houseGrid').hidden = true; $('#houseNote').hidden = true; return; }
+  $('#houseResults').hidden = true;
+  $('#houseNote').hidden = !(H.loading || H.note);
+  $('#houseNote').textContent = H.loading ? 'Loading…' : H.note;
+  $('#houseGrid').hidden = H.loading || !H.items.length;
+  $('#houseGrid').innerHTML = tilesHtml(H.items, { taken: new Set(tal.movies.map((m) => m.imdbId)), addAttr: 'data-house-add' });
+}
+
+$('#houseTabs').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-tab]');
+  if (!b) return;
+  H.tab = b.dataset.tab;
+  H.items = [];
+  H.note = '';
+  const tal = L.tally(S.sub || {});
+  if (H.tab === 'search') { renderHouseBrowse(tal); return; }
+  const token = ++houseToken;
+  H.loading = true;
+  renderHouseBrowse(tal);
+  const voted = tal.movies.filter((m) => m.votes > 0);
+  const liked = (voted.length ? voted : tal.movies).map((m) => m.imdbId);
+  const res = await loadTab(H.tab, {
+    genre: L.ballotGenre(tal.movies), likedIds: liked, exclude: new Set(tal.movies.map((m) => m.imdbId)),
+    basis: voted.length ? 'Based on the movies people have voted for.' : 'Based on everything on the ballot.',
+  }).catch(() => ({ items: [], note: 'The movie catalog is not answering right now.' }));
+  if (token !== houseToken) return;
+  H.loading = false;
+  H.items = res.items;
+  H.note = res.note || (res.items.length ? '' : 'Nothing here right now.');
+  renderHouseBrowse(L.tally(S.sub || {}));
+});
+
 let houseResults = [];
 $('#houseForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -265,11 +323,12 @@ $('#houseForm').addEventListener('submit', async (e) => {
     $('#houseResults').innerHTML = `<p class="empty">${esc(err.message)}</p>`;
   }
 });
-$('#houseResults').addEventListener('click', async (e) => {
+async function addHouse(e) {
   const b = e.target.closest('[data-house-add]');
-  if (!b || b.classList.contains('taken')) return;
+  if (!b || b.classList.contains('taken') || b.disabled) return;
   const id = b.dataset.houseAdd;
-  const fromList = houseResults.find((m) => (m.imdb_id || m.id) === id);
+  const fromList = houseResults.find((m) => (m.imdb_id || m.id) === id)
+    || H.items.map((x) => x.meta).find((m) => (m.imdb_id || m.id) === id);
   $('#houseMsg').textContent = 'Adding…';
   $('#houseMsg').className = 'msg';
   try {
@@ -284,9 +343,16 @@ $('#houseResults').addEventListener('click', async (e) => {
     $('#houseMsg').textContent = writeError(err);
     $('#houseMsg').className = 'msg bad';
   }
-});
+}
+$('#houseResults').addEventListener('click', addHouse);
+$('#houseGrid').addEventListener('click', addHouse);
 
 // ---- locked night controls -----------------------------------------------
+$('#shieldLockedBtn').addEventListener('click', () => {
+  const m = S.current?.lockedMovie;
+  if (m?.imdbId) sendToShield(m);
+});
+
 for (const [id, fn, done] of [
   ['#reopenBtn', (k, n) => A.reopen(k, n), 'Voting is open again.'],
   ['#finishBtn', (k, n) => A.finish(k, n), 'Filed under Past screenings. Reviews stay open.'],

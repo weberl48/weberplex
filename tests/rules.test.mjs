@@ -212,6 +212,18 @@ test('house picks: host-only, tagged, outside everyone’s five', async () => {
   await assertSucceeds(A.removeMovie(KEY, id, m, ['sam']));
 });
 
+test('only the host can point the Shield at a movie', async () => {
+  await assertSucceeds(A.showOnShield(KEY, movie(1)));
+  const c = (await getDoc(doc(db, 'control', 'shield'))).data();
+  assert.equal(c.imdb, movie(1).imdbId);
+  assert.equal(typeof c.seq, 'number');
+  await assertFails(A.showOnShield('wrong-key-wrong-key-wrong', movie(2)));
+  const forged = writeBatch(db);
+  forged.set(doc(db, 'control', 'shield'), { imdb: 'tt0000099', title: 'x', seq: 1, op: c.op, at: serverTimestamp() });
+  await assertFails(forged.commit()); // replaying the last op id
+  await assertFails(A.showOnShield(KEY, { ...movie(3), imdbId: 'not-an-id' }));
+});
+
 test('cancelled and done nights accept nothing from guests', async () => {
   const { id, dates } = await openNight();
   const sam = await A.join('Sam');

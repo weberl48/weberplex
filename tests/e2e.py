@@ -166,6 +166,24 @@ def main():
         sam.click('#shelfChips [data-tag="All"]')
         expect(sam.locator('#ballot .card')).to_have_count(7)
 
+        # Every card links to Stremio.
+        href = sam.locator('.card', has_text=titles[0]).locator('a', has_text='Stremio').get_attribute('href')
+        assert href.startswith('https://web.stremio.com/#/detail/movie/tt'), href
+
+        # Browse tabs: Trending fills a poster grid; Jo adds one from it.
+        jo.click('#browseTabs [data-tab="trending"]')
+        tile_add = jo.locator('#browseGrid .tile:not(.taken) .add').first
+        expect(tile_add).to_be_visible(timeout=15000)
+        tile_add.click()
+        expect(jo.locator('#pickMsg')).to_contain_text('Added', timeout=10000)
+        expect(jo.locator('#picksLeft')).to_have_text('3 of 5 left')
+        # For you explains its picks (Sam has five picks to learn from).
+        sam.click('#browseTabs [data-tab="foryou"]')
+        expect(sam.locator('#browseGrid .tile-why').first).to_be_visible(timeout=20000)
+        expect(sam.locator('#browseNote')).to_contain_text('what you picked')
+        shot(sam, '03c-guest-for-you')
+        sam.click('#browseTabs [data-tab="search"]')
+
         # Votes: one each -> tie at the top.
         sam.locator('.card', has_text=titles[0]).locator('.vote').click()
         jo.locator('.card', has_text=jo_title).locator('.vote').click()
@@ -182,6 +200,12 @@ def main():
         expect(sam.locator('#snacks .snack')).to_have_count(2)
         shot(sam, '03-guest-ballot')
         shot(jo, '03b-guest-jo')
+
+        # Host sends a ballot movie to the Shield (HA watches control/shield).
+        host.locator('#lockMovies [data-shield]').first.click()
+        expect(host.locator('#toast')).to_contain_text('Sent', timeout=10000)
+        ctl = json.loads(emu('GET', f'/v1/projects/{PROJECT}/databases/(default)/documents/control/shield'))
+        assert ctl['fields']['imdb']['stringValue'].startswith('tt'), ctl
 
         # Host: tie hint, spin the reel, lock on the future night.
         expect(host.locator('#spinHint')).to_contain_text('tied')

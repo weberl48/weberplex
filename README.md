@@ -14,14 +14,28 @@ locks the night and the picture; Home Assistant takes it from there.
 | Phase | What shows |
 | --- | --- |
 | No night booked | Dark marquee, last movie, past screenings |
-| Voting open | Name gate, showtimes to tick, five-frame filmstrip of your picks, catalog search + "Surprise me", the ballot (posters, trailer, plot, votes, front-runner/tie ribbons), concessions |
+| Voting open | Name gate, showtimes to tick, five-frame filmstrip of your picks, browse tabs (Search · Trending · Trending <ballot genre> · New this year · For you) + "Surprise me", the ballot (posters, tags, trailer, Stremio link, plot, votes, front-runner/tie ribbons, tag filters), concessions |
 | Locked (before showtime) | Admit-one ticket with a ticket number, Add to calendar (.ics with a 2-hour alert), trailer, "Can't make it", who's coming, final vote tally, concessions |
 | Showing (after showtime) | Same ticket, plus star ratings and one-line reviews |
 | Finished | Moves to Past screenings with the average rating |
 
 The host console books a night (title plus any number of candidate times),
-adds or removes nights, removes picks, renames, **spins the reel** to break a
-tie (or to pick at random), locks, reopens, marks a night watched, or cancels.
+adds or removes nights, adds **house picks** (tagged, outside everyone's five;
+same browse tabs, with "For the crowd"), removes picks, renames, sends any
+movie to the basement screen (**Show on the Shield**), **spins the reel** to
+break a tie (or to pick at random), locks, reopens, marks a night watched, or
+cancels.
+
+**For you** is content-based (no keyless source offers "people who liked X"):
+it builds a taste profile from what a person thumbed up and picked (or the
+house list until they vote), pulls popular and featured titles in their top
+two genres, and scores shared director > writer > cast, genre overlap, a
+foreign-film lean, and rating. Each tile says why ("Because you liked The
+Witch (Robert Eggers)"). Trending is Cinemeta's Popular catalog, which ranks
+by current Stremio + Trakt popularity.
+
+Seed a ballot from a list: `HOST_KEY=... npm run seed -- seed/<list>.json`
+(pinned IMDb ids; see `seed/spooky-season.json`).
 
 Everything updates live on every open phone.
 
@@ -63,8 +77,12 @@ tests/             logic + rules + status (emulator) and e2e.py (Playwright)
 
 `/config/packages/movie_night.yaml` on the Pi (the canonical copy) defines:
 
-- `sensor.movie_night` (REST, every 5 min): state `none` / `open` / `locked`,
+- `sensor.movie_night` (REST, every 15 min): state `none` / `open` / `locked`,
   with movie, poster, showtime, warm-up time, attendees, leader, snacks.
+- `sensor.movie_night_shield_request` (Firestore REST, every 15 s) and
+  `automation.movie_night_show_on_the_shield`: the host console's "Show on the
+  Shield" opens that movie in Stremio within seconds. Requests older than two
+  minutes are ignored, so restarts never replay one.
 - `sensor.movie_night_showtime`: timestamp of the locked showtime.
 - `script.movie_night_start`: Movie scene, then the winner's Stremio detail page
   by IMDb id, then a "Now showing" announcement on the Voice PE if it's online.
@@ -80,8 +98,8 @@ under the greeting hero. Tap it (with a confirm) to start the show.
 ## Tests
 
 ```bash
-npm test                              # logic, then rules + status in the emulator
-python tests/e2e.py <screenshot-dir>  # needs the emulator on :8181 and the site on :5173
+npm test           # logic, then rules + status in the emulator
+npm run test:e2e   # whole-night Playwright run (serves the site itself)
 ```
 
 `e2e.py` runs a host and two guests through a whole night: five picks and a
@@ -97,5 +115,9 @@ emulator.
 - Delete a night for good: `firebase firestore:delete nights/<id> --recursive -P speakeasy-picture-show`.
 - Rotate the host key: delete `config/host` in the Firebase console, then create
   it again (the rules allow a one-time create), and update `.env.local`.
-- Spark plan quota: 50k reads a day. HA's poll costs a few dozen reads every
-  5 minutes; a full guest page load reads every doc of the current night once.
+- Spark plan quota: 50k reads a day, and running out breaks the site until
+  midnight Pacific. Budget: the Shield poll is ~5.8k/day; the status poll every
+  15 min reads the whole ballot while voting is open (27 movies + votes) but
+  only RSVPs + snacks once a night is locked; a guest page load reads every doc
+  of the current night once. Watch usage in the Firebase console before
+  shortening either poll.

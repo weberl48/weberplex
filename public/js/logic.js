@@ -161,6 +161,82 @@ export function buildIcs({ uid, title, start, minutes = 150, description = '', l
   return lines.join('\r\n') + '\r\n';
 }
 
+// ---- "For you" recommendations ----------------------------------------------
+// Content-based: no account-backed "people also liked" source is available
+// keylessly, so taste comes from the movies a person liked (votes + picks).
+
+const ENGLISH_COUNTRIES = ['united states', 'usa', 'united kingdom', 'uk', 'canada', 'australia', 'ireland', 'new zealand'];
+export function isForeign(meta) {
+  const c = String(meta?.country || '').toLowerCase();
+  if (!c) return false;
+  return !c.split(',').map((s) => s.trim()).some((x) => ENGLISH_COUNTRIES.includes(x));
+}
+const list = (v) => (Array.isArray(v) ? v : v ? [v] : []).map(String).filter(Boolean);
+
+export function tasteProfile(liked) {
+  const genres = new Map();
+  const people = { director: new Map(), writer: new Map(), cast: new Map() };
+  let foreign = 0;
+  for (const m of liked) {
+    const gs = list(m.genres || m.genre);
+    for (const g of gs) genres.set(g, (genres.get(g) || 0) + 1 / gs.length);
+    for (const role of ['director', 'writer']) for (const p of list(m[role])) people[role].set(p, m);
+    for (const p of list(m.cast).slice(0, 4)) people.cast.set(p, m);
+    if (isForeign(m)) foreign += 1;
+  }
+  const total = [...genres.values()].reduce((a, b) => a + b, 0) || 1;
+  for (const [g, w] of genres) genres.set(g, w / total);
+  const topGenres = [...genres.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
+  return { genres, people, foreignShare: liked.length ? foreign / liked.length : 0, topGenres, liked };
+}
+
+export function recommend(profile, candidates, exclude = new Set(), max = 24) {
+  const out = [];
+  for (const c of candidates) {
+    const id = c.imdb_id || c.id;
+    if (exclude.has(id)) continue;
+    let score = 0;
+    let reason = null;
+    const credit = (role, weight, cap) => {
+      let hits = 0;
+      for (const p of list(c[role])) {
+        const from = profile.people[role].get(p);
+        if (!from || hits >= cap) continue;
+        hits += 1;
+        score += weight;
+        if (!reason || reason.weight < weight) {
+          reason = { weight, text: role === 'cast' ? `With ${p}, from ${from.name}` : `Because you liked ${from.name} (${p})` };
+        }
+      }
+    };
+    credit('director', 4, 1);
+    credit('writer', 2.5, 1);
+    credit('cast', 1, 3);
+    const gs = list(c.genres || c.genre);
+    const genreFit = gs.reduce((s, g) => s + (profile.genres.get(g) || 0), 0);
+    score += genreFit * 4;
+    if (profile.foreignShare >= 0.25 && isForeign(c)) score += 1.5 * profile.foreignShare;
+    const rating = parseFloat(c.imdbRating);
+    if (!Number.isNaN(rating)) score += (rating - 6.5) * 0.7;
+    if (!reason && genreFit > 0) {
+      const shared = gs.filter((g) => profile.genres.has(g)).slice(0, 2);
+      const like = profile.liked.find((m) => list(m.genres || m.genre).some((g) => shared.includes(g)));
+      reason = { weight: 0, text: `More ${shared.join(' · ')}${like ? `, like ${like.name}` : ''}` };
+    }
+    if (score > 0) out.push({ meta: c, score: Math.round(score * 100) / 100, reason: reason?.text || 'Highly rated' });
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, max);
+}
+
+// The genre the ballot leans toward, for the "Trending in <genre>" tab.
+export function ballotGenre(movies) {
+  const counts = new Map();
+  for (const m of movies) for (const g of m.genres || []) counts.set(g, (counts.get(g) || 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+
+export const stremioUrl = (imdbId) => `https://web.stremio.com/#/detail/movie/${imdbId}`;
+
 // Cinemeta meta -> the movie fields we store (sizes match firestore.rules).
 export function movieFromMeta(meta) {
   const trailer = meta.trailerStreams?.[0]?.ytId || meta.trailers?.find((t) => t.type === 'Trailer')?.source || '';

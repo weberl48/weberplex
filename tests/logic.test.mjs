@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   nameKey, cleanName, initials, tally, nextFreeSlot, countdownParts, countdownText, buildIcs,
   ticketNumber, reviewSummary, pickRandom, movieFromMeta, parseRuntime,
+  tasteProfile, recommend, isForeign, ballotGenre, stremioUrl,
 } from '../public/js/logic.js';
 
 test('names normalize to rule-safe keys', () => {
@@ -73,6 +74,33 @@ test('misc helpers', () => {
   assert.equal(pickRandom([], () => 0.5), null);
   assert.equal(parseRuntime('167 min'), 167);
   assert.equal(parseRuntime(''), null);
+});
+
+test('recommendations rank shared directors first and explain why', () => {
+  const liked = [
+    { name: 'Hereditary', genres: ['Drama', 'Horror', 'Mystery'], director: ['Ari Aster'], writer: ['Ari Aster'], cast: ['Toni Collette'], country: 'United States' },
+    { name: 'REC', genres: ['Horror'], director: ['Jaume Balagueró', 'Paco Plaza'], cast: ['Manuela Velasco'], country: 'Spain' },
+    { name: 'Incantation', genres: ['Horror', 'Mystery'], director: ['Kevin Ko'], country: 'Taiwan' },
+  ];
+  const p = tasteProfile(liked);
+  assert.equal(p.topGenres[0], 'Horror');
+  assert.ok(p.foreignShare > 0.6);
+  const recs = recommend(p, [
+    { id: 'tt1', name: 'Midsommar', genres: ['Drama', 'Horror'], director: ['Ari Aster'], imdbRating: '7.1', country: 'United States' },
+    { id: 'tt2', name: 'A Rom-Com', genres: ['Comedy', 'Romance'], imdbRating: '6.0', country: 'United States' },
+    { id: 'tt3', name: 'The Wailing', genres: ['Horror', 'Mystery'], imdbRating: '7.4', country: 'South Korea' },
+    { id: 'tt4', name: 'Already On Ballot', genres: ['Horror'], director: ['Ari Aster'], imdbRating: '9' },
+  ], new Set(['tt4']));
+  assert.equal(recs[0].meta.name, 'Midsommar');
+  assert.equal(recs[0].reason, 'Because you liked Hereditary (Ari Aster)');
+  assert.equal(recs[1].meta.name, 'The Wailing');
+  assert.match(recs[1].reason, /^More Horror · Mystery, like /);
+  assert.ok(!recs.some((r) => r.meta.name === 'A Rom-Com'));
+  assert.ok(!recs.some((r) => r.meta.id === 'tt4'));
+  assert.equal(isForeign({ country: 'Spain, Mexico' }), true);
+  assert.equal(isForeign({ country: 'United States, Canada' }), false);
+  assert.equal(ballotGenre([{ genres: ['Horror', 'Drama'] }, { genres: ['Horror'] }, { genres: ['Comedy'] }]), 'Horror');
+  assert.equal(stremioUrl('tt1'), 'https://web.stremio.com/#/detail/movie/tt1');
 });
 
 test('movieFromMeta maps Cinemeta fields within rule limits', () => {

@@ -46,6 +46,18 @@ service cloud.firestore {
         && request.resource.data.key is string && stamped(request.resource.data);
     }
 
+    // "Show on the Shield": the host points the basement screen at a movie.
+    // Home Assistant polls this one doc and opens the movie in Stremio.
+    match /control/shield {
+      allow read: if true;
+      allow create, update: if freshHostOp(request.resource.data.op)
+        && request.resource.data.keys().hasOnly(['imdb', 'title', 'seq', 'op', 'at'])
+        && request.resource.data.imdb is string && request.resource.data.imdb.matches('^tt[0-9]{5,10}$')
+        && request.resource.data.title is string && request.resource.data.title.size() <= 120
+        && request.resource.data.seq is int && stamped(request.resource.data);
+      allow delete: if false;
+    }
+
     // ---- the guest list ----------------------------------------------------
     match /people/{key} {
       allow read: if true;

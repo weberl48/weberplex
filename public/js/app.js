@@ -6,6 +6,7 @@ import { SITE_URL } from './config.js';
 import { makeActions, AlreadyPickedError, PicksFullError } from './actions.js';
 import { watchNights, watchNight, watchPeople, loadReviews } from './store.js';
 import { searchMovies, movieMeta, topMovies } from './cinemeta.js';
+import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 import * as L from './logic.js';
 import { $, esc, THUMB, faces, posterImg, saveLocal, loadLocal, toast, downloadFile, writeError } from './ui.js';
 
@@ -22,6 +23,10 @@ const S = {
   lastVotes: new Map(),
   stars: 0,
   shelf: 'All',
+  tab: 'search',
+  tabItems: [],
+  tabNote: '',
+  tabLoading: false,
 };
 let unNight = null;
 const busy = new Set();
@@ -87,7 +92,7 @@ function render() {
     show('#finalSec', p === 'booked' || p === 'showing');
     show('#reviewSec', p === 'showing');
     show('#snackSec', p === 'open' || p === 'booked' || p === 'showing');
-    if (p === 'open') { renderShowtimes(tal); renderPicks(); renderBallot(tal); }
+    if (p === 'open') { renderShowtimes(tal); renderPicks(); renderBrowse(tal); renderBallot(tal); }
     if (p === 'booked' || p === 'showing') { renderTicket(tal); renderLineup(tal); renderFinal(tal); }
     if (p === 'showing') renderReviews();
     if (p !== 'dark' && p !== 'loading') renderSnacks();
@@ -178,6 +183,57 @@ function renderPicks() {
   }).join('');
 }
 
+// Browse tabs: Search · Trending · Trending <genre> · New this year · For you.
+function renderBrowse(tal) {
+  const genre = L.ballotGenre(tal.movies);
+  $('#browseTabs').innerHTML = tabsHtml(browseTabs(genre), S.tab);
+  const searching = S.tab === 'search';
+  $('#searchRow').hidden = !searching;
+  if (searching) { $('#browseGrid').hidden = true; $('#browseNote').hidden = true; return; }
+  $('#results').hidden = true;
+  $('#browseNote').hidden = !(S.tabLoading || S.tabNote);
+  $('#browseNote').textContent = S.tabLoading ? 'Loading…' : S.tabNote;
+  const taken = new Set(tal.movies.map((m) => m.imdbId));
+  $('#browseGrid').hidden = S.tabLoading || !S.tabItems.length;
+  $('#browseGrid').innerHTML = tilesHtml(S.tabItems, { taken });
+}
+
+// What "For you" learns from: my thumbs-ups and picks, else the house list.
+function likedForMe() {
+  const movies = S.sub?.movies || [];
+  if (S.me) {
+    const mine = new Set([
+      ...(S.sub?.votes || []).filter((v) => v.nameKey === S.me.nameKey).map((v) => v.movie),
+      ...movies.filter((m) => m.by === S.me.nameKey).map((m) => m.imdbId),
+    ]);
+    if (mine.size) return { ids: [...mine], basis: 'Based on what you picked and thumbed up.' };
+  }
+  const house = movies.filter(L.isHouse).map((m) => m.imdbId);
+  return { ids: house, basis: house.length ? 'Based on the house list. Vote on a few movies to make these yours.' : '' };
+}
+
+let tabToken = 0;
+async function openTab(id) {
+  S.tab = id;
+  S.tabItems = [];
+  S.tabNote = '';
+  if (id === 'search') { render(); $('#q').focus(); return; }
+  const token = ++tabToken;
+  S.tabLoading = true;
+  render();
+  const tal = t();
+  const liked = likedForMe();
+  const res = await loadTab(id, {
+    genre: L.ballotGenre(tal.movies), likedIds: liked.ids, basis: liked.basis,
+    exclude: new Set(tal.movies.map((m) => m.imdbId)),
+  }).catch(() => ({ items: [], note: 'The movie catalog is not answering right now.' }));
+  if (token !== tabToken) return;
+  S.tabLoading = false;
+  S.tabItems = res.items;
+  S.tabNote = res.note || (res.items.length ? '' : 'Nothing here right now.');
+  render();
+}
+
 function renderShelfChips(tal) {
   const tags = L.shelfTags(tal.movies);
   if (S.shelf !== 'All' && S.shelf !== 'Guest picks' && !tags.includes(S.shelf)) S.shelf = 'All';
@@ -224,6 +280,7 @@ function renderBallot(tal) {
             <button class="vote${voted ? ' on' : ''}${bump ? ' bump' : ''}" type="button" data-action="vote" data-id="${esc(m.imdbId)}"
               aria-pressed="${!!voted}" aria-label="I'd watch ${esc(m.title)} (${m.votes} vote${m.votes === 1 ? '' : 's'})">${THUMB}<span class="n">${m.votes}</span></button>
             ${m.trailer ? `<a class="mini" href="https://www.youtube.com/watch?v=${esc(m.trailer)}" target="_blank" rel="noopener">Trailer</a>` : ''}
+            <a class="mini" href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener" aria-label="Open ${esc(m.title)} in Stremio">Stremio</a>
             ${m.description ? `<button class="mini" type="button" data-action="plot" data-id="${esc(m.imdbId)}" aria-expanded="${S.openPlots.has(m.imdbId)}">Plot</button>` : ''}
             ${mine ? `<button class="mini" type="button" data-action="unpick" data-id="${esc(m.imdbId)}">Remove</button>` : ''}
           </div>
@@ -274,6 +331,7 @@ function renderTicket(tal) {
     <div class="row" style="margin-top:12px">
       ${rolling ? '' : '<button class="btn btn-bulb" type="button" data-action="ics">Add to calendar</button>'}
       ${m.trailer ? `<a class="btn btn-ghost" href="https://www.youtube.com/watch?v=${esc(m.trailer)}" target="_blank" rel="noopener">Watch the trailer</a>` : ''}
+      ${m.imdbId ? `<a class="btn btn-ghost" href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener">Open in Stremio</a>` : ''}
       ${rolling ? '' : `<button class="btn btn-ghost" type="button" data-action="rsvp" data-id="${esc(n.lockedDateId)}">Can't make it</button>`}
     </div>`;
 }
@@ -385,6 +443,8 @@ async function join(name) {
 $('#passForm').addEventListener('submit', (e) => { e.preventDefault(); join($('#passName').value); });
 
 document.addEventListener('click', (e) => {
+  const tab = e.target.closest('#browseTabs [data-tab]');
+  if (tab) { openTab(tab.dataset.tab); return; }
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const id = el.dataset.id;
@@ -504,7 +564,8 @@ async function pick(imdbId) {
   if (myMovies().length >= L.MAX_PICKS) { setPickMsg(new PicksFullError().message, 'bad'); return; }
   await once(`pick:${imdbId}`, async () => {
     setPickMsg('Adding…');
-    const fromList = lastResults.find((m) => (m.imdb_id || m.id) === imdbId) || surpriseItem;
+    const fromList = lastResults.find((m) => (m.imdb_id || m.id) === imdbId)
+      || S.tabItems.map((x) => x.meta).find((m) => (m.imdb_id || m.id) === imdbId) || surpriseItem;
     const meta = (await movieMeta(imdbId).catch(() => null)) || fromList || { id: imdbId, name: imdbId };
     const movie = L.movieFromMeta({ ...meta, poster: meta.poster || fromList?.poster });
     // Count before the write: the local snapshot updates as soon as it lands.

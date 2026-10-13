@@ -63,12 +63,15 @@
       <div class="section-head"><h2>Your picks</h2><span class="picks-left" id="picksLeft"></span></div>
       <div class="strip" id="strip"></div>
       <div class="search">
-        <div class="search-row">
+        <div class="chips browse-tabs" id="browseTabs" role="tablist" aria-label="Find a movie"></div>
+        <div class="search-row" id="searchRow">
           <label class="sr-only" for="q">Search for a movie</label>
           <input class="field" id="q" type="search" placeholder="Search a movie to suggest…" autocomplete="off" enterkeyhint="search">
           <button class="btn btn-ghost" type="button" data-action="surprise">Surprise me</button>
         </div>
         <div class="results" id="results" hidden></div>
+        <p class="hint" id="browseNote" hidden></p>
+        <div class="poster-grid" id="browseGrid" hidden></div>
         <div id="surprise"></div>
         <p class="msg" id="pickMsg" role="status"></p>
       </div>

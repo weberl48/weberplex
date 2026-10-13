@@ -212,6 +212,15 @@ export function makeActions(db, F) {
       await batch.commit();
     },
 
+    // HA watches control/shield and opens this movie in Stremio on the Shield.
+    async showOnShield(hostKey, movie) {
+      const { batch, op } = hostBatch(hostKey);
+      batch.set(doc(db, 'control', 'shield'), {
+        imdb: movie.imdbId, title: String(movie.title || '').slice(0, 120), seq: Date.now(), op, at: serverTimestamp(),
+      });
+      await batch.commit();
+    },
+
     async lock(hostKey, nightId, date, movie) {
       const { batch, op } = hostBatch(hostKey);
       const { imdbId, title, year, poster, runtime, rating, genres, trailer } = movie;
