@@ -349,8 +349,10 @@ def news_cards_checks(browser, errors):
     expect(hal.locator('#toast')).to_contain_text('Theme: Drama', timeout=10000)
     hal.click('#next [data-action="veto"]')
     expect(hal.locator('#next .vetoes s')).to_have_text('Cards Movie', timeout=10000)
+    expect(hal.locator('#toast')).to_contain_text('Vetoed', timeout=10000)  # on the server, not just echoed locally
     hal.click('#next [data-action="quick-snack"][data-item="Candy"]')
     expect(hal.locator('#next .snack')).to_contain_text('Candy', timeout=10000)
+    expect(hal.locator('#toast')).to_contain_text('Noted', timeout=10000)  # closing the page mid-write would drop it
     hal.context.close()
 
     wren = as_person(browser, errors, 'wren', 'Wren')
@@ -442,6 +444,7 @@ def main():
         expect(sam.locator('#subGoogle')).to_have_attribute('href', re.compile(r'^https://calendar\.google\.com/calendar/render\?cid=webcal%3A%2F%2F[^%]+%2Fcalendar\.ics$'))
         expect(sam.locator('#subGoogle')).to_have_attribute('target', '_blank')
         expect(sam.locator('#subUrl')).to_have_value(re.compile(r'^https://[^/]+/calendar\.ics$'))
+        sam.click('#subPanel .fineprint > summary')  # the copy-the-link route sits under "Didn't work?"
         sam.click('#subPanel [data-action="copy-feed"]')
         expect(sam.locator('#toast')).to_contain_text('Link copied')
         assert sam.evaluate('navigator.clipboard.readText()') == sam.input_value('#subUrl')
@@ -475,12 +478,30 @@ def main():
         expect(sam.locator('#topWanted li').first).to_contain_text(alien)
         expect(sam.locator('#tasteBox')).to_contain_text('Thumbs-up a few movies to see who you agree with')
 
-        # Calendar: Jo marks a day free and volunteers to host it.
+        # Calendar: a tap on a day only shows it below; Jo says she's free there and
+        # volunteers to host it.
         cell = jo.locator('#calendar .day').nth(2)
         day = cell.get_attribute('data-day')
         cell.click()
+        expect(jo.locator(f'#calendar .day.sel[data-day="{day}"]')).to_have_count(1)
+        expect(jo.locator(f'#calendar .day.on[data-day="{day}"]')).to_have_count(0)  # looking marks nothing
+        jo.click('#dayDetail [data-action="free"]')
         expect(jo.locator(f'#calendar .day.on[data-day="{day}"]')).to_have_count(1)
+        # Arrow keys move the day (and the panel) without marking anything either.
+        cell.focus()
+        jo.keyboard.press('ArrowRight')
+        expect(jo.locator('#calendar .day.sel')).to_have_attribute('data-day', jo.locator('#calendar .day').nth(3).get_attribute('data-day'))
+        jo.keyboard.press('ArrowLeft')
+        expect(jo.locator(f'#calendar .day.sel[data-day="{day}"]')).to_be_focused()
         jo.select_option('#hostTime', '20:00')
+        # Hosting is printed on a slip first; "Not yet" backs out, and nothing is written.
+        jo.click('#dayDetail [data-action="host-slip"]')
+        expect(jo.locator('#dayDetail .host-slip')).to_contain_text("Movie night at Jo's")
+        expect(jo.locator('#dayDetail [data-action="host"]')).to_be_focused()
+        jo.click('#dayDetail [data-action="host-cancel"]')
+        expect(jo.locator('#dayDetail .host-slip')).to_have_count(0)
+        expect(jo.locator('#board')).not_to_contain_text("Movie night at Jo's")
+        jo.click('#dayDetail [data-action="host-slip"]')
         jo.click('#dayDetail [data-action="host"]')
         expect(jo.locator('#board')).to_contain_text("Movie night at Jo's")
         expect(sam.locator('#next')).to_contain_text("At Jo's")
@@ -491,7 +512,9 @@ def main():
         expect(jo.locator('#next .host-tools')).to_have_count(1)
         shot(sam, '01-guest-planned')
 
-        # Seen marks and the filter.
+        # Seen marks (on the back of the lobby card) and the filter.
+        card(sam, jaws).locator('[data-action="flip"]').click()
+        expect(card(sam, jaws)).to_have_class(re.compile(r'\bflipped\b'))
         card(sam, jaws).locator('[data-action="seen"]').click()
         expect(card(sam, jaws)).to_contain_text('Seen by Sam')
         sam.click('#shelfChips [data-tag="Unseen by me"]')
@@ -557,6 +580,7 @@ def main():
         expect(sam.locator('.reel-overlay button')).to_be_visible(timeout=15000)
         sam.locator('.reel-overlay button').click()
         expect(sam.locator('#next .ticket')).to_contain_text('ADMIT ONE', timeout=10000)
+        expect(sam.locator('#next .ticket h3')).not_to_have_text('The movie is…')  # face up once the reel has played
         expect(sam.locator('.reveal-overlay')).to_have_count(0)  # a tie lock gets the reel, not the reveal
         shown = sam.locator('#next .ticket h3').inner_text().lower()  # uppercased by CSS
         winner = next((t for t in (alien, jaws) if t.lower() == shown), None)
@@ -610,11 +634,14 @@ def main():
         cell2 = jo.locator('#calendar .day').nth(4)
         day2 = cell2.get_attribute('data-day')
         cell2.click()
-        expect(jo.locator(f'#calendar .day.on[data-day="{day2}"]')).to_have_count(1)
+        expect(jo.locator(f'#calendar .day.sel[data-day="{day2}"]')).to_have_count(1)
         expect(jo.locator('#hostTheme option', has_text='Foreign')).to_have_count(1)
         jo.select_option('#hostTheme', 'Foreign')
+        jo.click('#dayDetail [data-action="host-slip"]')
+        expect(jo.locator('#dayDetail .host-slip')).to_contain_text('Foreign night')  # the slip prints what you picked
         shot(jo, '04b2-host-form-theme')
         jo.click('#dayDetail [data-action="host"]')
+        expect(jo.locator(f'#calendar .day.on[data-day="{day2}"]')).to_have_count(1)  # hosting counts you in
         expect(jo.locator('#next .theme-chip')).to_have_text('Foreign')
         expect(jo.locator('#board')).to_contain_text('Theme: Foreign')
         expect(sam.locator('#next .theme-chip')).to_have_text('Foreign')
@@ -633,7 +660,10 @@ def main():
         expect(sam.locator('#next .dd-line').first).to_contain_text('Sam')
         # The theme narrows "what the people coming want" to movies that fit it; their
         # thumbs are all on other movies, and the page says so rather than "no thumbs".
-        expect(sam.locator('#next .leaders')).to_contain_text('Their thumbs are all on vetoed or off-theme movies')
+        expect(sam.locator('#next .night-card')).to_contain_text('Their thumbs are all on vetoed or off-theme movies')
+        # ...and it still says what would win: the only Foreign movie, on the board too.
+        expect(sam.locator('#next .pick-now')).to_contain_text(house_title)
+        expect(sam.locator('#board')).to_contain_text(f'Leading: {house_title}')
         # The host clears the theme from the host tools; it clears on Sam's phone too.
         # Arrowing through the menu quickly lands on the last choice, not an earlier one.
         jo.select_option('#next select[data-theme-day]', '')
@@ -687,9 +717,11 @@ def main():
         shot(sam, '04d-reveal')
         sam.keyboard.press('Tab')  # focus stays inside the dialog
         expect(sam.locator('.reveal-overlay button')).to_be_focused()
+        expect(sam.locator('.reveal-overlay button')).to_have_text('See my ticket')  # Sam is coming
         sam.click('.reveal-overlay button')
         expect(sam.locator('.reveal-overlay')).to_have_count(0)
         expect(sam.locator('#next .ticket h3')).to_contain_text(loser, ignore_case=True)
+        expect(sam.locator('#next .ticket')).to_be_focused()  # the reveal hands over to the ticket
         expect(jo.locator('.reveal-overlay')).to_be_visible(timeout=15000)
         expect(jo.locator('.reveal-title')).to_have_text(loser, timeout=10000)
         jo.keyboard.press('Escape')
@@ -702,23 +734,32 @@ def main():
         skip_cards(sam)  # Sam never pressed Got it, so the unread news opens again
         reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/sam'))['fields']['reels']['arrayValue']['values']]
         assert any(r.startswith(f'r:{day2}.') for r in reels), reels
-        # Someone new gets the walkthrough first; the reveal waits for it to close.
+        # Someone new gets the walkthrough first; the reveal waits for it to close, and
+        # until it has played the marquee keeps the movie face down.
         fresh = browser.new_context(viewport=PHONE).new_page()
         fresh.on('pageerror', lambda e: errors.append(f'fresh: {e}'))
         fresh.goto(f'{SITE}/?emu')
         expect(fresh.locator('.tour-overlay')).to_be_visible(timeout=10000)
-        expect(fresh.locator('#board h1')).to_contain_text(loser, ignore_case=True, timeout=10000)
+        expect(fresh.locator('#board h1')).to_have_text('The movie is…', timeout=10000)
         fresh.wait_for_timeout(1500)
         expect(fresh.locator('.reveal-overlay')).to_have_count(0)
         fresh.click('[data-tour="skip"]')
         expect(fresh.locator('.reveal-overlay')).to_be_visible(timeout=10000)
+        expect(fresh.locator('#board h1')).to_have_text('The movie is…')  # still face down behind the card
         fresh.keyboard.press('Escape')
         expect(fresh.locator('.reveal-overlay')).to_have_count(0)
+        expect(fresh.locator('#board h1')).to_contain_text(loser, ignore_case=True)
+        # A thumbs-up tapped before giving a name goes through once the name is in.
+        card(fresh, paddington).locator('.vote').click()
+        expect(fresh.locator('#pass')).to_be_visible()
+        expect(card(fresh, paddington).locator('.vote')).to_have_attribute('aria-pressed', 'false')
         # What a visitor watched before giving a name counts as theirs: no second
         # reveal once they join, and it is saved on their person doc.
         fresh.fill('#passName', 'Fran')
         fresh.click('#passForm button[type=submit]')
         expect(fresh.locator('#whoami')).to_contain_text('Fran')
+        expect(card(fresh, paddington).locator('.vote')).to_have_attribute('aria-pressed', 'true', timeout=10000)
+        expect(fresh.locator('#toast')).to_contain_text('Your thumbs-up on')
         fresh.wait_for_timeout(1500)
         expect(fresh.locator('.reveal-overlay')).to_have_count(0)
         reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/fran'))['fields']['reels']['arrayValue']['values']]
@@ -740,9 +781,12 @@ def main():
         sam.click('.reveal-overlay button')
         expect(sam.locator('#next .ticket h3')).to_contain_text(house_title, ignore_case=True)
         expect(sam.locator('#next')).to_contain_text('Theme')
-        # "Not you?" on Sam's phone: the next person on it still gets the reveal Sam just
-        # saw (signed out, until they give a name); once they do it is theirs: not played
-        # again, and saved on their person doc.
+        # "Not you?" on Sam's phone (it asks twice): the next person on it still gets the
+        # reveal Sam just saw (signed out, until they give a name); once they do it is
+        # theirs: not played again, and saved on their person doc.
+        sam.click('[data-action=switch]')
+        expect(sam.locator('[data-action=switch]')).to_have_text('Tap again to switch')
+        expect(sam.locator('#whoami')).to_contain_text('Sam')  # one tap doesn't drop anyone
         sam.click('[data-action=switch]')
         expect(sam.locator('.reveal-overlay')).to_be_visible(timeout=10000)
         expect(sam.locator('.reveal-title')).to_have_text(house_title)
@@ -772,6 +816,7 @@ def main():
 
         # Name switching keeps working; the taste match belongs to a signed-in person.
         sam.click('[data-action=switch]')
+        sam.click('[data-action=switch]')
         expect(sam.locator('#whoami')).to_be_empty()
         expect(sam.locator('#tasteCard')).to_be_hidden()
         expect(sam.locator('#topWanted li').first).to_be_visible()
@@ -783,7 +828,7 @@ def main():
         tour = newbie.locator('.tour-overlay')
         expect(tour).to_be_visible(timeout=10000)
         shot(newbie, '05-tour')
-        for _ in range(5):
+        for _ in range(4):
             newbie.click('[data-tour="next"]')
         newbie.click('[data-tour="done"]')
         expect(tour).to_have_count(0)
@@ -812,6 +857,13 @@ def main():
         expect(tour).to_be_visible()
         newbie.keyboard.press('Escape')
         expect(tour).to_have_count(0)
+        # Android's back gesture closes the card on top instead of leaving the site.
+        newbie.locator('.topbar [data-action="tour"]').click()
+        expect(tour).to_be_visible()
+        newbie.go_back()
+        expect(tour).to_have_count(0)
+        assert newbie.url.startswith(SITE), newbie.url
+        expect(newbie.locator('#whoami')).to_contain_text('Newbie')
 
         paint_checks(newbie)
         news_cards_checks(browser, errors)

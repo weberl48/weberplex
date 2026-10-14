@@ -7,7 +7,7 @@ import {
   dayKey, dayFromKey, calendarDays, tallyDays, sinceLastLook, shelfTags, excludedFor,
   icsEvent, icsCalendar, icsFold, icsEscape,
   tasteMatch, pickLeaders, mostWanted, recap,
-  vetoedFor, pickable, fitsTheme, themeOptions, cleanTheme, showtimeShort,
+  vetoedFor, pickable, fitsTheme, themeOptions, cleanTheme, showtimeShort, showtimeLong, looksLike, whenWords, googleCalendarUrl,
 } from '../public/js/logic.js';
 
 const at = (ms) => new Date(ms);
@@ -22,6 +22,45 @@ test('names normalize to rule-safe keys', () => {
   assert.equal(initials('sam oneil'), 'SO');
   assert.match(nameKey('Ольга'), /^u[a-z0-9]+$/);
   assert.equal(nameKey('Ольга'), nameKey(' ольга '));
+});
+
+test('names that may be the same person get a second look', () => {
+  assert.ok(looksLike('Grandma', 'Gma'));     // letters left out
+  assert.ok(looksLike('Sam', 'Samantha'));
+  assert.ok(looksLike('Jon', 'Jo'));
+  assert.ok(looksLike('Sarah', 'Sara'));
+  assert.ok(looksLike('Kyle', 'Kile'));       // one typo apart
+  assert.ok(!looksLike('Sam', 'Sam'));        // the same name is the same person, not a lookalike
+  assert.ok(!looksLike('Jo', 'Sam'));
+  assert.ok(!looksLike('Kim', 'Sam'));
+  assert.ok(!looksLike('Fran', 'Jo'));
+  assert.ok(!looksLike('A', 'Al'));           // one letter tells nothing
+});
+
+test('how far off, in words', () => {
+  const now = new Date(2026, 9, 14, 10, 0);
+  assert.equal(whenWords(new Date(2026, 10, 2, 21, 0), now), 'in 19 days');
+  assert.equal(whenWords(new Date(2026, 9, 16, 20, 0), now), 'in 2 days');
+  assert.equal(whenWords(new Date(2026, 9, 15, 20, 0), now), 'tomorrow');
+  assert.equal(whenWords(new Date(2026, 9, 15, 1, 0), now), 'tomorrow');    // past midnight and 15 hours off
+  assert.equal(whenWords(new Date(2026, 9, 15, 1, 0), new Date(2026, 9, 14, 20, 0)), 'in 5 hr'); // tomorrow by the calendar, but tonight to a person
+  assert.equal(whenWords(new Date(2026, 9, 14, 15, 20), now), 'in 5 hr 20 min');
+  assert.equal(whenWords(new Date(2026, 9, 14, 10, 40), now), 'in 40 min');
+  assert.equal(whenWords(new Date(2026, 9, 14, 9, 0), now), 'now');
+});
+
+test('Add to Google Calendar link for a night', () => {
+  const url = new URL(googleCalendarUrl({ title: 'Movie night: Jaws', start: new Date(Date.UTC(2026, 10, 4, 1, 0)), minutes: 150, details: 'At Jo’s', location: 'Jo’s' }));
+  assert.equal(url.host, 'calendar.google.com');
+  assert.equal(url.searchParams.get('action'), 'TEMPLATE');
+  assert.equal(url.searchParams.get('text'), 'Movie night: Jaws');
+  assert.equal(url.searchParams.get('dates'), '20261104T010000Z/20261104T033000Z');
+});
+
+test('a showtime keeps its time and AM/PM together', () => {
+  const s = showtimeLong(new Date(2026, 10, 3, 21, 0), 'en-US');
+  assert.match(s, /9:00 PM$/);
+  assert.doesNotMatch(s, /\d PM/);
 });
 
 const movies = [
@@ -123,8 +162,8 @@ test('since you last looked: what changed, minus your own doing', () => {
     free: [{ day: '2026-10-20', nameKey: 'al', name: 'Al', at: at(1900) }],
   });
   const text = n.items.map((i) => i.text);
-  assert.match(text[0], /^Jo is hosting /);
-  assert.match(text[1], /^Locked for .*: Smile$/);
+  assert.match(text[0], /^Locked for .*: Smile$/); // your own night comes first
+  assert.match(text[1], /^Jo is hosting /);
   assert.deepEqual(text.slice(2), ['1 new movie on the shelf: New', '1 new thumbs-up on 1 movie', 'Al marked free evenings']);
   assert.deepEqual([...n.movies], ['tt2']);
   assert.equal(n.votes.get('tt1'), 1);

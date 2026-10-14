@@ -145,11 +145,31 @@ test('what each new kind says', () => {
   assert.match(text('watched').text, /^Alien is filed under Watched$/);
   assert.equal(text('watched').target, '#watchedSec');
   assert.match(text('snack').text, /^Sam is bringing nachos on \w+$/);
-  assert.match(text('review').text, /^Jo rated Alien ★★★★$/);
+  assert.match(text('review').text, /^Jo gave Alien 4 stars$/); // words, not ★ glyphs a screen reader spells out
   const cleared = sinceLastLook({ ...base, nights: [night({ theme: '', themeAt: at(2000) })] }).items[0];
   assert.match(cleared.text, /^\w+'s theme was cleared$/);
   // A veto that was taken back (its stamp goes with it) is not news.
   assert.deepEqual(kindsOf({ nights: [night({ vetoes: {}, vetoAt: {} })] }), []);
+});
+
+test('news comes most useful first: your night, other nights, the shelf, free evenings, then snacks and reviews', () => {
+  const myNight = night({ day: '2026-10-18', host: 'Al', hostKey: 'al', movedAt: at(2000) });
+  const other = night({ day: '2026-10-19', host: 'Bo', hostKey: 'bo', createdAt: at(2000) });
+  const n = sinceLastLook({
+    ...base,
+    nights: [night(), other, myNight],
+    subs: new Map([['2026-10-17', { snacks: [{ item: 'nachos', nameKey: 'sam', name: 'Sam', at: at(2000) }], reviews: [] }]]),
+    movies: [{ imdbId: 'tt2', title: 'New', by: 'jo', at: at(2000) }],
+    free: [{ day: '2026-10-18', nameKey: 'me', name: 'Me', at: at(10) }, { day: '2026-10-20', nameKey: 'al', name: 'Al', at: at(2000) }],
+  });
+  assert.deepEqual(n.items.map((i) => i.kind), ['moved', 'night', 'movies', 'free', 'snack']);
+  assert.deepEqual(n.items[2].ids, [{ id: 'tt2', title: 'New' }]); // the card's thumbs-up buttons
+});
+
+test('a night hosted on an evening you said you were free puts you on its list, and says so', () => {
+  const n = sinceLastLook({ ...base, nights: [night({ createdAt: at(2000) })], free: [{ day: '2026-10-17', nameKey: 'me', name: 'Me', at: at(10) }] });
+  assert.match(n.items[0].detail, /you’re on the list/);
+  assert.doesNotMatch(sinceLastLook({ ...base, ...FIXTURES.night }).items[0].detail, /on the list/);
 });
 
 test('at most eight cards, with the rest counted on the last one', () => {
@@ -159,5 +179,7 @@ test('at most eight cards, with the rest counted on the last one', () => {
   assert.equal(n.items.length, 11);
   assert.equal(n.cards.length, MAX_NEWS_CARDS);
   assert.match(n.cards.at(-1).detail, /…and 3 more things\.$/);
+  assert.equal(n.cards.at(-1).rest.length, 3); // and lists them, so none goes unseen
+  assert.deepEqual(n.cards.at(-1).rest, n.items.slice(MAX_NEWS_CARDS).map((x) => x.text));
   assert.equal(sinceLastLook({ ...base, ...FIXTURES.movies }).cards.length, 1);
 });

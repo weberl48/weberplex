@@ -41,6 +41,25 @@ function latinKey(raw) {
     .replace(/-+$/g, '');
 }
 
+// Could two names be the same person? "Gma" and "Grandma", "Sam" and
+// "Samantha", "Jon" and "Jo": one is the other with letters left out, or they
+// are one typo apart. Used to ask once before making a second person.
+export function looksLike(a, b) {
+  const x = nameKey(a).replace(/-/g, '');
+  const y = nameKey(b).replace(/-/g, '');
+  if (x.length < 2 || y.length < 2 || x === y) return false;
+  const within = (s, t) => { let i = 0; for (const ch of t) if (ch === s[i]) i += 1; return i === s.length; };
+  if (within(x, y) || within(y, x)) return true;
+  if (Math.abs(x.length - y.length) > 1) return false;
+  let prev = Array.from({ length: y.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= x.length; i += 1) {
+    const row = [i];
+    for (let j = 1; j <= y.length; j += 1) row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (x[i - 1] === y[j - 1] ? 0 : 1));
+    prev = row;
+  }
+  return prev[y.length] <= 1;
+}
+
 export function initials(name) {
   const parts = cleanName(name).split(' ').filter(Boolean);
   if (!parts.length) return '?';
@@ -310,7 +329,8 @@ const nameList = (names) => {
 };
 // "Friday" for a night's start (local time, like showtimeLong).
 const dayName = (when) => toDate(when).toLocaleDateString(undefined, { weekday: 'long' });
-const starsOf = (n) => '★'.repeat(Math.max(0, Math.min(5, n)));
+// "4 stars", read the same by eye and by a screen reader.
+const starsOf = (n) => plural(Math.max(0, Math.min(5, n)), 'star');
 
 // `subs`: day -> { snacks, reviews } for the nights the page follows.
 // `people`: for a veto owner's name (the host's own name is on the night).
@@ -324,20 +344,22 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
   const push = (item) => out.items.push({ detail: '', ...item });
   const titleOf = (id) => allMovies.find((m) => m.imdbId === id)?.title || 'a movie that left the shelf';
   const nameOf = (n, key) => (key === n.hostKey ? n.host : people.find((p) => p.id === key)?.name || key);
-  for (const n of nights) {
+  const imFree = (day) => free.some((f) => f.day === day && f.nameKey === meKey);
+  const newsForNight = (n) => {
     const dow = n.startsAt ? dayName(n.startsAt) : '';
     const title = n.lockedMovie?.title || '';
     const poster = n.lockedMovie?.poster || '';
     if (n.status === 'cancelled') {
       if (fresh(n.finishedAt) && theirs(n.hostKey)) push({ kind: 'cancelled', text: `${placeLabel(n.host)} ${dow} movie night is off`, detail: 'Pick another evening if you still want a movie night.', target: '#calSec' });
-      continue;
+      return;
     }
     if (n.status === 'done') {
       if (fresh(n.finishedAt)) push({ kind: 'watched', text: `${title || 'The movie'} is filed under Watched`, detail: 'Rate it while it is fresh.', target: '#watchedSec', title, poster });
     } else {
       if (fresh(n.createdAt) && theirs(n.hostKey)) {
         out.days.add(n.day);
-        push({ kind: 'night', text: `${n.host} is hosting ${showtimeLong(n.startsAt)}`, detail: n.theme ? `Theme: ${n.theme}` : '', target: '#nextSec' });
+        // Free that evening already? Then you're on this night's list.
+        push({ kind: 'night', text: `${n.host} is hosting ${showtimeLong(n.startsAt)}`, detail: [n.theme && `Theme: ${n.theme}.`, imFree(n.day) && 'You’re free that evening, so you’re on the list.'].filter(Boolean).join(' '), target: '#nextSec' });
       }
       if (n.status === 'locked' && fresh(n.lockedAt)) {
         push({ kind: 'locked', text: `Locked for ${showtimeParts(n.startsAt).dow}: ${title || 'the movie'}`, detail: `${placeLabel(n.host)} ${dow} night, ${showtimeParts(n.startsAt).time}.`, target: '#nextSec', title, poster });
@@ -364,7 +386,7 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
       }
     }
     const sub = subs.get(n.day);
-    if (!sub) continue;
+    if (!sub) return;
     const snacks = (sub.snacks || []).filter((x) => fresh(x.at) && theirs(x.nameKey));
     if (snacks.length) push({
       kind: 'snack', target: '#nextSec',
@@ -374,15 +396,23 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
     const reviews = (sub.reviews || []).filter((x) => fresh(x.at) && theirs(x.nameKey));
     if (reviews.length) push({
       kind: 'review', target: '#watchedSec', title, poster,
-      text: reviews.length === 1 ? `${reviews[0].name} rated ${title || 'the movie'} ${starsOf(reviews[0].stars)}` : `${plural(reviews.length, 'new review')} of ${title || 'the movie'}`,
-      detail: reviews.length === 1 ? reviews[0].line || '' : reviews.map((x) => `${x.name} ${starsOf(x.stars)}`).join(' · '),
+      text: reviews.length === 1 ? `${reviews[0].name} gave ${title || 'the movie'} ${starsOf(reviews[0].stars)}` : `${plural(reviews.length, 'new review')} of ${title || 'the movie'}`,
+      detail: reviews.length === 1 ? reviews[0].line || '' : reviews.map((x) => `${x.name}: ${starsOf(x.stars)}`).join(' · '),
     });
+  };
+  for (const n of nights) {
+    const mark = out.items.length;
+    newsForNight(n);
+    for (const it of out.items.slice(mark)) it.day = n.day;
   }
   const added = movies.filter((m) => fresh(m.at) && theirs(m.by));
   for (const m of added) out.movies.add(m.imdbId);
   if (added.length) {
     const titles = added.slice(0, 3).map((m) => m.title).join(', ');
-    push({ kind: 'movies', text: `${plural(added.length, 'new movie')} on the shelf: ${titles}${added.length > 3 ? '…' : ''}`, detail: 'Thumbs-up any you would watch.', target: '#shelfSec', title: added[0].title, poster: added[0].poster || '' });
+    push({
+      kind: 'movies', text: `${plural(added.length, 'new movie')} on the shelf: ${titles}${added.length > 3 ? '…' : ''}`, detail: 'Thumbs-up any you would watch.', target: '#shelfSec',
+      title: added[0].title, poster: added[0].poster || '', ids: added.slice(0, 3).map((m) => ({ id: m.imdbId, title: m.title })),
+    });
   }
   const live = new Set(movies.map((m) => m.imdbId));
   const newVotes = votes.filter((v) => fresh(v.at) && theirs(v.nameKey) && live.has(v.movie));
@@ -394,12 +424,24 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
   const marks = free.filter((f) => fresh(f.at) && theirs(f.nameKey));
   for (const f of marks) out.days.add(f.day);
   if (marks.length) push({ kind: 'free', text: `${nameList(marks.map((f) => f.name))} marked free evenings`, detail: 'Their evenings show on the calendar.', target: '#calSec', names: [...new Set(marks.map((f) => f.name))] });
-  // At most MAX_NEWS_CARDS cards; the rest are counted on the last one.
+  // Most useful first: what happened to a night you're coming to or hosting,
+  // then other nights, new movies and thumbs-ups, free evenings, and last the
+  // after-party (snacks, reviews, nights filed as watched). Ties keep their order.
+  const mine = new Set([...free.filter((f) => f.nameKey === meKey).map((f) => f.day), ...nights.filter((n) => n.hostKey === meKey).map((n) => n.day)]);
+  const LATER = { movies: 2, votes: 2, free: 3, snack: 4, review: 4, watched: 4 };
+  const tier = (it) => (LATER[it.kind] ?? (it.day && mine.has(it.day) ? 0 : 1));
+  out.items = out.items.map((it, i) => [it, i]).sort((a, b) => tier(a[0]) - tier(b[0]) || a[1] - b[1]).map(([it]) => it);
+  // At most MAX_NEWS_CARDS cards; the rest are counted on the last one, which
+  // also lists them (`rest`), so nothing is left out.
   out.cards = out.items.slice(0, MAX_NEWS_CARDS);
   const extra = out.items.length - out.cards.length;
   if (extra > 0) {
     const last = out.cards[out.cards.length - 1];
-    out.cards[out.cards.length - 1] = { ...last, detail: [last.detail, `…and ${plural(extra, 'more thing')}.`].filter(Boolean).join(' ') };
+    out.cards[out.cards.length - 1] = {
+      ...last,
+      detail: [last.detail, `…and ${plural(extra, 'more thing')}.`].filter(Boolean).join(' '),
+      rest: out.items.slice(MAX_NEWS_CARDS).map((x) => x.text),
+    };
   }
   return out;
 }
@@ -419,6 +461,32 @@ export function countdownText(target, now = new Date()) {
   return `${c.minutes}m`;
 }
 
+// How far off something is, the way a person says it: "in 19 days",
+// "tomorrow", "in 5 hr 20 min", "in 40 min". Days count by the calendar.
+export function whenWords(target, now = new Date()) {
+  const t = toDate(target);
+  const n = toDate(now);
+  const ms = t.getTime() - n.getTime();
+  if (ms <= 0) return 'now';
+  const mins = Math.max(1, Math.round(ms / 60000));
+  const days = Math.round((dayFromKey(dayKey(t)) - dayFromKey(dayKey(n))) / 86400000);
+  if (days >= 2) return `in ${days} days`;
+  if (days === 1 && mins >= 12 * 60) return 'tomorrow';
+  if (mins < 60) return `in ${mins} min`;
+  const h = Math.floor(mins / 60);
+  return mins % 60 ? `in ${h} hr ${mins % 60} min` : `in ${h} hr`;
+}
+
+// "Add to Google Calendar" for one night: everyone is on Android, where a
+// downloaded .ics may have nowhere to go.
+export function googleCalendarUrl({ title, start, minutes = 150, details = '', location = '' }) {
+  const fmt = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const s = toDate(start);
+  const e = new Date(s.getTime() + minutes * 60000);
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: title, dates: `${fmt(s)}/${fmt(e)}`, details, location });
+  return `https://calendar.google.com/calendar/render?${q}`;
+}
+
 export function showtimeParts(when, locale = undefined) {
   const d = toDate(when);
   return {
@@ -429,9 +497,12 @@ export function showtimeParts(when, locale = undefined) {
   };
 }
 
+// The time and its AM/PM never part across a line break ("9:00 / PM" on a
+// phone): browsers now put a plain space there.
 export function showtimeLong(when, locale = undefined) {
   const d = toDate(when);
-  return d.toLocaleString(locale, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleString(locale, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    .replace(/(\d)[  ]([AP]\.?M\.?)/gi, '$1 $2');
 }
 
 // "Friday 8 PM" (":30" only when it isn't on the hour), for the reveal.

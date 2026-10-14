@@ -2,54 +2,48 @@
 // the How it works link. Each card carries a small, inert example built from
 // the site's own styles. The same overlay also steps through any other list of
 // cards (openTour's `steps`): "Since you last looked" uses it. A step is
-// { title, body, demo?, target? } as trusted html; `target` adds a Show me
-// button. Whoever builds steps from other people's words must escape them.
-import { THUMB } from './ui.js';
+// { title, body, demo?, after?, target?, nextText?, doneHere? } as trusted
+// html; `after` follows the body (and may hold real controls), `target` adds a
+// Show me button, `nextText` renames Next, and `doneHere` offers the done
+// button on that card too. Whoever builds steps from other people's words
+// must escape them.
+import { THUMB, HOUSE, CHECK, backCloses } from './ui.js';
 
 const STEPS = [
   {
     title: 'Welcome to the Weberplex',
-    body: 'Movie night, decided together. Here is how it works in five quick steps.',
-    demo: `<div class="marquee tour-mini"><div class="board"><p class="kicker">Coming soon</p><h1>Weberplex</h1><p class="sub">Pick a night · Pick a picture</p></div></div>`,
+    body: 'Movie night, decided together. Say when you’re free, thumbs-up what you’d watch, and the site picks the movie.',
+    demo: `<div class="marquee tour-mini"><div class="board"><p class="kicker">Now booking</p><h1>Weberplex</h1><p class="sub">Pick a night · Pick a picture</p></div></div>`,
   },
   {
     title: 'Put your name down',
-    body: 'Type your name once. This phone remembers you, and it is how your picks and votes count.',
+    body: 'Type your first name once. This phone remembers it, and your thumbs-ups and free evenings count under it.',
     demo: `<div class="tour-row"><span class="field tour-field">Sam</span><span class="btn btn-bulb">That's me</span></div>`,
   },
   {
-    title: 'Mark the evenings you are free',
-    body: 'Tap every evening on the calendar that works for you. Anyone can host: pick a day, choose a start time and tap I can host. That puts a movie night on the calendar.',
+    title: 'Say when you’re free',
+    body: 'Tap a day on the calendar to see who’s free, then tap I’m free. Anyone can host: pick a start time and tap I can host.',
     demo: `<div class="cal tour-cal">
       <span class="day"><span class="d-dow">THU</span><span class="d-num">16</span></span>
-      <span class="day on lead"><span class="d-dow">FRI</span><span class="d-num">17</span><span class="d-meta">3<span class="d-host">⌂</span></span></span>
+      <span class="day on lead sel"><span class="d-dow">FRI</span><span class="d-num">17</span><span class="d-meta">3<span class="d-host">${HOUSE}</span></span></span>
       <span class="day on"><span class="d-dow">SAT</span><span class="d-num">18</span><span class="d-meta">2</span></span>
       <span class="day"><span class="d-dow">SUN</span><span class="d-num">19</span></span>
     </div>
-    <div class="offer-strip tour-strip"><span>Fri 17 · Jo is hosting at 8:00 PM</span><span class="mini on">You’re free ✓</span></div>`,
+    <div class="day-detail tour-window"><div class="dd-head"><h3>Friday, October 17</h3></div>
+      <p class="dd-line"><span><b>Jo</b> is hosting at 8:00&nbsp;PM</span></p>
+      <span class="btn btn-ghost btn-rsvp on">You’re in ${CHECK}</span></div>`,
   },
   {
-    title: 'Add movies to the shelf',
-    body: 'The shelf keeps every movie anyone adds, and it only grows. Search, or browse Trending, New this year and For you. Add a line on why you picked it if you like.',
-    demo: `<div class="strip tour-strip-film">
-      <div class="frame tour-poster" style="background:#3a2a4a">Hereditary</div>
-      <div class="frame tour-poster" style="background:#24414a">REC</div>
-      <div class="frame tour-poster" style="background:#4a3324">Nosferatu</div>
-      <div class="frame tour-poster" style="background:#2b3a26">Host</div>
-      <div class="frame">+</div>
-    </div>`,
-  },
-  {
-    title: 'Thumbs-up what you would watch',
-    body: 'Vote for as many as you like; your thumbs carry over from night to night. Mark the ones you have seen so everyone can spot what is new to the group.',
-    demo: `<div class="tour-row"><span class="vote on">${THUMB}<span class="n">4</span></span><span class="mini on">Seen ✓</span>
-      <span class="tag-chip" data-tag="Foreign">Foreign</span><span class="mini">Trailer</span></div>`,
+    title: 'Thumbs-up what you’d watch',
+    body: 'Everyone adds movies to the shelf. Thumbs-up as many as you like; they carry over from night to night. Tap a poster (look for the folded corner) to turn it over for the trailer, the plot and Seen it.',
+    demo: `<div class="tour-row"><span class="tour-lobby"><span class="lc-ear"></span>Nosferatu</span>
+      <span class="vote on">${THUMB}<span class="n">4</span></span><span class="tag-chip" data-tag="Foreign">Foreign</span></div>`,
   },
   {
     title: 'The movie picks itself',
-    body: 'A day before each night, it locks the movie the people coming want most (the reel breaks ties). Hosts can set a theme, and everyone coming gets one veto. You get a ticket and a calendar invite, call snacks, and rate it after the credits.',
+    body: 'A day before, the movie locks: the one the people coming want most. Everyone coming gets one veto, and a tie spins the reel. Then your ticket appears.',
     demo: `<div class="ticket tour-ticket"><div class="ticket-main"><p class="admit">ADMIT ONE</p><h3>The Witch</h3>
-      <dl><dt>When</dt><dd>Fri, Oct 17 · 8:00 PM</dd><dt>Where</dt><dd>Jo's</dd></dl></div>
+      <dl><dt>When</dt><dd>Fri, Oct 17 · 8:00&nbsp;PM</dd><dt>Where</dt><dd>Jo's</dd></dl></div>
       <div class="ticket-stub"><span>No. 004213</span></div></div>`,
   },
 ];
@@ -70,12 +64,14 @@ export function openTour({ onDone, steps = STEPS, label = 'How it works', doneTe
   open = overlay;
 
   const close = (how = 'skip', target = '') => {
+    release();
     overlay.remove();
     open = null;
     document.removeEventListener('keydown', onKey);
     prevFocus?.focus?.({ preventScroll: how === 'show' });
     onDone?.({ how, target });
   };
+  const release = backCloses(() => close('skip')); // back = Skip
   const paint = () => {
     const s = steps[i];
     const last = i === steps.length - 1;
@@ -83,21 +79,29 @@ export function openTour({ onDone, steps = STEPS, label = 'How it works', doneTe
       <div class="tour-card">
         <div class="tour-top">
           <span class="label">${label} · ${i + 1} of ${steps.length}</span>
-          <button class="linkish" type="button" data-tour="skip">Skip</button>
+          <button class="btn btn-ghost btn-small" type="button" data-tour="skip">Skip</button>
         </div>
         ${s.demo ? `<div class="tour-demo" aria-hidden="true" inert>${s.demo}</div>` : ''}
         <h2 id="tourTitle">${s.title}</h2>
         ${s.body ? `<p>${s.body}</p>` : ''}
-        <div class="tour-dots" aria-hidden="true">${steps.map((_, k) => `<span class="${k === i ? 'on' : ''}"></span>`).join('')}</div>
-        <div class="row tour-nav">
-          ${i ? '<button class="btn btn-ghost" type="button" data-tour="back">Back</button>' : ''}
-          ${s.target ? '<button class="btn btn-ghost" type="button" data-tour="show">Show me</button>' : ''}
-          <button class="btn btn-bulb" type="button" data-tour="${last ? 'done' : 'next'}">${last ? doneText : 'Next'}</button>
+        ${s.after || ''}
+        <div class="tour-foot">
+          <div class="tour-dots" aria-hidden="true">${steps.map((_, k) => `<span class="${k === i ? 'on' : ''}"></span>`).join('')}</div>
+          <div class="row tour-nav">
+            ${i ? '<button class="btn btn-ghost" type="button" data-tour="back">Back</button>' : ''}
+            ${s.target ? '<button class="btn btn-ghost" type="button" data-tour="show">Show me</button>' : ''}
+            ${s.doneHere && !last ? `<button class="btn btn-ghost" type="button" data-tour="done">${doneText}</button>` : ''}
+            <button class="btn btn-bulb" type="button" data-tour="${last ? 'done' : 'next'}">${last ? doneText : s.nextText || 'Next'}</button>
+          </div>
         </div>
       </div>`;
     overlay.querySelector(`[data-tour="${last ? 'done' : 'next'}"]`).focus();
   };
   overlay.addEventListener('click', (e) => {
+    // A real control on a card (a thumbs-up on a new movie) does its work
+    // through the page; the card isn't repainted, so it shows the new state itself.
+    const t = e.target.closest('[data-action][aria-pressed]');
+    if (t) { const on = t.getAttribute('aria-pressed') !== 'true'; t.setAttribute('aria-pressed', String(on)); t.classList.toggle('on', on); }
     const b = e.target.closest('[data-tour]');
     if (!b) return;
     const a = b.dataset.tour;

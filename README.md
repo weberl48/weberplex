@@ -17,11 +17,11 @@ shared shelf, and thumbs-up what they'd watch. The site picks the movie.
 
 | Part | What people do |
 | --- | --- |
-| **Calendar** | Four weeks of evenings. Tap the ones you're free. Anyone can pick a day, choose a start time and tap **I can host**: that puts a movie night on it (one per day; first volunteer hosts; the start has to be in the future, and hosting less than a day out locks the movie right away). |
-| **Up next** | The nearest night: when, whose house, who's coming, its theme, what *those people* have thumbed up, snacks. Everyone coming (and the host) gets one **veto** on a movie for this night. The host can change the time or theme, lock early, unlock (until a day before), mark it watched (once it's started), or cancel (until it starts). |
-| **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one". Thumbs-up ("I'd watch it") and **Seen it** are per person and carry over; every card shows who has seen it. Sort by most wanted, newest, fewest have seen, shortest; filter by tag, unseen by me, added by me. No cap. |
-| **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. |
-| **Stats** | The long view, worked out in your browser from what the page already has: nights and hours watched, movies added, thumbs-ups and who gives the most; the most wanted movies on the shelf; whose shelf picks made a night (house picks count as "House"); and, when you're signed in, who you agree with most (how alike your thumbs-ups are, once you and they have at least three). |
+| **Calendar** | Four weeks of evenings. Tapping a day only shows it in the panel below (the arrow keys move between days too); nothing is marked until you tap **I'm free that evening** there. Being free on an evening and coming to a night held on it are the same thing: if someone hosts it later, you're on its list. Anyone can pick a start time and tap **I can host**, which prints a hosting slip; **Put it on the marquee** confirms it, puts a movie night on the day and counts you in (one per day; first volunteer hosts; the start has to be in the future, and hosting less than a day out locks the movie right away). |
+| **Up next** | The nearest night: when, whose house, who's coming, its theme, snacks, and **If it locked now**: the movie that would win right now and why (the same rule as the lock), with a Veto on it. The marquee always shows it as "Leading:". **Count me in** says you're coming, the same button wherever a night shows; it turns into **You're in ✓**, and dropping out takes a second tap. Everyone coming (and the host) gets one **veto** on a movie for this night and can call snacks. The host can change the time or theme, lock early, unlock (until a day before), mark it watched (once it's started), or cancel (until it starts). |
+| **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one" (written before you pick). Each movie is a lobby card: the poster and the thumbs-up ("I'd watch it") on the front; tap the poster (it has a folded corner) to turn it over for **Seen it**, the trailer, Stremio, the plot and who has seen it. While a night is planned, its projected pick wears a **Leading** ribbon; otherwise the overall favorites wear **Most wanted**. Thumbs-ups and seen marks are per person and carry over. Sort by most wanted, newest, least seen, shortest; show by tag, unseen by me, added by me. No cap. |
+| **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. The people who were there rate a night, one at a time: the newest unrated night, with the week's others a tap away. Everyone can read the reviews. |
+| **Stats** | The long view, worked out in your browser from what the page already has, spelled out on a letter board: nights and hours watched, movies added, thumbs-ups and who gives the most; the most wanted movies on the shelf; whose shelf picks made a night (house picks count as "House"); and, when you're signed in, who you agree with most (how alike your thumbs-ups are, once you and they have at least three). |
 
 **The pick.** A day before each night, the movie locks itself: the most
 thumbs from the people free that night; if none of them voted, the most
@@ -31,19 +31,42 @@ tools): the pick sticks to movies that fit it, or to the whole shelf when none
 do. A **veto** takes a movie out of that night's pick (one per person, undoable
 until the lock; if everything is vetoed the vetoes are ignored). Ties go to the
 reel, which plays once on everyone's phone; a clear winner gets the **reveal**
-instead, a card that flips to the poster once per person. A watched movie leaves
-the shelf. The night files itself as watched the morning after.
+instead, a card that flips to the poster once per person. Until your reel or
+reveal has played, the page keeps the movie face down (the marquee reads "The
+movie is…", and so does your ticket). It plays after How it works and before
+the news cards, so a "Locked for Friday" card never spoils it, and it counts as
+seen only once it has played through: closing it with the back gesture before
+the card turns means it plays again next visit. For someone coming it ends on
+**See my ticket**. The host's lock toast doesn't name the movie, and no toast
+shows over the reel or the reveal. The link preview in a group text still shows
+the poster once the night locks. A watched movie leaves the shelf. The night
+files itself as watched the morning after.
 
-Also: a first-visit walkthrough (and **How it works** to replay it), tickets
-with an .ics invite, Stremio links on every card, and a season title on the
-marquee.
+Also: a first-visit walkthrough (five cards; **How it works** replays it),
+tickets with **Add to calendar** (Google Calendar's add-event page, with the
+.ics download as a fallback), Stremio links on every card, a season title on
+the marquee, and jump links under it to each section. Android's back gesture
+closes whichever card or overlay is open instead of leaving the site. Errors
+stay on screen until tapped away.
+
+**Names.** A name is all it takes. A tap before you've given one (a thumbs-up,
+Count me in, a veto) brings up the name form and goes through once you have.
+A name that looks like someone already on the list ("Grandma" when there's a
+"Gma") asks "Is that you?" once before making a second person. **Not you?**
+asks twice.
 
 **Since you last looked.** When you come back and other people have done
 something, step-through cards open by themselves (same style as How it works):
 a night hosted, moved, themed, vetoed, cancelled, locked or filed as watched,
-new movies and thumbs-ups, free evenings, snacks and reviews. **Show me**
-jumps to the section; **Got it** (or Skip) marks it all seen. A slim bar keeps
-"Walk me through" to reopen them. The rule for developers: any new kind of
+new movies and thumbs-ups, free evenings, snacks and reviews. They come most
+useful first: your own night (one you're coming to or hosting), other nights,
+new movies and thumbs-ups, free evenings, then snacks and reviews. On a phone
+the cards rise from the bottom, so the marquee stays in view. With five or more
+updates the first card is a playbill listing all of them, with **Got it** right
+there. A new-movies card has a working thumbs-up for each movie. There are at
+most eight cards; the last one lists everything else. **Show me** jumps to the
+section; **Got it** (or Skip) marks it all seen. A slim bar keeps "Walk me
+through" to reopen them. The rule for developers: any new kind of
 change people can make must show up in these cards or be marked quiet, with a
 reason, in `tests/news.test.mjs`. That test fails on any action in
 `public/js/actions.js` (or server write in `lib/tick.js`) it hasn't been told
@@ -58,8 +81,9 @@ the site is on Android, so the panel is built for Google Calendar: Android
 ignores `webcal://` links and the Calendar app can't add a calendar by URL, so
 **Add to Google Calendar** is Google's web subscribe link
 (`calendar.google.com/calendar/render?cid=webcal://…`), which asks to add the
-feed and then syncs it to the app. The fallback is the https link pasted into
-*Other calendars → From URL* on the web (Chrome's *Desktop site* on a phone).
+feed and then syncs it to the app. The fallback, under **Didn't work?**, is the
+https link pasted into *Other calendars → From URL* on the web (Chrome's
+*Desktop site* on a phone).
 Google refreshes subscribed calendars slowly. Pasting the site into a group
 text (Google Messages included) shows a link preview (the next night, or the poster once it's locked), built
 from the same data for link-preview bots only (`/api/preview`); people always

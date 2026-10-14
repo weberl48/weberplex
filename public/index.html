@@ -37,6 +37,14 @@
       </div>
     </section>
 
+    <nav class="program" aria-label="On this page">
+      <a href="#nextSec">Up next</a>
+      <a href="#calSec">Calendar</a>
+      <a href="#shelfSec">Shelf</a>
+      <a href="#watchedSec" id="navWatched" hidden>Watched</a>
+      <a href="#statsSec" id="navStats" hidden>Stats</a>
+    </nav>
+
     <section class="news" id="news" hidden aria-live="polite">
       <div class="news-bar">
         <p><b id="newsCount"></b> <span id="newsWhen"></span></p>
@@ -49,21 +57,20 @@
 
     <section class="pass" id="pass" hidden>
       <h2>Put your name on the guest list</h2>
-      <p class="hint" id="passHint">Just your first name is fine. This phone will remember you.</p>
-      <form id="passForm" autocomplete="on">
-        <label class="sr-only" for="passName">Your name</label>
-        <input class="field" id="passName" name="name" maxlength="24" autocomplete="given-name" placeholder="Your name" required>
-        <button class="btn btn-bulb" type="submit">That's me</button>
-      </form>
       <div id="passPeople" hidden>
-        <p class="label" style="margin:0 0 6px">Already on the list? Tap your name</p>
-        <div class="chips" id="passChips"></div>
+        <p class="hint" id="passListHint" style="margin:0 0 8px">On the list already? Tap your name.</p>
+        <div class="chips guest-list" id="passChips" role="group" aria-labelledby="passListHint"></div>
       </div>
+      <form id="passForm" autocomplete="on">
+        <label class="field-label" for="passName">New here? <span>Your first name is fine; this phone remembers it.</span></label>
+        <input class="field" id="passName" name="name" maxlength="24" autocomplete="given-name" placeholder="Your name" required>
+        <button class="btn btn-bulb" id="passGo" type="submit">That's me</button>
+      </form>
       <p class="msg" id="passMsg" role="status" hidden></p>
     </section>
 
     <section class="section" id="nextSec">
-      <div class="section-head"><h2>Up next</h2><span class="countdown" id="countdown"></span></div>
+      <div class="section-head"><h2>Up next</h2></div>
       <div id="next"></div>
       <div id="moreNights"></div>
     </section>
@@ -77,21 +84,23 @@
         </div>
       </div>
       <div class="sub-panel" id="subPanel" hidden>
-        <p class="label">Every night, in your phone's calendar</p>
-        <div class="row"><a class="btn btn-bulb btn-small" id="subGoogle" target="_blank" rel="noopener">Add to Google Calendar</a></div>
-        <ol class="hint sub-steps">
-          <li>Tap the button. When Google asks to add <i>Weberplex</i>, tap <b>Add</b>.</li>
-          <li>Weberplex appears in the Calendar app by itself (and in Samsung Calendar, if your Google account syncs there). Not there after a few minutes? In the app, go to <i>☰ → Settings → Weberplex</i> and turn on <b>Sync</b>.</li>
-        </ol>
-        <p class="hint" style="margin-top:0"><b>No Add button?</b> Copy the link and open calendar.google.com in Chrome. Tap <i>⋮ → Desktop site</i>, then the <b>+</b> next to <i>Other calendars</i>, choose <i>From URL</i> and paste it.</p>
-        <div class="row">
-          <label class="sr-only" for="subUrl">Calendar link</label>
-          <input class="field" id="subUrl" readonly>
-          <button class="btn btn-ghost btn-small" type="button" data-action="copy-feed">Copy</button>
-        </div>
-        <p class="hint" style="margin-top:0">New nights, locked movies and cancellations show up on their own, but Google only checks for changes now and then, sometimes not for a day.</p>
+        <h3 class="prompt">Every movie night, in your phone’s calendar</h3>
+        <div class="row"><a class="btn btn-bulb" id="subGoogle" target="_blank" rel="noopener">Add to Google Calendar</a></div>
+        <p class="hint" style="margin-top:0">Google asks to add <i>Weberplex</i>: tap <b>Add</b>. New nights and locked movies show up by themselves, though Google can take up to a day to notice.</p>
+        <details class="fineprint">
+          <summary>Didn’t work?</summary>
+          <ol class="hint sub-steps">
+            <li>Not in the Calendar app after a few minutes? Open its <i>☰ → Settings → Weberplex</i> and turn on <b>Sync</b>.</li>
+            <li>No Add button? Copy the link below, open calendar.google.com in Chrome, tap <i>⋮ → Desktop site</i>, then <b>+</b> beside <i>Other calendars</i> → <i>From URL</i>, and paste it.</li>
+          </ol>
+          <div class="row">
+            <label class="sr-only" for="subUrl">Calendar link</label>
+            <input class="field" id="subUrl" readonly>
+            <button class="btn btn-ghost btn-small" type="button" data-action="copy-feed">Copy</button>
+          </div>
+        </details>
       </div>
-      <p class="hint" style="margin-top:0">Tap every evening you could do. The last day you tapped shows below; that is where you can host it.</p>
+      <p class="hint" style="margin-top:0">Tap a day to see who’s free, then say you’re free or host it.</p>
       <div class="cal" id="calendar"></div>
       <div class="day-detail" id="dayDetail"></div>
     </section>
@@ -108,8 +117,8 @@
             <input class="field" id="q" type="search" placeholder="Search a movie to add…" autocomplete="off" enterkeyhint="search">
             <button class="btn btn-ghost" type="button" data-action="surprise">Surprise me</button>
           </div>
-          <label class="sr-only" for="pitch">Why this one (optional)</label>
-          <input class="field" id="pitch" maxlength="140" placeholder="Why this one? (optional, shows on the card)">
+          <label class="field-label" for="pitch">Why this one? <span>Optional, printed on its card. Write it before you pick.</span></label>
+          <input class="field" id="pitch" maxlength="140" placeholder="e.g. The shark still holds up">
           <div class="results" id="results" hidden></div>
           <p class="hint" id="browseNote" hidden></p>
           <div class="poster-grid" id="browseGrid" hidden></div>
@@ -117,8 +126,8 @@
           <p class="msg" id="pickMsg" role="status"></p>
         </div>
       </details>
-      <div class="chips shelf-filter" id="sortChips" role="group" aria-label="Sort the shelf"></div>
-      <div class="chips shelf-filter" id="shelfChips" role="group" aria-label="Filter the shelf"></div>
+      <div class="chip-row"><span class="label" id="sortLabel">Sort</span><div class="chips" id="sortChips" role="group" aria-labelledby="sortLabel"></div></div>
+      <div class="chip-row"><span class="label" id="showLabel">Show</span><div class="chips" id="shelfChips" role="group" aria-labelledby="showLabel"></div></div>
       <div class="ballot" id="shelf"></div>
     </section>
 
@@ -131,7 +140,7 @@
 
     <section class="section" id="statsSec" hidden>
       <div class="section-head"><h2>Stats</h2><span class="aside">The long view</span></div>
-      <div class="stat-tiles" id="statTiles"></div>
+      <ul class="stat-board" id="statTiles"></ul>
       <p class="hint" id="topVoter" hidden></p>
       <div class="stat-grid">
         <div class="stat-card"><h3 class="label">Most wanted</h3><div id="topWanted"></div></div>

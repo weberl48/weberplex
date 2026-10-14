@@ -1,5 +1,5 @@
 // "Spin the reel": a slot-machine strip of posters that lands on `winner`.
-import { esc, posterImg, keyOf } from './ui.js';
+import { esc, posterImg, keyOf, backCloses } from './ui.js';
 
 export function spinReel(movies, winner, { title = 'Spinning the reel…', done = 'Use this one' } = {}) {
   return new Promise((resolve) => {
@@ -16,7 +16,7 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…', done 
       <div class="reel-box">
         <h2>${esc(title)}</h2>
         <div class="reel-window"><div class="reel-track">
-          ${seq.map((m) => `<div class="reel-item">${posterImg(m.poster, m.title)}</div>`).join('')}
+          ${seq.map((m) => `<div class="reel-item">${posterImg(m.poster, m.title, '', true)}</div>`).join('')}
         </div></div>
         <p class="reel-result" aria-live="polite"></p>
         <div class="row" style="justify-content:center"><button class="btn btn-bulb" type="button" hidden>${esc(done)}</button></div>
@@ -35,18 +35,23 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…', done 
       okBtn.hidden = false;
       okBtn.focus();
     };
-    const close = () => {
+    // Resolves { movie, seen }: `seen` is false when back closed it before it
+    // landed, so the reel spins again next visit.
+    const close = (seen = true) => {
+      if (!overlay.isConnected) return;
+      release();
       overlay.remove();
       document.removeEventListener('keydown', onKey, true);
       (prev?.isConnected ? prev : prevKey && document.querySelector(prevKey))?.focus?.();
-      resolve(winner);
+      resolve({ movie: winner, seen });
     };
+    const release = backCloses(() => close(!okBtn.hidden));
     function onKey(e) {
       if (e.key === 'Escape') { e.preventDefault(); if (okBtn.hidden) finish(); close(); }
       if (e.key === 'Tab') { e.preventDefault(); (okBtn.hidden ? overlay : okBtn).focus(); }
     }
     document.addEventListener('keydown', onKey, true);
-    okBtn.addEventListener('click', close);
+    okBtn.addEventListener('click', () => close());
     // Step by the window's inner height and size every tile to match, or the
     // border width accumulates and the reel stops between two posters.
     const h = win.clientHeight;

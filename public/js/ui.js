@@ -7,13 +7,22 @@ const ENT = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ENT[c]);
 
 export const THUMB = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M2 21h3V9H2v12Zm20-11a2 2 0 0 0-2-2h-6.3l1-4.6v-.3c0-.4-.2-.8-.4-1.1L13.2 1 6.6 7.6C6.2 8 6 8.5 6 9v10a2 2 0 0 0 2 2h9c.8 0 1.5-.5 1.8-1.2l3-7.1c.1-.2.2-.5.2-.7v-2Z"/></svg>';
+// A house (a movie night on the calendar) and a check (you're in), in the same
+// solid style as the thumb.
+export const HOUSE = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3L12 3Z"/></svg>';
+export const CHECK = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="m9.5 16.6-4.6-4.6-1.8 1.8 6.4 6.4L21 8.7l-1.8-1.8-9.7 9.7Z"/></svg>';
+export const STAR = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="m12 2.6 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9L12 2.6Z"/></svg>';
 
-export function faces(people, meKey, max = 5) {
+// Initials in circles. To a screen reader the row is one image named in full
+// ("Jo, Sam"), not bare letters; `named: false` hides it when the names are
+// written out right beside it anyway.
+export function faces(people, meKey, max = 5, { named = true } = {}) {
   if (!people?.length) return '';
   const shown = people.slice(0, max).map((p) =>
-    `<span class="face${p.nameKey === meKey ? ' me' : ''}" title="${esc(p.name)}">${esc(initials(p.name))}</span>`).join('');
-  const more = people.length > max ? `<span class="face" title="${people.length - max} more">+${people.length - max}</span>` : '';
-  return `<span class="faces">${shown}${more}</span>`;
+    `<span class="face${p.nameKey === meKey ? ' me' : ''}" title="${esc(p.name)}" aria-hidden="true">${esc(initials(p.name))}</span>`).join('');
+  const more = people.length > max ? `<span class="face" title="${people.length - max} more" aria-hidden="true">+${people.length - max}</span>` : '';
+  const a11y = named ? `role="img" aria-label="${esc(people.map((p) => p.name).join(', '))}"` : 'aria-hidden="true"';
+  return `<span class="faces" ${a11y}>${shown}${more}</span>`;
 }
 
 // The poster CDN 404s for some titles; swap a broken image for a text tile.
@@ -24,9 +33,11 @@ window.posterFail = (img) => {
   img.replaceWith(tile);
 };
 
-export function posterImg(url, alt, cls = '') {
+// `eager` for posters that must be there the moment they show (the reel spins
+// them past inside a clipped window, where lazy loading never starts them).
+export function posterImg(url, alt, cls = '', eager = false) {
   return url
-    ? `<img src="${esc(url)}" alt="${esc(alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="posterFail(this)"${cls ? ` class="${cls}"` : ''}>`
+    ? `<img src="${esc(url)}" alt="${esc(alt)}" loading="${eager ? 'eager' : 'lazy'}" referrerpolicy="no-referrer" onerror="posterFail(this)"${cls ? ` class="${cls}"` : ''}>`
     : `<span class="noimg">${esc(alt)}</span>`;
 }
 
@@ -45,6 +56,8 @@ export function loadLocal(key) {
   try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
 }
 
+// A routine confirmation fades by itself; something that went wrong stays
+// until it's tapped away (or 12 s), so it can actually be read.
 let toastTimer;
 export function toast(message, bad = false) {
   const el = $('#toast');
@@ -52,8 +65,40 @@ export function toast(message, bad = false) {
   el.textContent = message;
   el.classList.toggle('bad', bad);
   el.classList.add('show');
+  el.onclick = () => el.classList.remove('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), bad ? 5200 : 3200);
+  toastTimer = setTimeout(() => el.classList.remove('show'), bad ? 12000 : 3200);
+}
+
+// Android's back gesture closes whatever overlay is on top instead of
+// leaving the site. Each overlay adds a history entry when it opens; closing
+// it any other way takes the entry back out (that pop is skipped here). A new
+// entry is never pushed while such a back is still on its way: the browser
+// would land that back on the wrong entry, so the push waits for it.
+const backStack = [];
+let skipPops = 0;
+let waiting = [];
+window.addEventListener('popstate', () => {
+  if (skipPops) {
+    skipPops -= 1;
+    if (!skipPops) { const go = waiting; waiting = []; go.forEach((f) => f()); }
+    return;
+  }
+  backStack.pop()?.close();
+});
+export function backCloses(close) {
+  const entry = { close, pushed: false };
+  backStack.push(entry);
+  const push = () => { if (backStack.includes(entry)) { history.pushState({ overlay: true }, ''); entry.pushed = true; } };
+  if (skipPops) waiting.push(push); else push();
+  return () => {
+    const i = backStack.indexOf(entry);
+    if (i < 0) return; // already closed by back
+    backStack.splice(i, 1);
+    if (!entry.pushed) return; // its entry was never added
+    skipPops += 1;
+    history.back();
+  };
 }
 
 export function downloadFile(filename, text, type) {
@@ -78,7 +123,7 @@ export function writeError(e, ctx = '') {
 }
 
 // A stable key for a control, so it can be found again after a repaint.
-const KEY_ATTRS = ['data-action', 'data-id', 'data-day', 'data-sort', 'data-tag', 'data-star', 'data-tab',
+const KEY_ATTRS = ['data-action', 'data-id', 'data-day', 'data-sort', 'data-tag', 'data-star', 'data-tab', 'data-target',
   'data-shield', 'data-remove', 'data-cancel', 'data-house-add', 'data-house-tag', 'data-item', 'data-name'];
 export function keyOf(n) {
   if (n.id) return `#${CSS.escape(n.id)}`;
@@ -93,19 +138,21 @@ export function armed(button, label = 'Tap again to confirm') {
   const key = keyOf(button) || button.textContent;
   if ((armedUntil.get(key)?.until || 0) > Date.now()) { armedUntil.delete(key); return true; }
   armedUntil.set(key, { until: Date.now() + 4000, label });
-  button.dataset.label = button.textContent;
-  button.textContent = label;
+  // Every copy of the control says it (a night's "You're in" shows in Up next
+  // and in the day panel). The label is kept as markup: it may carry an icon.
+  document.querySelectorAll(key.startsWith('#') || key.startsWith('[') ? key : 'x-none').forEach((b) => { b.dataset.label = b.innerHTML; b.textContent = label; });
+  if (!button.dataset.label) { button.dataset.label = button.innerHTML; button.textContent = label; }
   setTimeout(() => {
     if (!armedUntil.has(key)) return;
     armedUntil.delete(key);
-    document.querySelectorAll(key.startsWith('#') || key.startsWith('[') ? key : 'x-none').forEach((b) => { if (b.dataset.label) b.textContent = b.dataset.label; });
+    document.querySelectorAll(key.startsWith('#') || key.startsWith('[') ? key : 'x-none').forEach((b) => { if (b.dataset.label) { b.innerHTML = b.dataset.label; delete b.dataset.label; } });
   }, 4000);
   return false;
 }
 function reapplyArmed(root) {
   for (const [key, a] of armedUntil) {
     if (a.until <= Date.now() || !(key.startsWith('#') || key.startsWith('['))) continue;
-    root.querySelectorAll(key).forEach((b) => { b.dataset.label = b.textContent; b.textContent = a.label; });
+    root.querySelectorAll(key).forEach((b) => { b.dataset.label = b.innerHTML; b.textContent = a.label; });
   }
 }
 
