@@ -65,8 +65,9 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK', inv
       card.setAttribute('tabindex', '-1');
       if (reduce) { finish(); return; }
       card.classList.add('flipped');
-      card.addEventListener('transitionend', finish, { once: true });
-      setTimeout(finish, 1400); // a hidden tab never fires transitionend
+      // The poster has settled by about 600 ms (the turn eases out): the title
+      // lands then, not when the transition formally ends at 1 s.
+      setTimeout(finish, 650);
     };
     const close = (seen = true, rsvp = false) => {
       if (!overlay.isConnected) return;
