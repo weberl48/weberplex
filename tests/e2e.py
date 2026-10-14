@@ -200,8 +200,8 @@ def overlay_checks(browser, errors):
     }""")
     veto = '<button type="button" data-action="veto" data-id="m">%s</button>'
     opens = {
-        'reveal': ("""import('/js/reveal.js').then((m) => m.revealMovie({ title: 'The Man Who Would Be King', poster: '' }, { when: 'Fri 8 PM', place: "Jo's" }))""", '.reveal-overlay .reveal-actions'),
-        'reel': ("""import('/js/reel.js').then((m) => { const ms = [{ title: 'A', poster: '' }, { title: 'B', poster: '' }]; return m.spinReel(ms, ms[1], { title: '2-way tie. The reel decides…', done: 'Nice' }); })""", '.reel-overlay'),
+        'reveal': ("""import('/js/reveal.js').then((m) => m.revealMovie({ title: 'The Man Who Would Be King', poster: '' }, { when: 'Fri 8 PM', place: "Jo's", people: '5 coming: you, Gma, Hal, Jo, Sam', why: '3 of the 5 coming thumbed it up' }))""", '.reveal-overlay .reveal-actions'),
+        'reel': ("""import('/js/reel.js').then((m) => { const ms = [{ title: 'A', poster: '' }, { title: 'B', poster: '' }]; return m.spinReel(ms, ms[1], { title: '2-way tie. The reel decides…', invite: true, feature: 'Friday’s feature', when: 'Fri 8 PM', place: "Jo's", people: '5 coming: you, Gma, Hal, Jo and Sam' }); })""", '.reel-overlay'),
     }
     for name, (open_js, overlay) in opens.items():
         page.evaluate('(h) => paintBox(h)', veto % 'Veto')
@@ -210,6 +210,11 @@ def overlay_checks(browser, errors):
         if name == 'reveal':
             page.click('.reveal-card')  # the card waits face down until it's turned
         expect(page.locator(f'{overlay} button').first).to_be_visible()
+        if name == 'reel':  # a tie lands like the reveal: the feature, the people, the same endings
+            expect(page.locator('.reel-overlay h2')).to_have_text('Friday’s feature')
+            expect(page.locator('.reel-overlay .reel-result')).to_have_text('B')
+            expect(page.locator('.reel-overlay .reveal-who')).to_have_text('5 coming: you, Gma, Hal, Jo and Sam')
+            expect(page.locator('.reel-overlay .reveal-actions button')).to_have_text(['Count me in', 'Not this time'])
         fits = page.evaluate('(s) => { const o = document.querySelector(s).closest(".reveal-overlay, .reel-overlay"); return o.scrollHeight <= o.clientHeight; }', overlay)
         assert fits, f'{name} overlay is taller than a landscape phone'
         shot(page, f'06-landscape-{name}')
@@ -477,7 +482,10 @@ def reveal_ending_checks(browser, errors):
     expect(page.locator('.reveal-overlay')).to_be_visible(timeout=15000)
     page.go_back()  # Android back before it turns
     expect(page.locator('.reveal-overlay')).to_have_count(0)
+    page.wait_for_timeout(1500)
     walk = page.locator('.tour-overlay')
+    expect(walk).to_have_count(0)  # 'not now' means no sheet rises in its place
+    page.click('#news [data-action="news-walk"]')  # the bar has it
     expect(walk).to_be_visible(timeout=10000)
     texts = []
     for _ in range(12):
@@ -766,6 +774,8 @@ def main():
         # Alien and Jaws are tied among the people coming: the reel settles it,
         # and plays once on each phone.
         expect(sam.locator('.reel-overlay button')).to_be_visible(timeout=15000)
+        expect(sam.locator('.reel-overlay h2')).to_contain_text('feature')
+        expect(sam.locator('.reel-overlay .reveal-who')).to_contain_text('coming: you')
         sam.locator('.reel-overlay button').click()
         expect(sam.locator('#next .ticket')).to_contain_text('ADMIT ONE', timeout=10000)
         expect(sam.locator('#next .ticket h3')).not_to_have_text('The movie is…')  # face up once the reel has played
@@ -917,6 +927,8 @@ def main():
         sam.keyboard.press('Enter')  # Enter turns it, like a tap
         expect(sam.locator('.reveal-title')).to_have_text(loser, timeout=10000)
         expect(sam.locator('.reveal-when')).to_contain_text("8 PM at Jo's")
+        expect(sam.locator('.reveal-who')).to_contain_text('coming: you')  # who's coming, and why it won
+        expect(sam.locator('.reveal-who')).to_contain_text('thumbed it up')
         shot(sam, '04d-reveal')
         sam.keyboard.press('Tab')  # focus stays inside the dialog
         expect(sam.locator('.reveal-actions button')).to_be_focused()
@@ -952,7 +964,12 @@ def main():
         fresh.click('[data-tour="skip"]')
         expect(fresh.locator('.reveal-overlay')).to_be_visible(timeout=10000)
         expect(fresh.locator('#board h1')).to_have_text('The movie is…')  # still face down behind the card
-        fresh.keyboard.press('Escape')
+        fresh.keyboard.press('Escape')  # Esc before it turns is 'not now': it stays face down
+        expect(fresh.locator('.reveal-overlay')).to_have_count(0)
+        expect(fresh.locator('#board h1')).to_have_text('The movie is…')
+        fresh.click('#next [data-action="reveal-now"]')  # Reveal the movie
+        fresh.click('.reveal-card')
+        fresh.keyboard.press('Escape')  # once it has turned, Esc just closes it
         expect(fresh.locator('.reveal-overlay')).to_have_count(0)
         expect(fresh.locator('#board h1')).to_contain_text(loser, ignore_case=True)
         # A thumbs-up tapped before giving a name goes through once the name is in.

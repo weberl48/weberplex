@@ -12,8 +12,10 @@ const bigPoster = (url) => (url || '').replace('/poster/small/', '/poster/medium
 // coming). `invite`: someone not coming yet gets Count me in / Not this time.
 // Resolves { movie, seen, rsvp }: `seen` is false when back closed it before
 // the card turned (it plays again next visit); `rsvp` is true for Count me in.
-// `feature` replaces "The movie is…" once it has turned ("Friday's feature").
-export function revealMovie(movie, { when = '', place = '', doneText = 'OK', invite = false, feature = '' } = {}) {
+// `feature` replaces "The movie is…" once it has turned ("Friday's feature");
+// `people` ("4 coming: Gma, Hal, Jo, Sam") and `why` ("3 of the 4 coming
+// thumbed it up") are printed under the title.
+export function revealMovie(movie, { when = '', place = '', doneText = 'OK', invite = false, feature = '', people = '', why = '' } = {}) {
   return new Promise((resolve) => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const overlay = document.createElement('div');
@@ -33,6 +35,7 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK', inv
         <p class="reveal-hint" aria-hidden="true">Tap to turn it over</p>
         <p class="reveal-title" aria-live="polite"></p>
         <p class="reveal-when"></p>
+        <p class="reveal-who"></p>
         <div class="row reveal-actions" hidden>${invite
           ? '<button class="btn btn-bulb" type="button" data-r="in">Count me in</button><button class="btn btn-ghost" type="button" data-r="ok">Not this time</button>'
           : `<button class="btn btn-bulb" type="button" data-r="ok">${esc(doneText)}</button>`}</div>
@@ -54,6 +57,7 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK', inv
       if (feature) overlay.querySelector('h2').textContent = feature;
       overlay.querySelector('.reveal-title').textContent = movie.title;
       overlay.querySelector('.reveal-when').textContent = [when, place && `at ${place}`].filter(Boolean).join(' ');
+      overlay.querySelector('.reveal-who').textContent = [people, why].filter(Boolean).join(' · ');
       actions.hidden = false;
       buttons[0].focus();
     };
@@ -77,9 +81,11 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK', inv
       (prev?.isConnected ? prev : prevKey && document.querySelector(prevKey))?.focus?.();
       resolve({ movie, seen, rsvp });
     };
-    const release = backCloses(() => close(!actions.hidden));
+    // Seen once it's been turned (a tap means they wanted to look).
+    const release = backCloses(() => close(turned));
     function onKey(e) {
-      if (e.key === 'Escape') { e.preventDefault(); turned = true; finish(); close(); }
+      // Esc is "not now", like back: face down, it stays face down for next visit.
+      if (e.key === 'Escape') { e.preventDefault(); close(turned); }
       if (e.key === 'Tab') {
         e.preventDefault();
         if (actions.hidden) { card.focus(); return; }

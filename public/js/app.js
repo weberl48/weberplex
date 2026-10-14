@@ -649,7 +649,8 @@ function play(n, key, show) {
     // The reveal is the visit's peak: the news cards don't open over the
     // ticket that follows it (the bar keeps the count).
     const ticket = seen && (rsvp || imFree(n.day));
-    if (ticket) S.walked = true;
+    // Backing out of it means "not now" too: no sheet rises in its place.
+    if (ticket || !seen) S.walked = true;
     const when = L.dayFromKey(n.day).toLocaleDateString(undefined, { weekday: 'long' });
     if (rsvp && S.me) once(`free:${n.day}`, async () => { await A.setFree(n.day, S.me, true); toast(`You’re in for ${when}.`); });
     render();
@@ -670,7 +671,31 @@ function landOnTicket(tries = 30) {
   if (!t) { if (tries) setTimeout(() => landOnTicket(tries - 1), 100); return; }
   t.setAttribute('tabindex', '-1');
   t.focus({ preventScroll: true });
-  t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  // At the top of the screen, printed in: the end of the reveal, not a scroll.
+  t.classList.remove('printed');
+  void t.offsetWidth;
+  t.classList.add('printed');
+  t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+// "4 coming: you, Gma, Hal and Sam" for the reveal and the reel.
+function peopleLine(n) {
+  const coming = comingTo(n.day);
+  const me = coming.some((c) => c.nameKey === S.me?.nameKey);
+  const names = [...(me ? ['you'] : []), ...coming.filter((c) => c.nameKey !== S.me?.nameKey).map((c) => c.name)];
+  if (!names.length) return '';
+  const shown = names.length > 6 ? [...names.slice(0, 5), `${names.length - 5} more`] : names;
+  return `${names.length} coming: ${shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}` : shown[0]}`;
+}
+// Why it won, in the reveal: how many of the people coming thumbed it up.
+function whyLine(n) {
+  const coming = comingTo(n.day).map((c) => c.nameKey);
+  const fans = S.votes.filter((v) => v.movie === n.lockedMovieId && coming.includes(v.nameKey)).length;
+  const all = S.votes.filter((v) => v.movie === n.lockedMovieId).length;
+  const pool = n.theme ? ` (a ${n.theme} night)` : '';
+  if (fans && fans === coming.length) return `everyone coming thumbed it up${pool}`;
+  if (fans) return `${fans} of the ${coming.length} coming thumbed it up${pool}`;
+  if (all) return `the group’s favorite${pool}`;
+  return '';
 }
 const doneFor = (n) => (imFree(n.day) ? 'See my ticket' : 'OK');
 // Someone not coming yet ends the reveal on an invitation (with no name yet,
@@ -685,7 +710,9 @@ function maybeRevealTie(n) {
   if (S.me && !myDoc()) return; // wait until we know which reels you've seen
   const p = pendingShow(n);
   if (!p?.tie || p.deferred || blocked()) return;
-  play(n, p.key, () => spinReel(p.pool, p.winner, { title: `${p.pool.length}-way tie. The reel decides…`, done: imFree(n.day) ? 'See my ticket' : 'Nice' }));
+  play(n, p.key, () => spinReel(p.pool, p.winner, {
+    title: `${p.pool.length}-way tie. The reel decides…`, done: doneFor(n), invite: inviteFor(n), feature: featureOf(n),
+    when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), people: peopleLine(n) }));
 }
 
 // The moment the movie is revealed: once per person (once per phone while
@@ -695,7 +722,9 @@ function maybeRevealMovie(n) {
   if (S.me && !myDoc()) return; // wait until we know which reveals you've seen
   const p = pendingShow(n);
   if (!p || p.tie || p.deferred || blocked()) return;
-  play(n, p.key, () => revealMovie(n.lockedMovie, { when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n), invite: inviteFor(n), feature: featureOf(n) }));
+  play(n, p.key, () => revealMovie(n.lockedMovie, {
+    when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n), invite: inviteFor(n), feature: featureOf(n),
+    people: peopleLine(n), why: whyLine(n) }));
 }
 
 // ---- the calendar --------------------------------------------------------------

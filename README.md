@@ -31,19 +31,22 @@ tools): the pick sticks to movies that fit it, or to the whole shelf when none
 do. A **veto** takes a movie out of that night's pick (one per person, undoable
 until the lock; if everything is vetoed the vetoes are ignored). Ties go to the
 reel, which plays once on everyone's phone; a clear winner gets the **reveal**
-instead, once per person: the house goes dark and a face-down card waits in a
-ring of chasing bulbs until you tap it over to the poster. It waits until the
+instead, once per person: the house lights go down and a face-down card waits in a
+ring of chasing bulbs until you tap it over to the poster. It lands with the
+night's feature, when and where, who's coming, and why it won ("3 of the 4
+coming thumbed it up"); a tie's reel lands the same way. It waits until the
 page has everything it needs, so it knows whether you're coming: it ends on
-**See my ticket** if you are, and on **Count me in** if you aren't (with no
+**See my ticket** if you are (the ticket comes to the top of the screen), and on
+**Count me in** if you aren't (with no
 name yet, it asks for one first, then lands on your ticket). The news cards
 wait in their bar instead of covering the ticket, and until your reveal has
 played (say you backed out of it) they never name the locked movie. Until your reel or
 reveal has played, the page keeps the movie face down (the marquee reads "The
 movie is…", and so does your ticket). It plays after How it works and before
 the news cards, so a "Locked for Friday" card never spoils it, and it counts as
-seen only once it has played through: closing it with the back gesture before
-the card turns means it plays again next visit. For someone coming it ends on
-**See my ticket**. The host's lock toast doesn't name the movie, and no toast
+seen only once it has turned: closing it with the back gesture (or Esc) before
+the card turns means "not now", so no news card rises in its place and it plays
+again next visit. The host's lock toast doesn't name the movie, and no toast
 shows over the reel or the reveal. The link preview in a group text still shows
 the poster once the night locks. A watched movie leaves the shelf. The night
 files itself as watched the morning after.
