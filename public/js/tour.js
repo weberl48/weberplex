@@ -43,7 +43,7 @@ const STEPS = [
   {
     title: 'The movie picks itself',
     body: 'A day before, the movie locks: the one the people coming want most. Everyone coming gets one veto, and a tie spins the reel. Then you turn the card over, and your ticket appears.',
-    demo: `<div class="ticket tour-ticket"><div class="ticket-main"><p class="admit">ADMIT ONE</p><h3>The Witch</h3>
+    demo: `<div class="ticket tour-ticket"><div class="ticket-main"><p class="admit">ADMIT ONE</p><h3>The movie is…</h3>
       <dl><dt>When</dt><dd>Fri · 8:00&nbsp;PM</dd><dt>Where</dt><dd>Ava's</dd></dl></div>
       <div class="ticket-stub"><span>No. 004213</span></div></div>`,
   },

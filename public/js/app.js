@@ -87,7 +87,9 @@ watch(db, F, 'movies', got('movies'), onErr);
 watch(db, F, 'votes', got('votes'), onErr);
 watch(db, F, 'seen', got('seen'), onErr);
 watch(db, F, 'people', (rows) => { S.people = rows; S.loaded.add('people'); applyPrefs(); render(); }, () => {});
-watchFree(db, F, L.dayKey(new Date(Date.now() - 86400000)), got('free'), onErr);
+// Free marks from a week back: a night filed under Watched asks only the
+// people who were there to rate it.
+watchFree(db, F, L.dayKey(new Date(Date.now() - 8 * 86400000)), got('free'), onErr);
 watchDoc(db, F, 'config/season', (d) => { S.season = d?.title || null; render(); }, () => {});
 
 // Snacks and reviews live under each night; follow the ones on screen.
@@ -598,9 +600,9 @@ const myReviewOf = (n) => S.me && reviewsOf(n).find((r) => r.nameKey === S.me.na
 // The people who were there rate a night (and the host). The page only holds
 // free marks from yesterday on; for an older night it can't tell who came, so
 // anyone signed in may rate it.
+// Only the people who were there (free that evening, or hosting) rate a night.
 function canRateNight(n) {
-  const knowsWhoCame = n.day >= L.dayKey(new Date(Date.now() - 86400000));
-  return !!S.me && (!knowsWhoCame || imFree(n.day) || isMine(n) || !!myReviewOf(n));
+  return !!S.me && (imFree(n.day) || isMine(n) || !!myReviewOf(n));
 }
 
 // A night's reviews for everyone; with `form`, the stars and the line too, for

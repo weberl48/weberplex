@@ -303,6 +303,13 @@ def long_name_checks(browser, errors):
     assert over <= 0, f'guest page is {over}px too wide'
     shot(page, '07-long-name-guest')
     page.context.close()
+    # Someone who wasn't there reads the review but isn't asked to rate the night.
+    emu('PATCH', f'{DOCS}/people/noor', {'fields': fields({'name': 'Noor', 'at': now, 'toured': True, 'lastSeen': now})}, owner=True)
+    page = as_person(browser, errors, 'noor', 'Noor')
+    page.goto(f'{SITE}/?emu')
+    expect(page.locator('#rateBox .review .who span:first-child', has_text=LONG)).to_have_count(1, timeout=10000)
+    expect(page.locator('#rateBox [data-star]')).to_have_count(0)
+    page.context.close()
     page = tracked(browser, errors, 'long-owner', viewport=PHONE)
     page.goto(f'{SITE}/host.html?emu#k={KEY}')
     expect(page.locator('#shelfList .pick-opt', has_text=LONG)).to_have_count(1, timeout=10000)
