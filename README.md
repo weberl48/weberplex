@@ -46,7 +46,9 @@ shows over the reel or the reveal. The link preview in a group text still shows
 the poster once the night locks. A watched movie leaves the shelf. The night
 files itself as watched the morning after.
 
-Also: a first-visit walkthrough (five cards; **How it works** replays it),
+Also: a first-visit walkthrough (five cards; **How it works** replays it;
+its examples are stamped SAMPLE and use no real dates or names, so nobody
+mistakes the sample ticket for the real night),
 tickets with **Add to calendar** (Google Calendar's add-event page, with the
 .ics download as a fallback), Stremio links on every card, a season title on
 the marquee, and jump links under it to each section (they scroll without

@@ -9,14 +9,9 @@
 // must escape them.
 import { THUMB, HOUSE, CHECK, backCloses } from './ui.js';
 
-// The demos use the coming week's real dates (next Friday and its neighbors),
-// so the example calendar always agrees with the one on the page.
-const friday = (() => { const d = new Date(); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); return d; })();
-const near = (k) => { const d = new Date(friday); d.setDate(d.getDate() + k); return d; };
-const dow = (d) => d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
-const longDay = (d) => d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-const shortDay = (d) => d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-const dayCell = (d, cls = '', meta = '') => `<span class="day${cls}"><span class="d-dow">${dow(d)}</span><span class="d-num">${d.getDate()}</span>${meta ? `<span class="d-meta">${meta}</span>` : ''}</span>`;
+// The demos are stamped SAMPLE and use no real dates or names from the group,
+// so nobody mistakes the sample ticket for the real Friday night.
+const dayCell = (name, cls = '', meta = '') => `<span class="day${cls}"><span class="d-dow"></span><span class="d-num">${name}</span>${meta ? `<span class="d-meta">${meta}</span>` : ''}</span>`;
 
 const STEPS = [
   {
@@ -27,16 +22,16 @@ const STEPS = [
   {
     title: 'Put your name down',
     body: 'Type your first name once. This phone remembers it, and your thumbs-ups and free evenings count under it.',
-    demo: `<div class="tour-row"><span class="field tour-field">Sam</span><span class="btn btn-bulb">That's me</span></div>`,
+    demo: `<div class="tour-row"><span class="field tour-field">Ava</span><span class="btn btn-bulb">That's me</span></div>`,
   },
   {
     title: 'Say when you’re free',
-    body: 'Tap a day on the calendar to see who’s free, then tap I’m free that evening. Anyone can host: pick a start time and tap I can host.',
+    body: 'Tap a day on the calendar to see who’s free, then say you are: I’m free that evening, or Count me in when someone’s already hosting. Either way, you’re on the list. Anyone can host: pick a start time and tap I can host.',
     demo: `<div class="cal tour-cal">
-      ${dayCell(near(-1))}${dayCell(friday, ' on sel', '2')}${dayCell(near(1), ' lead', `3<span class="d-host">${HOUSE}</span>`)}${dayCell(near(2))}
+      ${dayCell('Thu')}${dayCell('Fri', ' on sel', '2')}${dayCell('Sat', ' lead', `3<span class="d-host">${HOUSE}</span>`)}${dayCell('Sun')}
     </div>
-    <div class="day-detail tour-window"><div class="dd-head"><h3>${longDay(friday)}</h3></div>
-      <p class="dd-line">Jo and Sam are free.</p>
+    <div class="day-detail tour-window"><div class="dd-head"><h3>Friday</h3></div>
+      <p class="dd-line">Ava and Ben are free.</p>
       <span class="btn btn-bulb btn-rsvp">I’m free that evening</span></div>`,
   },
   {
@@ -47,9 +42,9 @@ const STEPS = [
   },
   {
     title: 'The movie picks itself',
-    body: 'A day before, the movie locks: the one the people coming want most. Everyone coming gets one veto, and a tie spins the reel. Then your ticket appears.',
+    body: 'A day before, the movie locks: the one the people coming want most. Everyone coming gets one veto, and a tie spins the reel. Then you turn the card over, and your ticket appears.',
     demo: `<div class="ticket tour-ticket"><div class="ticket-main"><p class="admit">ADMIT ONE</p><h3>The Witch</h3>
-      <dl><dt>When</dt><dd>${shortDay(friday)} · 8:00&nbsp;PM</dd><dt>Where</dt><dd>Jo's</dd></dl></div>
+      <dl><dt>When</dt><dd>Fri · 8:00&nbsp;PM</dd><dt>Where</dt><dd>Ava's</dd></dl></div>
       <div class="ticket-stub"><span>No. 004213</span></div></div>`,
   },
 ];
@@ -68,6 +63,12 @@ export function openTour({ onDone, steps = STEPS, label = 'How it works', doneTe
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'tourTitle');
+  // A screen reader hears each card as it comes: the card itself is rebuilt,
+  // so the announcement lives outside it.
+  overlay.innerHTML = '<p class="sr-only" aria-live="polite"></p><div class="tour-slot"></div>';
+  const live = overlay.querySelector('[aria-live]');
+  const slot = overlay.querySelector('.tour-slot');
+  const sample = steps === STEPS; // How it works: its demos are samples
   document.body.append(overlay);
   open = overlay;
 
@@ -83,13 +84,13 @@ export function openTour({ onDone, steps = STEPS, label = 'How it works', doneTe
   const paint = () => {
     const s = steps[i];
     const last = i === steps.length - 1;
-    overlay.innerHTML = `
+    slot.innerHTML = `
       <div class="tour-card${cls ? ` ${cls}` : ''}">
         <div class="tour-top">
           <span class="label">${label} · ${i + 1} of ${steps.length}</span>
           <button class="btn btn-ghost btn-small" type="button" data-tour="skip">Skip</button>
         </div>
-        ${s.demo ? `<div class="tour-demo" aria-hidden="true" inert>${s.demo}</div>` : ''}
+        ${s.demo ? `<div class="tour-demo${sample ? ' sample' : ''}" aria-hidden="true" inert>${s.demo}</div>` : ''}
         <h2 id="tourTitle">${s.title}</h2>
         ${s.body ? `<p>${s.body}</p>` : ''}
         ${s.after || ''}
@@ -106,6 +107,7 @@ export function openTour({ onDone, steps = STEPS, label = 'How it works', doneTe
     // Focus the way forward without scrolling to it: a long card opens at its top.
     overlay.querySelector(`[data-tour="${last ? 'done' : 'next'}"]`).focus({ preventScroll: true });
     overlay.querySelector('.tour-card').scrollTop = 0;
+    live.textContent = `${label}, ${i + 1} of ${steps.length}: ${overlay.querySelector('#tourTitle').textContent}`;
   };
   overlay.addEventListener('click', (e) => {
     // A real control on a card (a thumbs-up on a new movie) does its work

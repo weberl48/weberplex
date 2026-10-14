@@ -906,8 +906,15 @@ def main():
         tour = newbie.locator('.tour-overlay')
         expect(tour).to_be_visible(timeout=10000)
         shot(newbie, '05-tour')
-        for _ in range(4):
-            newbie.click('[data-tour="next"]')
+        # Its demos are stamped samples with no real dates, and each card is announced.
+        expect(tour.locator('.tour-demo.sample')).to_have_count(1)
+        expect(tour.locator('[aria-live]')).to_have_text('How it works, 1 of 5: Welcome to the Weberplex')
+        newbie.click('[data-tour="next"]')
+        newbie.click('[data-tour="next"]')
+        expect(tour.locator('.tour-demo .d-num')).to_have_text(['Thu', 'Fri', 'Sat', 'Sun'])  # weekdays, not dates
+        expect(tour.locator('[aria-live]')).to_contain_text('3 of 5')
+        newbie.click('[data-tour="next"]')
+        newbie.click('[data-tour="next"]')
         newbie.click('[data-tour="done"]')
         expect(tour).to_have_count(0)
         newbie.fill('#passName', 'Newbie')

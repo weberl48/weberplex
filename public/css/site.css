@@ -550,6 +550,15 @@ h3.label, h4.label { margin: 0 0 6px; }
 .tour-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .tour-field { display: flex; align-items: center; flex: 1 1 8rem; }
 .tour-cal { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tour-cal .d-num { font-size: 1.05rem; }
+/* How it works shows samples, stamped so, with no real dates or names */
+.tour-slot { display: contents; }
+.tour-demo.sample { position: relative; margin-top: 8px; }
+.tour-demo.sample::before {
+  content: 'Sample'; position: absolute; top: -9px; left: 10px; padding: 2px 7px; border-radius: 3px;
+  background: var(--velvet-2); border: 1px solid var(--rule-strong); color: var(--dim);
+  font: 700 11px/1.2 var(--f-body); font-stretch: 75%; letter-spacing: 0.18em; text-transform: uppercase;
+}
 .tour-window { margin-top: 0; padding: 10px 12px; gap: 6px; }
 .tour-window .btn { justify-self: start; }
 .tour-window .dd-head h3 { font-size: var(--step-0); }
