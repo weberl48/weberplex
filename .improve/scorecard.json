@@ -1,7 +1,7 @@
 {
  "iteration": 5,
  "branch": "improve-loop",
- "shipped_commit": "dae16fd",
+ "shipped_commit": "a390baa",
  "impeccable_scores": [
   {
    "run": "2026-10-14T14-06-45Z",
@@ -978,7 +978,7 @@
     "lib/preview.js:51-56",
     "lib/calendar.js:20,31"
    ],
-   "note": "user decision in critique #1 (2026-10-14): keep the poster in link previews (README: 'The link preview in a group text still shows the poster once the night locks')"
+   "note": "user decision in critique #1 (2026-10-14): keep the poster in link previews (README: 'The link preview in a group text still shows the poster once the night locks') | iter-05 judge #3 again (taste): the preview title names the movie; still the owner's decision"
   },
   {
    "id": "P-069",
@@ -1135,7 +1135,8 @@
     "jo-reveal-wait-0000..0989",
     "curtain-out-360-sheet 600-850 ms",
     "jo-reveal-wait-0715 overlapping headings"
-   ]
+   ],
+   "note": "iter-05 judge polish: the load curtain overlaps the first frame of the reel"
   },
   {
    "id": "P-082",
@@ -1198,7 +1199,7 @@
     "shelf-plot-viewport",
     "~600 CSS px per two-card row"
    ],
-   "note": "the one-sided card is a user decision (2026-10-14); this is its execution"
+   "note": "the one-sided card is a user decision (2026-10-14); this is its execution | iter-05 judge #8: 53.7 screens at 180 px, 13 at 412 px"
   },
   {
    "id": "P-089",
@@ -1268,7 +1269,7 @@
     "lib/calendar.js:46",
     "firestore.rules:66"
    ],
-   "note": "projection and HA interval are GUESSes; confirm in the Firebase console"
+   "note": "projection and HA interval are GUESSes; confirm in the Firebase console | iter-05 judge #7: ~200 reads per page load today; a year of growth plus HA could approach 50k (GUESS)"
   },
   {
    "id": "P-097",
@@ -1370,6 +1371,72 @@
     "news.js:215",
     "app.js:550",
     "site.css:454"
+   ]
+  },
+  {
+   "id": "P-106",
+   "title": "Backing out of the face-down card before giving a name burns the reveal for good: the signed-out 'seen' mark is carried onto the name you pick (play() marks it when it starts; join() copies every signed-out mark), so the next visit spoils the movie",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-05 judge #1 (rated Minor)",
+   "evidence": [
+    "judge probe_carry.py: Kim's reels None -> ['r:2026-10-16.tt8946378']",
+    "carry-grid.png",
+    "app.js:643 play(), app.js:1117-1120 join()"
+   ],
+   "note": "raised from the judge's Minor: it writes a false mark to the person's doc and destroys the signature moment for them permanently; it also breaks this iteration's own 'back means not now' promise"
+  },
+  {
+   "id": "P-107",
+   "title": "The news names a second locked night's movie before its reveal or reel has played ('Locked for Saturday: Hereditary')",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 judge #2",
+   "evidence": [
+    "spoil2-01-news.png"
+   ],
+   "note": "needs two nights locked at once"
+  },
+  {
+   "id": "P-108",
+   "title": "On the phone that does the lock, the news cards open before the reveal or reel (news at 1.49 s, reveal at 2.06 s); a reel waited behind the news sheet",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 judge #5",
+   "evidence": [
+    "judge notes.log Jo and Rob timings"
+   ]
+  },
+  {
+   "id": "P-109",
+   "title": "At 200% zoom the page scrolls sideways by 8 px (marquee ticker, Up next card)",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 judge #4",
+   "evidence": [
+    "s2z-02-after-news.png"
+   ],
+   "note": "text-only scaling had no overflow; which mode the phones use is a GUESS"
+  },
+  {
+   "id": "P-110",
+   "title": "The browser stores more than the name: the Firebase SDK creates IndexedDB 'firebase-heartbeat-database'",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 judge #6",
+   "evidence": [
+    "judge notes.log"
+   ],
+   "note": "house rule: only ps.me may be stored"
+  },
+  {
+   "id": "P-111",
+   "title": "Polish from the judge: a 'Not sent yet' flash after a burst of taps (emulator writes 650-700 ms); the reveal heading clipped at the top at 200%; the reel says '7 PM' where everything else says '7:00 PM'; the rating box appears 40 minutes into the film",
+   "severity": "Polish",
+   "status": "open",
+   "found": "iter-05 judge polish",
+   "evidence": [
+    "judge verdict.md"
    ]
   }
  ],
@@ -1645,6 +1712,89 @@
     "PV-5c": "kept; met: e2e Stats leave the face-down movie out, e2e chip tap ignored within 700 ms, e2e name step at the top with the field in view at 412; NOT met at 200%: the field is below six chips (P-076)",
     "user request": "kept: the house curtain on every load (a47e8a7), taps through, none with reduced motion; critics: right idea, wrong order (P-081)"
    }
+  },
+  {
+   "iteration": 6,
+   "changes": [
+    {
+     "id": "PV-6a",
+     "fixes": [
+      "P-106",
+      "P-107",
+      "P-108"
+     ],
+     "what": "Face down until you've seen it, on every path: a reveal you backed out of (or that never played) is not carried onto your name; no news line names any locked night's movie whose reveal or reel you haven't played; the phone that locks waits for its own reveal before the news opens.",
+     "proof": [
+      "e2e: signed out, Esc on the face-down card, give a name -> people doc reels has no mark for it, the marquee still says 'The movie is…', and Reveal the movie is offered",
+      "unit (news): two locked nights, one revealed -> no card names the other's movie",
+      "e2e: the locking phone shows the reveal before the news sheet"
+     ],
+     "risk": "a person who did see it signed out gets it again after naming themselves (mild; better than a spoiler)"
+    },
+    {
+     "id": "PV-6b",
+     "fixes": [
+      "P-081",
+      "P-082",
+      "P-083",
+      "P-084",
+      "P-102"
+     ],
+     "what": "Lights down, curtain, picture: the curtain holds closed (taps blocked) until the page is ready, then parts onto the lit marquee, or straight onto the waiting card when a reveal is due (no second fade); the tour and news rise only after it has opened. The reveal builds: 'The movie is…' stays and the title completes it; when and where, who's coming (with faces) and who thumbed it up (by name) arrive one after another; the reel keeps its tie heading and names what it beat; the live region announces the whole landing.",
+     "proof": [
+      "frames: no sheet or overlay visible while the curtain parts; with a reveal due, the curtain's last frame shows the card in bulbs and no 'The movie is…' marquee behind it",
+      "frames: title, when, who, why and button appear at distinct times over >= 600 ms",
+      "e2e: the why line names the fans ('Hal, Jo and you thumbed it up'); the reel shows 'Won the reel over …'",
+      "timing: open to clear page <= 2.6 s locally"
+     ],
+     "risk": "the curtain now covers the page until data is ready (a slow phone waits behind it, capped at 2.5 s); the build delays the buttons by up to ~0.8 s"
+    },
+    {
+     "id": "PV-6c",
+     "fixes": [
+      "P-076",
+      "P-087",
+      "P-089",
+      "P-003",
+      "P-109",
+      "P-022"
+     ],
+     "what": "First contact at any text size: the name form asks for your name first and lists the names after; after giving a name you return to the control you tapped; at 200% the marquee title stays above the section heads and the tour's foot is one compact row; no sideways scroll at 200%; the tour drops card 5's spoiler and contradictions.",
+     "proof": [
+      "200% capture: after Count me in, the heading and the name field are both on screen",
+      "e2e: a signed-out thumbs-up deep in the shelf, then a name -> the pressed vote is in the viewport",
+      "200% measurement: .board h1 font-size >= the section h2; tour card 3 body fully visible; scrollWidth <= clientWidth"
+     ],
+     "risk": "returning people on a new phone scroll past the field to find their name"
+    }
+   ],
+   "experiment": {
+    "id": "E-6",
+    "fixes": [
+     "P-090"
+    ],
+    "what": "Confirm or kill the operator's 'stuck on Can't reach the box office' guess: no free marks in range, abort the Listen channel for 12 s, restore, see whether the board recovers without a reload."
+   },
+   "deferred": [
+    "P-036 stale clock lock (rare; needs a design for the automatic pick)",
+    "P-091 local echo and tab discard (GUESS on Android discard)",
+    "P-088 shelf card pile and length (touches the user's card decision; needs its own round)",
+    "P-078, P-099, P-100 consistency and copy (the H4 score)",
+    "P-077 toasts over buttons",
+    "P-024, P-025, P-079 news and locked-night card"
+   ]
+  }
+ ],
+ "checkpoints": [
+  {
+   "iteration": 5,
+   "commit": "9d5a270",
+   "verdict": "yes (genuinely impressed)",
+   "file": ".improve/critiques/iter-05/judge.md",
+   "best_moment": "the reveal: lights down, the face-down card in bulbs, one tap to 'Friday's feature / Knives Out / Friday 7:30 PM at Jo's / 8 coming … / 5 of the 8 coming thumbed it up', then the ADMIT ONE ticket",
+   "brag": "Knives Out at Jo's, Friday 7:30! The site turned the lights down, flipped a card over and handed me a ticket with my name on it, and it even said 5 of the 8 of us coming had thumbed it up.",
+   "judge_findings": "no Blocker or Major; 8 Minor, 5 Polish",
+   "loop_decision": "keep iterating: untagged Majors remain open (P-022, P-076, P-087, P-089, P-003, P-090, P-036, P-091, P-088, P-106 raised from the judge's Minor)"
   }
  ]
 }

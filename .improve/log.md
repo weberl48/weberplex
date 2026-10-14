@@ -22,3 +22,15 @@
 - Kept: the next open night stays alive and taps stay honest (4616f02), the face-down sample ticket and attendee-only rating (faf2b0d). Impeccable 31/40.
 - Critics: a failed name step can say "Sent." (my bug), a phone's lock can use stale data, Esc spoils the reveal, Stats leak the face-down pick, the reveal and reel land without people.
 - Next: honest to the end, the reveal and reel with people, face down everywhere plus a clean name step at big text. Iteration 5 ends with the checkpoint judge.
+
+## Iteration 5 (2026-10-14)
+- Kept and shipped as a390baa:
+  - honest to the end (b228528)
+  - the reveal and reel land with people (8f29764)
+  - Stats face down and the name step (b0220b6)
+  - the house curtain, at the user's request (a47e8a7)
+  - the why line and reduced motion (9d5a270)
+- Impeccable 29/40, down from 31; consistency scored 2.
+- Timings: the write steps' slowdown was the 15 GB emulator. A same-hour A/B against the previous commit showed the same numbers.
+- Checkpoint judge: yes, genuinely impressed (the reveal). Its top Minor (a backed-out signed-out reveal is burned once you give a name) is raised to Major (P-106).
+- Next: face down on every path; lights down, curtain, picture; a reveal that builds; first contact at any text size.
