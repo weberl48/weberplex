@@ -87,15 +87,6 @@ export function tally({ dates = [], rsvps = [], movies = [], votes = [], offers 
 // "Ferger" -> "Ferger's". Empty when a night has no house set.
 export const placeLabel = (place) => (place ? `${place}'s` : '');
 
-// Whose turn it is: the house after the most recent locked or watched
-// night's, in rotation order. Nights arrive newest first; nights a
-// volunteer hosted don't move the rotation.
-export function nextPlace(nights, places) {
-  const last = nights.find((n) => (n.status === 'locked' || n.status === 'done') && places.includes(n.lockedPlace))?.lockedPlace;
-  const i = places.indexOf(last);
-  return i === -1 ? places[0] : places[(i + 1) % places.length];
-}
-
 // Lowest free slot 1..5 for this person, or null when all five are used.
 export function nextFreeSlot(takenSlots) {
   const taken = new Set(takenSlots);

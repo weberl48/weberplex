@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   nameKey, cleanName, initials, tally, nextFreeSlot, countdownParts, countdownText, buildIcs,
   ticketNumber, reviewSummary, pickRandom, movieFromMeta, parseRuntime,
-  tasteProfile, recommend, isForeign, ballotGenre, stremioUrl, nextPlace, placeLabel,
+  tasteProfile, recommend, isForeign, ballotGenre, stremioUrl, placeLabel,
 } from '../public/js/logic.js';
 
 test('names normalize to rule-safe keys', () => {
@@ -116,14 +116,7 @@ test('recommendations rank shared directors first and explain why', () => {
   assert.equal(stremioUrl('tt1'), 'https://web.stremio.com/#/detail/movie/tt1');
 });
 
-test('hosting rotates Weber -> Ferger -> Libby', () => {
-  const P = ['Weber', 'Ferger', 'Libby'];
-  assert.equal(nextPlace([], P), 'Weber');
-  assert.equal(nextPlace([{ status: 'open' }, { status: 'done', lockedPlace: 'Weber' }], P), 'Ferger');
-  assert.equal(nextPlace([{ status: 'locked', lockedPlace: 'Libby' }], P), 'Weber');
-  assert.equal(nextPlace([{ status: 'cancelled', lockedPlace: 'Ferger' }, { status: 'done', lockedPlace: 'Ferger' }], P), 'Libby');
-  assert.equal(nextPlace([{ status: 'done', lockedPlace: 'Sam' }, { status: 'done', lockedPlace: 'Libby' }], P), 'Weber');
-  assert.equal(nextPlace([{ status: 'done', lockedPlace: 'Libby' }], [...P, 'Huey']), 'Huey');
+test('house labels', () => {
   assert.equal(placeLabel('Ferger'), "Ferger's");
   assert.equal(placeLabel(''), '');
 });

@@ -54,7 +54,7 @@
       <form class="host-card" id="newForm">
         <label class="label" for="newTitle">Theme or title (optional)</label>
         <input class="field" id="newTitle" maxlength="60" placeholder="e.g. Spooky Season, Sequel Saturday">
-        <span class="label">Candidate nights and whose house</span>
+        <span class="label">Candidate nights (guests volunteer to host)</span>
         <div id="newDates" class="date-list"></div>
         <div class="row">
           <button class="btn btn-ghost btn-small" type="button" id="addNewDate">+ Another night</button>
@@ -73,8 +73,6 @@
         <form class="row" id="addDateForm">
           <label class="sr-only" for="addDateInput">Add a night</label>
           <input class="field" id="addDateInput" type="datetime-local" style="flex:1 1 14rem" required>
-          <label class="sr-only" for="addDatePlace">House</label>
-          <select class="field place" id="addDatePlace"></select>
           <button class="btn btn-ghost" type="submit">Add night</button>
         </form>
         <form class="row" id="renameForm">

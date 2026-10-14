@@ -83,7 +83,6 @@ function render() {
 }
 
 function renderOpen(tal) {
-  if (!$('#addDatePlace').options.length) $('#addDatePlace').innerHTML = placeOptions(L.nextPlace(S.nights, PLACES));
   if (document.activeElement !== $('#renameInput')) $('#renameInput').value = S.current.title || '';
   $('#dateList').innerHTML = tal.dates.length
     ? tal.dates.map((d) => `
@@ -162,11 +161,6 @@ function nextFriday8pm(offsetDays = 0) {
 }
 const toLocalInput = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
-// House choices for a candidate night; '' posts it as "host needed".
-const placeOptions = (selected) => [...PLACES.map((p) =>
-  `<option value="${esc(p)}"${p === selected ? ' selected' : ''}>${esc(L.placeLabel(p))}</option>`),
-  `<option value=""${selected === '' ? ' selected' : ''}>Anyone can host</option>`].join('');
-
 function addNewDateRow() {
   const rows = $('#newDates').children.length;
   const li = document.createElement('div');
@@ -174,8 +168,6 @@ function addNewDateRow() {
   const id = `newDate${Date.now()}${rows}`;
   li.innerHTML = `<label class="sr-only" for="${id}">Night ${rows + 1}</label>
     <input class="field" id="${id}" type="datetime-local" value="${toLocalInput(nextFriday8pm(rows))}" required>
-    <label class="sr-only" for="${id}p">House for night ${rows + 1}</label>
-    <select class="field place" id="${id}p">${placeOptions(L.nextPlace(S.nights, PLACES))}</select>
     <button class="mini" type="button" data-drop-row>Remove</button>`;
   $('#newDates').append(li);
 }
@@ -185,9 +177,7 @@ $('#newDates').addEventListener('click', (e) => {
 });
 $('#newForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const dates = [...$('#newDates').querySelectorAll('.date-item')]
-    .map((row) => ({ startsAt: new Date(row.querySelector('input').value), place: row.querySelector('select').value }))
-    .filter((d) => !Number.isNaN(d.startsAt.getTime()));
+  const dates = [...$('#newDates').querySelectorAll('input')].map((i) => new Date(i.value)).filter((d) => !Number.isNaN(d.getTime()));
   if (!dates.length) return;
   $('#newMsg').textContent = 'Booking…';
   try {
@@ -208,7 +198,7 @@ $('#addDateForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const d = new Date($('#addDateInput').value);
   if (Number.isNaN(d.getTime())) return;
-  try { await A.addDate(S.key, S.current.id, d, $('#addDatePlace').value); $('#addDateInput').value = ''; toast('Night added.'); } catch (err) { toast(writeError(err), true); }
+  try { await A.addDate(S.key, S.current.id, d); $('#addDateInput').value = ''; toast('Night added.'); } catch (err) { toast(writeError(err), true); }
 });
 $('#renameForm').addEventListener('submit', async (e) => {
   e.preventDefault();

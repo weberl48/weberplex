@@ -9,5 +9,6 @@ export const firebaseConfig = {
 
 export const SITE_URL = 'https://weberplex.vercel.app';
 
-// Hosting rotates between these houses, in this order.
+// Regular hosts, offered as quick choices when setting a locked night's
+// house. Hosting itself is volunteer-based: nobody is assigned by default.
 export const PLACES = ['Weber', 'Ferger', 'Libby', 'Huey'];
