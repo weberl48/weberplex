@@ -119,8 +119,13 @@ const recentDone = () => L.pastNights(S.nights).filter((n) => Date.now() - n.sta
 // one runs at a time.
 let lastClock = 0;
 let clockRunning = false;
+// A tab that has just woken up holds old lists until the listeners catch up:
+// it doesn't lock anything for a few seconds (the server clock covers it).
+let wokeAt = 0;
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wokeAt = Date.now(); });
 async function clock() {
   if (!ready() || clockRunning) return;
+  if (Date.now() - wokeAt < 5000) { setTimeout(clock, 5000); return; }
   const due = S.nights.some((n) => L.lockDue(n) || L.doneDue(n));
   if (!due && Date.now() - lastClock < 60000) return;
   clockRunning = true;
@@ -132,7 +137,7 @@ async function clock() {
         if (L.lockDue(n)) {
           const watched = new Set([...L.excludedFor(S.nights, n.day), ...lockedNow]);
           const pick = L.pickMovie({ movies: S.movies, votes: S.votes, watched, attendees: comingTo(n.day).map((f) => f.nameKey), vetoed: L.vetoedFor(n), theme: n.theme || '' });
-          if (pick && await A.lockNight(n.day, pick)) lockedNow.add(pick.movie.imdbId);
+          if (pick && await A.lockNight(n.day, pick, { vetoes: n.vetoes || {}, theme: n.theme || '' })) lockedNow.add(pick.movie.imdbId);
         } else if (L.doneDue(n)) {
           await A.finishNight(n.day);
         }
@@ -1018,14 +1023,16 @@ function focusPass() {
   pass.setAttribute('tabindex', '-1');
   pass.focus({ preventScroll: true });
 }
-// Resolves true once the server has it, false if it failed.
+// Resolves true once the server has it, false if it failed. An action that
+// shows its own failure returns false.
 let lastRun = null;
 function once(key, fn) {
   if (busy.has(key)) { toast('Still sending that one…'); return Promise.resolve(false); }
   busy.add(key);
   const done = sending();
   lastRun = (async () => {
-    try { await fn(); return true; } catch (e) { console.error(e); toast(writeError(e), true); return false; } finally { busy.delete(key); done(); }
+    let ok = false;
+    try { ok = (await fn()) !== false; return ok; } catch (e) { console.error(e); toast(writeError(e), true); return false; } finally { busy.delete(key); done(ok); }
   })();
   return lastRun;
 }
@@ -1036,19 +1043,26 @@ function once(key, fn) {
 const NOT_SENT = 'Not sent yet. It goes through when your connection is back, as long as this page stays open.';
 // It watches the action, not the write queue: some actions read the night
 // first (dropping out, a veto), and nothing is queued until that read returns.
+// Each unsent tap brings the note back (another toast may have replaced it);
+// when the last one settles, the note becomes "Sent." or, if any failed, says so.
 let unsent = 0;
 let warned = false;
+let failed = false;
 function sending() {
   unsent += 1;
-  const t = setTimeout(() => { if (!warned) { warned = true; toast(NOT_SENT, true, { stay: true }); } }, 4000);
+  const t = setTimeout(() => { warned = true; if ($('#toast').textContent !== NOT_SENT) toast(NOT_SENT, true, { stay: true }); }, 4000);
   let over = false;
-  return () => {
+  return (ok = true) => {
     if (over) return;
     over = true;
     clearTimeout(t);
     unsent -= 1;
-    // "Sent." only replaces the note; an action's own confirmation says more.
-    if (!unsent && warned) { warned = false; if ($('#toast').textContent === NOT_SENT) toast('Sent.'); }
+    if (!ok) failed = true;
+    if (unsent) return;
+    // Only the note is replaced; an action's own message says more.
+    if (warned && $('#toast').textContent === NOT_SENT) toast(failed ? 'That didn’t go through. Try again in a moment.' : 'Sent.', failed);
+    warned = false;
+    failed = false;
   };
 }
 window.addEventListener('beforeunload', (e) => { if (unsent) { e.preventDefault(); e.returnValue = ''; } });
@@ -1098,12 +1112,12 @@ async function join(name) {
       sec.focus({ preventScroll: true });
     }, 0);
   } catch (e) {
+    done(false);
     $('#passMsg').textContent = writeError(e);
     $('#passMsg').className = 'msg bad';
     $('#passMsg').hidden = false;
   } finally {
     joining = false;
-    done();
   }
 }
 function startTour() {
@@ -1340,7 +1354,11 @@ document.addEventListener('click', (e) => {
         await sent();
         const pick = pickNow();
         if (!pick) return;
-        await A.lockNight(day, pick);
+        const n = S.nights.find((x) => x.day === day);
+        if (!(await A.lockNight(day, pick, { vetoes: n.vetoes || {}, theme: n.theme || '' }))) {
+          toast('The night changed just now (a veto or the theme). Lock again to pick from what’s there.', true);
+          return false;
+        }
         toast(pick.tie.length > 1 ? 'Locked. The reel decides, next.' : 'Locked. Your reveal is next.');
       });
       break;
@@ -1451,7 +1469,7 @@ async function pick(imdbId, el = null) {
       await A.addMovie(me, movie, $('#pitch').value);
     } catch (e) {
       setPickMsg(e instanceof AlreadyOnShelfError ? e.message : writeError(e), 'bad');
-      return;
+      return false;
     }
     setPickMsg(`Added ${movie.title} to the shelf, with your thumbs-up.`, 'good');
     $('#q').value = ''; $('#pitch').value = '';

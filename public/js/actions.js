@@ -177,11 +177,15 @@ export function makeActions(db, F) {
     },
 
     // Lock the movie. A transaction, so two phones noticing the deadline at
-    // once can't lock different movies.
-    async lockNight(day, pick) {
+    // once can't lock different movies. `expect`: the vetoes and theme the pick
+    // was made from; if the night has changed since, nothing is locked (the
+    // next pass picks again from what's there).
+    async lockNight(day, pick, expect = null) {
+      const same = (a = {}, b = {}) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
       return runTransaction(db, async (tx) => {
         const snap = await tx.get(night(day));
         if (!snap.exists() || snap.data().status !== 'planned') return false;
+        if (expect && (!same(snap.data().vetoes || {}, expect.vetoes) || (snap.data().theme || '') !== (expect.theme || ''))) return false;
         tx.update(night(day), { ...lockFields(pick), lockedAt: serverTimestamp() });
         return true;
       });

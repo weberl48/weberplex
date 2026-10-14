@@ -389,6 +389,23 @@ def honest_sending_checks(browser, errors):
     expect(page.locator('#whoami')).to_contain_text('Ulrike', timeout=20000)
     ctx.close()
 
+    # Unreachable altogether, a name can't go through: it says so, and never says 'Sent.'.
+    ctx = browser.new_context(viewport=PHONE)
+    page = ctx.new_page()
+    page.goto(f'{SITE}/?emu')
+    skip_tour(page)
+    for _ in range(3):
+        if page.locator('.reveal-overlay').count():
+            page.keyboard.press('Escape')
+        page.wait_for_timeout(400)
+    ctx.route('**/google.firestore.v1.Firestore/**', lambda r: r.abort())
+    page.fill('#passName', 'Vesna')
+    page.click('#passForm button[type=submit]')
+    expect(page.locator('#passMsg')).to_be_visible(timeout=30000)  # the error, under the field
+    page.wait_for_timeout(500)
+    assert 'Sent.' not in page.locator('#toast').inner_text(), 'a failed name never says Sent.'
+    ctx.close()
+
     # Opening with the box office unreachable says so, instead of an empty house.
     page = as_person(browser, errors, 'lia3', 'Lia')
     page.context.route('**/google.firestore.v1.Firestore/Listen/**', lambda r: r.abort())

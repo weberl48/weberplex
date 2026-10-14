@@ -125,6 +125,12 @@ test('locking: real movie only, once; unlock before showtime; done after', async
   const d = day(3);
   await A.hostNight(sam, d, new Date(Date.now() + 3 * 86400000));
   const pick = pickMovie({ movies: [movie(1), movie(2)], votes: [{ movie: movie(2).imdbId, nameKey: 'sam', name: 'Sam' }], attendees: ['sam'] });
+  // A pick made before the night changed (a theme here) is refused, not locked.
+  await A.setTheme(d, 'Drama');
+  assert.equal(await A.lockNight(d, pick, { vetoes: {}, theme: '' }), false, 'stale pick');
+  await A.setTheme(d, '');
+  assert.equal(await A.lockNight(d, pick, { vetoes: {}, theme: '' }), true);
+  await A.unlockNight(d);
   assert.equal(await A.lockNight(d, pick), true);
   assert.equal(await A.lockNight(d, pick), false, 'already locked');
   const n = (await getDoc(doc(db, 'nights', d))).data();
