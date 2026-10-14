@@ -57,7 +57,7 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK', inv
       if (feature) overlay.querySelector('h2').textContent = feature;
       overlay.querySelector('.reveal-title').textContent = movie.title;
       overlay.querySelector('.reveal-when').textContent = [when, place && `at ${place}`].filter(Boolean).join(' ');
-      overlay.querySelector('.reveal-who').textContent = [people, why].filter(Boolean).join(' · ');
+      overlay.querySelector('.reveal-who').textContent = [people, why].filter(Boolean).join('\n'); // a line each
       actions.hidden = false;
       buttons[0].focus();
     };

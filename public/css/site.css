@@ -737,7 +737,7 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 .reveal-overlay > .reveal-box { animation: comes-up 0.6s ease-out 0.55s both; }
 @keyframes lights-down { from { background-color: rgba(10, 4, 7, 0); } to { background-color: #0a0407; } }
 @keyframes comes-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-.reveal-who { margin: 0 0 14px; min-height: 1.4em; font-size: var(--step--1); color: var(--dim); text-wrap: balance; }
+.reveal-who { margin: 0 0 14px; min-height: 1.4em; font-size: var(--step--1); color: var(--dim); text-wrap: balance; white-space: pre-line; }
 .reveal-box { width: min(19rem, 100%); text-align: center; }
 .reveal-box h2 { margin: 0 0 14px; font: 400 var(--step-2)/1.1 var(--f-display); color: var(--bulb); }
 /* The card waits in a ring of bulbs, chasing like the marquee's until you turn it. */
@@ -790,9 +790,9 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
   .reveal-stage { padding: 12px; }
   .reveal-hint { margin-top: 8px; }
   .reveal-cover { font-size: 3rem; }
-  .reveal-title { margin-top: 8px; font-size: var(--step-1); }
+  .reveal-title { margin-top: 6px; font-size: var(--step-1); }
   .reveal-when { margin-bottom: 2px; }
-  .reveal-who { margin-bottom: 8px; }
+  .reveal-who { margin-bottom: 6px; }
 }
 
 /* ---- the house curtain ---------------------------------------------------
@@ -870,6 +870,7 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .curtain { display: none; }
+  .reveal-overlay, .reveal-overlay > .reveal-box { animation: none; } /* no lights-down: it's simply there */
   .marquee::before, .marquee::after, .reveal-stage::before, .reveal-stage::after, .reveal-stage.landed::before, .reveal-stage.landed::after { animation: none; }
   .marquee::after, .reveal-stage::after { opacity: 0.4; }
   *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
