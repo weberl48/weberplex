@@ -33,6 +33,16 @@ free marks), a first-visit walkthrough (and **How it works** to replay it),
 tickets with an .ics invite, Stremio links on every card, and a season title
 on the marquee.
 
+**Keeping people in the loop.** **Subscribe** (in the calendar section) gives
+every night as a calendar feed, `/calendar.ics`: planned and locked nights
+plus the last month's watched ones, with who's coming, the movie and a
+reminder two hours before. Cancelled nights drop out of it. Apple calendars
+take the `webcal://` link; Google wants the https link pasted into *Other
+calendars → From URL* and refreshes slowly. Pasting the site into a group text
+shows a link preview (the next night, or the poster once it's locked), built
+from the same data for link-preview bots only (`/api/preview`); people always
+get the normal page.
+
 ## How it's built
 
 There is no server in the write path. The static site in `public/` writes
@@ -63,6 +73,7 @@ needs no key: locking a due night is something any guest may do.
 
 ```
 public/            static site (Vercel serves it; cleanUrls)
+  img/og.png       the link-preview card (1200x630)
   js/logic.js      pure helpers: shelf tally, the pick, calendar, news, .ics
   js/actions.js    every write (injected SDK, shared with the tests)
   js/store.js      live subscriptions
@@ -70,8 +81,9 @@ public/            static site (Vercel serves it; cleanUrls)
   js/browse.js     Trending / New / For you tabs   js/tour.js  walkthrough
   js/reel.js       the tie-breaker     js/ui.js     DOM helpers
 lib/tick.js        the server clock    lib/status.js  JSON for HA
-lib/firestore-rest.js  tiny REST client for both
-api/               Vercel functions: status, tick (cron daily)
+lib/calendar.js    the .ics feed       lib/preview.js  link-preview page
+lib/firestore-rest.js  tiny REST client for the server files
+api/               Vercel functions: status, tick (cron daily), calendar, preview
 firestore.rules    the backend
 seed/              house lists (pinned IMDb ids); tools/seed.mjs loads them
 tests/             logic + rules + server (emulator) and e2e.py (Playwright)
@@ -119,5 +131,15 @@ in `public/js/config.js` is public by design.
   until the daily reset. Page loads read the whole shelf, thumbs, seen marks
   and upcoming free marks; HA's status poll reads every thumbs-up while a
   night is planned. Watch usage in the Firebase console as the shelf grows.
+  `/calendar.ics` (nights plus the last month's free marks) is cached 15
+  minutes and `/api/preview` (the same reads as the status poll) 5 minutes.
+- Link previews: `vercel.json` *redirects* `/` to `/api/preview` only when the
+  user-agent is a known preview bot (a redirect, not a rewrite, because Vercel
+  serves the static `index.html` before any rewrite runs). The match is
+  written with `[Aa]`-style classes because the pattern can't carry a
+  case-insensitive flag. Static `og:image`/`twitter:card` tags in
+  `public/index.html` cover any bot the list misses. Facebook, Slack and
+  iMessage keep their own cache of a link's preview, so a changed night
+  can take a while to show up in an old text.
 - An old pre-rebuild night doc (`nights/KjFWrXDWTF21O8drpded`) is left in
   place; nothing reads it.

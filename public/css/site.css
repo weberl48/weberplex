@@ -135,6 +135,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
   margin: 0; font: 400 var(--step-2)/1.15 var(--f-display); color: var(--bulb); letter-spacing: 0.02em; text-wrap: balance;
 }
 .section-head .aside { color: var(--dim); font-size: var(--step--1); }
+.head-side { display: flex; align-items: center; gap: 10px; }
+/* the Subscribe panel under the calendar heading */
+.sub-panel {
+  margin-bottom: 0.9rem; padding: 12px 14px; border-radius: var(--radius);
+  background: var(--velvet-2); border: 1px solid var(--rule);
+  display: grid; gap: 10px;
+}
+.sub-panel .label { margin: 0; }
+.sub-panel .row .field { flex: 1 1 14rem; width: auto; min-height: 36px; font-size: var(--step--1); }
 .label {
   font: 700 var(--step--1)/1.2 var(--f-body); font-stretch: 75%;
   letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint);

@@ -8,6 +8,8 @@ Screenshots go to the first argument, default ./e2e-shots.
 import functools
 import http.server
 import json
+import re
+import struct
 import sys
 import threading
 import urllib.request
@@ -135,6 +137,27 @@ def main():
         expect(sam.locator('#board')).to_contain_text('Spooky Season')
         expect(sam.locator('#shelf .card')).to_have_count(1)
         expect(sam.locator('#shelf .card').first).to_contain_text('House pick')
+
+        # Subscribe: the calendar section's panel has an Apple link and a Google link
+        # with a Copy button; the page also carries a static link-preview card.
+        ctx['sam'].grant_permissions(['clipboard-read', 'clipboard-write'])
+        expect(sam.locator('#subPanel')).to_be_hidden()
+        sam.click('[data-action="subscribe"]')
+        expect(sam.locator('#subPanel')).to_be_visible()
+        expect(sam.locator('[data-action="subscribe"]')).to_have_attribute('aria-expanded', 'true')
+        expect(sam.locator('#subApple')).to_have_attribute('href', re.compile(r'^webcal://[^/]+/calendar\.ics$'))
+        expect(sam.locator('#subUrl')).to_have_value(re.compile(r'^https://[^/]+/calendar\.ics$'))
+        sam.click('#subPanel [data-action="copy-feed"]')
+        expect(sam.locator('#toast')).to_contain_text('Link copied')
+        assert sam.evaluate('navigator.clipboard.readText()') == sam.input_value('#subUrl')
+        shot(sam, '00-subscribe')
+        sam.click('[data-action="subscribe"]')
+        expect(sam.locator('#subPanel')).to_be_hidden()
+        og = sam.locator('meta[property="og:image"]').get_attribute('content')
+        assert og.endswith('/img/og.png') and sam.locator('meta[name="twitter:card"]').get_attribute('content') == 'summary_large_image', og
+        png = urllib.request.urlopen(f'{SITE}/img/og.png').read()
+        assert png[:8] == b'\x89PNG\r\n\x1a\n' and struct.unpack('>II', png[16:24]) == (1200, 630)
+
         alien = add_by_search(sam, 'alien')
         jaws = add_by_search(sam, 'jaws', pitch='The shark still holds up')
         expect(card(sam, jaws)).to_contain_text('The shark still holds up')

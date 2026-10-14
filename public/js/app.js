@@ -572,6 +572,22 @@ document.addEventListener('submit', (e) => {
   if (v.trim()) addSnack(form.dataset.day, v);
 });
 
+// Calendar subscription (the Subscribe panel in the calendar section). The
+// links come from SITE_URL, so a local copy of the site still points at the
+// real feed.
+const feed = new URL('/calendar.ics', SITE_URL);
+$('#subApple').href = `webcal://${feed.host}${feed.pathname}`;
+$('#subUrl').value = feed.href;
+async function copyFeed() {
+  const field = $('#subUrl');
+  try { await navigator.clipboard.writeText(field.value); }
+  catch {
+    field.select();
+    if (!document.execCommand('copy')) { toast('Press and hold the link to copy it.', true); return; }
+  }
+  toast('Link copied. In Google Calendar: Other calendars → From URL.');
+}
+
 document.addEventListener('click', (e) => {
   const tab = e.target.closest('#browseTabs [data-tab]');
   if (tab) { openTab(tab.dataset.tab); return; }
@@ -586,6 +602,13 @@ document.addEventListener('click', (e) => {
     case 'tour': startTour(); break;
     case 'news-seen': markSeen(); break;
     case 'goto': $(el.dataset.target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); break;
+    case 'subscribe': {
+      const panel = $('#subPanel');
+      panel.hidden = !panel.hidden;
+      el.setAttribute('aria-expanded', String(!panel.hidden));
+      break;
+    }
+    case 'copy-feed': copyFeed(); break;
     case 'free': {
       if (!el.dataset.keep) S.day = day;
       const me = requireMe(); if (!me) { render(); return; }

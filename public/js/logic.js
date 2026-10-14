@@ -278,28 +278,61 @@ export function pickRandom(list, rand = Math.random) {
   return list.length ? list[Math.floor(rand() * list.length) % list.length] : null;
 }
 
-// RFC 5545 calendar file for "Add to calendar".
-export function buildIcs({ uid, title, start, minutes = 150, description = '', location = '', url = '' }) {
-  const fmt = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1');
+// ---- calendar files (RFC 5545) ----------------------------------------------------
+// One VEVENT formatter serves the single-night "Add to calendar" download and
+// the subscribable feed (lib/calendar.js).
+const icsStamp = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+export const icsEscape = (s) => String(s).replace(/\\/g, '\\\\').replace(/\r\n|\r|\n/g, '\\n').replace(/([,;])/g, '\\$1');
+
+// Content lines fold at 75 octets (UTF-8 bytes, never mid-character); every
+// continuation line starts with one space. Returns the line, CRLF-joined if folded.
+export function icsFold(line) {
+  const enc = new TextEncoder();
+  if (enc.encode(line).length <= 75) return line;
+  const parts = [];
+  let cur = '';
+  let size = 0;
+  for (const ch of line) {
+    const n = enc.encode(ch).length;
+    if (size + n > 75) { parts.push(cur); cur = ' '; size = 1; }
+    cur += ch;
+    size += n;
+  }
+  parts.push(cur);
+  return parts.join('\r\n');
+}
+
+// One VEVENT as folded lines. The UID is stable per night, so a calendar that
+// already has the event updates it instead of adding a second one.
+export function icsEvent({ uid, title, start, minutes = 150, description = '', location = '', url = '', stamp = new Date() }) {
   const startD = toDate(start);
   const end = new Date(startD.getTime() + minutes * 60000);
-  const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Weberplex//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+  return [
     'BEGIN:VEVENT',
     `UID:${uid}@weberplex`,
-    `DTSTAMP:${fmt(new Date())}`,
-    `DTSTART:${fmt(startD)}`,
-    `DTEND:${fmt(end)}`,
-    `SUMMARY:${esc(title)}`,
-    description && `DESCRIPTION:${esc(description)}`,
-    location && `LOCATION:${esc(location)}`,
+    `DTSTAMP:${icsStamp(toDate(stamp))}`,
+    `DTSTART:${icsStamp(startD)}`,
+    `DTEND:${icsStamp(end)}`,
+    `SUMMARY:${icsEscape(title)}`,
+    description && `DESCRIPTION:${icsEscape(description)}`,
+    location && `LOCATION:${icsEscape(location)}`,
     url && `URL:${url}`,
-    'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'END:VALARM',
-    'END:VEVENT', 'END:VCALENDAR',
-  ].filter(Boolean);
+    'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY', `DESCRIPTION:${icsEscape(title)}`, 'END:VALARM',
+    'END:VEVENT',
+  ].filter(Boolean).map(icsFold);
+}
+
+// A whole calendar from icsEvent() results; `headers` are extra calendar-level lines.
+export function icsCalendar(events = [], headers = []) {
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Weberplex//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    ...headers.map(icsFold), ...events.flat(), 'END:VCALENDAR',
+  ];
   return lines.join('\r\n') + '\r\n';
 }
+
+// RFC 5545 calendar file for "Add to calendar".
+export const buildIcs = (event) => icsCalendar([icsEvent(event)]);
 
 // ---- "For you" recommendations ----------------------------------------------
 // Content-based: no account-backed "people also liked" source is available

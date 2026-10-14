@@ -8,6 +8,11 @@
   <meta name="theme-color" content="#140a0f">
   <meta property="og:title" content="Weberplex">
   <meta property="og:description" content="Mark your evenings. Host a night. Vote on what we watch next.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://weberplex.vercel.app/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23140a0f'/%3E%3Crect x='10' y='18' width='44' height='30' rx='3' fill='%23fbf3e2'/%3E%3Cg fill='%23ffc76e'%3E%3Ccircle cx='14' cy='12' r='3'/%3E%3Ccircle cx='26' cy='12' r='3'/%3E%3Ccircle cx='38' cy='12' r='3'/%3E%3Ccircle cx='50' cy='12' r='3'/%3E%3Ccircle cx='14' cy='54' r='3'/%3E%3Ccircle cx='26' cy='54' r='3'/%3E%3Ccircle cx='38' cy='54' r='3'/%3E%3Ccircle cx='50' cy='54' r='3'/%3E%3C/g%3E%3Cpath d='M18 26h28M18 33h20M18 40h24' stroke='%237d1b35' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -60,7 +65,24 @@
     </section>
 
     <section class="section" id="calSec">
-      <div class="section-head"><h2>When are you free?</h2><span class="aside">Next four weeks</span></div>
+      <div class="section-head">
+        <h2>When are you free?</h2>
+        <div class="head-side">
+          <span class="aside">Next four weeks</span>
+          <button class="btn btn-ghost btn-small" type="button" data-action="subscribe" aria-expanded="false" aria-controls="subPanel">Subscribe</button>
+        </div>
+      </div>
+      <div class="sub-panel" id="subPanel" hidden>
+        <p class="label">Every night, in your own calendar</p>
+        <div class="row"><a class="btn btn-bulb btn-small" id="subApple">Add to iPhone or Mac calendar</a></div>
+        <p class="hint" style="margin-top:0"><b>Google Calendar:</b> copy this link, then in Google Calendar choose <i>Other calendars → From URL</i> and paste it.</p>
+        <div class="row">
+          <label class="sr-only" for="subUrl">Calendar link</label>
+          <input class="field" id="subUrl" readonly>
+          <button class="btn btn-ghost btn-small" type="button" data-action="copy-feed">Copy</button>
+        </div>
+        <p class="hint" style="margin-top:0">New nights, locked movies and cancellations show up on their own. Google refreshes subscribed calendars slowly, sometimes not for a day.</p>
+      </div>
       <p class="hint" style="margin-top:0">Tap every evening you could do. The last day you tapped shows below; that is where you can host it.</p>
       <div class="cal" id="calendar"></div>
       <div class="day-detail" id="dayDetail"></div>

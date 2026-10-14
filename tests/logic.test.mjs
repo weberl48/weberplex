@@ -5,6 +5,7 @@ import {
   movieFromMeta, parseRuntime, tasteProfile, recommend, isForeign, ballotGenre, stremioUrl, placeLabel,
   watchedIds, tallyShelf, pickMovie, lockFields, lockDue, doneDue, lockAt, upcomingNights, pastNights, hostCounts,
   dayKey, dayFromKey, calendarDays, tallyDays, sinceLastLook, shelfTags, excludedFor,
+  icsEvent, icsCalendar, icsFold, icsEscape,
 } from '../public/js/logic.js';
 
 const at = (ms) => new Date(ms);
@@ -142,6 +143,55 @@ test('countdown, calendar file, helpers', () => {
   assert.equal(parseRuntime('167 min'), 167);
   assert.equal(placeLabel('Jo'), "Jo's");
   assert.equal(stremioUrl('tt1'), 'https://web.stremio.com/#/detail/movie/tt1');
+});
+
+test('the shared VEVENT formatter: escaping, folding, UID and alarm', () => {
+  const start = new Date('2026-10-17T00:00:00Z');
+  const stamp = new Date('2026-10-12T12:00:00Z');
+  const lines = icsEvent({
+    uid: '2026-10-16', title: 'Dune, Part Two; at Jo\'s', start, minutes: 155, stamp,
+    description: 'Coming: Al, Sam\nTheme: Back\\slash', url: 'https://weberplex.vercel.app',
+  });
+  assert.deepEqual(lines.slice(0, 7), [
+    'BEGIN:VEVENT', 'UID:2026-10-16@weberplex', 'DTSTAMP:20261012T120000Z',
+    'DTSTART:20261017T000000Z', 'DTEND:20261017T023500Z',
+    "SUMMARY:Dune\\, Part Two\\; at Jo's", 'DESCRIPTION:Coming: Al\\, Sam\\nTheme: Back\\\\slash',
+  ]);
+  assert.ok(lines.includes('URL:https://weberplex.vercel.app'));
+  assert.ok(!lines.some((l) => l.startsWith('LOCATION')), 'no location unless given');
+  // One alarm, two hours before, shown on screen.
+  const alarm = lines.slice(lines.indexOf('BEGIN:VALARM'), lines.indexOf('END:VALARM') + 1);
+  assert.deepEqual(alarm.slice(0, 3), ['BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY']);
+  assert.equal(lines.filter((l) => l === 'BEGIN:VALARM').length, 1);
+  assert.equal(lines.at(-1), 'END:VEVENT');
+  assert.equal(icsEscape('a\r\nb'), 'a\\nb');
+
+  // Folding: 75 octets a line, continuation lines start with a space, nothing
+  // is lost, and a multi-byte character is never split.
+  const long = `SUMMARY:${'Ünïcödé ✓ movie '.repeat(12)}`;
+  const folded = icsFold(long);
+  const physical = folded.split('\r\n');
+  assert.ok(physical.length > 2);
+  for (const l of physical) assert.ok(new TextEncoder().encode(l).length <= 75, l);
+  assert.ok(physical.slice(1).every((l) => l.startsWith(' ')));
+  assert.equal(folded.replace(/\r\n /g, ''), long);
+  assert.ok(!folded.includes('\uFFFD'));
+  assert.equal(icsFold('SHORT:line'), 'SHORT:line');
+
+  // A long title folds inside the event and in the whole file, and unfolds back.
+  const title = `Everything Everywhere All at Once, a very long movie title for the feed ${'é'.repeat(30)}`;
+  const file = icsCalendar([icsEvent({ uid: 'x', title, start, stamp })], ['X-WR-CALNAME:Weberplex']);
+  assert.ok(file.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Weberplex//EN\r\n'));
+  assert.ok(file.includes('\r\nX-WR-CALNAME:Weberplex\r\n'));
+  assert.ok(file.endsWith('END:VEVENT\r\nEND:VCALENDAR\r\n'));
+  for (const l of file.split('\r\n')) assert.ok(new TextEncoder().encode(l).length <= 75, l);
+  assert.ok(file.replace(/\r\n /g, '').includes(`SUMMARY:${title.replace(/,/g, '\\,')}\r\n`));
+
+  // The single-night download is the same formatter.
+  const one = buildIcs({ uid: 'n1-sam', title: 'T', start, stamp });
+  assert.ok(one.includes('BEGIN:VEVENT\r\nUID:n1-sam@weberplex\r\n'));
+  assert.ok(one.includes('BEGIN:VALARM\r\nTRIGGER:-PT2H\r\n'));
+  assert.equal(icsCalendar().split('\r\n').slice(-3, -1).join('|'), 'METHOD:PUBLISH|END:VCALENDAR');
 });
 
 test('recommendations rank shared directors first and explain why', () => {
