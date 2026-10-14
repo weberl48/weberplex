@@ -49,7 +49,11 @@ the marquee, and jump links under it to each section (they scroll without
 adding history). Android's back gesture closes whichever card, overlay or
 hosting slip is open instead of leaving the site. A reveal closed with back
 before it turns stays face down that visit, with **Reveal the movie** in Up
-next. Errors stay on screen until tapped away.
+next. Errors stay on screen until tapped away. A tap counts once the server
+has it: anything still unsent after a few seconds says **Not sent yet** (even
+when the phone thinks it's online), then **Sent.**, and leaving the page with
+something unsent asks first. Locking waits for a theme or veto tapped just
+before it, so the lock can't overtake it.
 
 **Names.** A name is all it takes. A tap before you've given one (a thumbs-up,
 Count me in, a veto) brings up the name form and goes through once you have.

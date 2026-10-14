@@ -318,6 +318,32 @@ def as_person(browser, errors, label, name):
     return page
 
 
+def honest_sending_checks(browser, errors):
+    """A connection that's up but carrying nothing (no 'offline' event): a thumbs-up says
+    "Not sent yet" instead of pretending, and "Sent." once the server has it."""
+    now = datetime.now(timezone.utc)
+    emu('PATCH', f'{DOCS}/people/lia', {'fields': fields({'name': 'Lia', 'at': now, 'toured': True, 'lastSeen': now})}, owner=True)
+    page = as_person(browser, errors, 'lia', 'Lia')
+    page.goto(f'{SITE}/?emu')
+    skip_cards(page)
+    held = []
+    page.context.route('**/google.firestore.v1.Firestore/Write/**', lambda r: held.append(r))  # never answered
+    vote = page.locator('#shelf .card .vote:not(.on)').first
+    movie = vote.get_attribute('data-id')
+    vote.click()
+    expect(page.locator('#toast')).to_contain_text('Not sent yet', timeout=8000)
+    assert page.evaluate('navigator.onLine'), 'the browser still thinks it is online'
+    page.context.unroute('**/google.firestore.v1.Firestore/Write/**')
+    for r in held:
+        try:
+            r.abort()  # the SDK reconnects and resends
+        except Exception:
+            pass
+    expect(page.locator('#toast')).to_contain_text('Sent.', timeout=20000)
+    assert json.loads(emu('GET', f'{DOCS}/votes/{movie}__lia', owner=True)).get('fields'), 'the vote reached the server'
+    page.context.close()
+
+
 def news_cards_checks(browser, errors):
     """Since you last looked, from another person's real actions: Hal (hosting) moves the time,
     sets a theme, vetoes a movie and calls a snack; Wren, whose last look was just before, gets one card
@@ -883,6 +909,7 @@ def main():
 
         paint_checks(newbie)
         news_cards_checks(browser, errors)
+        honest_sending_checks(browser, errors)
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)

@@ -2,7 +2,7 @@
 // State comes from live Firestore subscriptions; render() repaints the
 // dynamic containers. Inputs live in static markup so a live update never
 // steals focus or wipes what someone is typing.
-import { db, F } from './firebase.js';
+import { db, F, sent } from './firebase.js';
 import { SITE_URL, OWNER } from './config.js';
 import { makeActions, AlreadyOnShelfError } from './actions.js';
 import { watch, watchNights, watchFree, watchDoc, loadRows } from './store.js';
@@ -953,10 +953,28 @@ function focusPass() {
   pass.focus({ preventScroll: true });
 }
 async function once(key, fn) {
-  if (busy.has(key)) return;
+  if (busy.has(key)) { toast('Still sending that one…'); return; }
   busy.add(key);
-  try { await fn(); } catch (e) { console.error(e); toast(writeError(e), true); } finally { busy.delete(key); }
+  try { const p = fn(); sending(); await p; } catch (e) { console.error(e); toast(writeError(e), true); } finally { busy.delete(key); }
 }
+// A tap counts once the server has it. A connection that's up but carrying
+// nothing fires no 'offline' event, so anything still unsent after a few
+// seconds says so, and says "Sent." when it lands. Leaving with something
+// unsent asks first: the browser keeps unsent taps only while the page is open.
+const NOT_SENT = 'Not sent yet. It goes through when your connection is back, as long as this page stays open.';
+let unsent = 0;
+let warned = false;
+function sending() {
+  unsent += 1;
+  const t = setTimeout(() => { if (!warned) { warned = true; toast(NOT_SENT, true, { stay: true }); } }, 4000);
+  sent().then(() => {
+    clearTimeout(t);
+    unsent -= 1;
+    // "Sent." only replaces the note; an action's own confirmation says more.
+    if (!unsent && warned) { warned = false; if ($('#toast').textContent === NOT_SENT) toast('Sent.'); }
+  });
+}
+window.addEventListener('beforeunload', (e) => { if (unsent) { e.preventDefault(); e.returnValue = ''; } });
 async function join(name) {
   try {
     const who = await A.join(name);
@@ -984,7 +1002,8 @@ async function join(name) {
         el.focus({ preventScroll: true });
         if (el.disabled || el.getAttribute('aria-pressed') === 'true') return;
         el.click();
-        if (p.done) toast(`Welcome, ${who.name}. ${p.done}`);
+        // Said once the server has it, not when the tap is sent.
+        if (p.done) sent().then(() => toast(`Welcome, ${who.name}. ${p.done}`));
         return;
       }
       const a = document.activeElement;
@@ -1220,11 +1239,22 @@ document.addEventListener('click', (e) => {
     }); break;
     case 'lock-now': {
       if (!armed(el, 'Tap again to lock')) return;
-      const n = S.nights.find((x) => x.day === day);
-      const pick = L.pickMovie({ movies: S.movies, votes: S.votes, watched: L.excludedFor(S.nights, day), attendees: comingTo(day).map((f) => f.nameKey), vetoed: L.vetoedFor(n), theme: n.theme || '' });
-      if (!pick) { toast('The shelf is empty. Add a movie first.', true); return; }
+      const pickNow = () => {
+        const n = S.nights.find((x) => x.day === day);
+        return L.pickMovie({ movies: S.movies, votes: S.votes, watched: L.excludedFor(S.nights, day), attendees: comingTo(day).map((f) => f.nameKey), vetoed: L.vetoedFor(n), theme: n.theme || '' });
+      };
+      if (!pickNow()) { toast('The shelf is empty. Add a movie first.', true); return; }
+      // A theme or veto tapped just before goes to the server first: the lock
+      // is a transaction and would overtake it, and the change would bounce off
+      // a locked night. Then pick from what the server has.
       // Not the title: the host gets their reveal too.
-      once(`lock:${day}`, async () => { await A.lockNight(n.day, pick); toast(pick.tie.length > 1 ? 'Locked. The reel decides, next.' : 'Locked. Your reveal is next.'); });
+      once(`lock:${day}`, async () => {
+        await sent();
+        const pick = pickNow();
+        if (!pick) return;
+        await A.lockNight(day, pick);
+        toast(pick.tie.length > 1 ? 'Locked. The reel decides, next.' : 'Locked. Your reveal is next.');
+      });
       break;
     }
     case 'veto': case 'unveto': {

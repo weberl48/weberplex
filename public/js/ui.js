@@ -59,7 +59,8 @@ export function loadLocal(key) {
 // A routine confirmation fades by itself; something that went wrong stays
 // until it's tapped away (or 12 s), so it can actually be read.
 let toastTimer;
-export function toast(message, bad = false) {
+// `stay`: it stays until tapped or replaced (for "Not sent yet").
+export function toast(message, bad = false, { stay = false } = {}) {
   const el = $('#toast');
   if (!el) return;
   el.textContent = message;
@@ -67,7 +68,7 @@ export function toast(message, bad = false) {
   el.classList.add('show');
   el.onclick = () => el.classList.remove('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), bad ? 12000 : 3200);
+  if (!stay) toastTimer = setTimeout(() => el.classList.remove('show'), bad ? 12000 : 3200);
 }
 
 // Android's back gesture closes whatever overlay is on top instead of
