@@ -532,7 +532,9 @@ h3.label, h4.label { margin: 0 0 6px; }
 .news-name { font: 400 1.05em/1 var(--f-display); color: var(--bulb); }
 .tour-card > p { margin: 0; color: var(--dim); }
 .tour-foot {
-  position: sticky; bottom: 0; margin: auto -18px -18px; padding: 12px 18px 18px;
+  /* -18px, not 0: a sticky box stops at the card's padding edge, so 0 would
+     ride 18px up over the end of the card's words */
+  position: sticky; bottom: -18px; margin: auto -18px -18px; padding: 12px 18px 18px;
   background: var(--velvet-2); border-top: 1px dashed var(--rule);
 }
 .tour-demo { padding: 12px; border-radius: var(--radius); background: var(--velvet); border: 1px dashed var(--rule); display: grid; gap: 8px; pointer-events: none; }
