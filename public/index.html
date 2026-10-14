@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Weberplex</title>
-  <meta name="description" content="Pick the nights you're free, suggest up to five movies, and vote on what we watch at the Weberplex.">
+  <meta name="description" content="Mark when you're free, volunteer to host, add movies to the shelf and vote on what we watch next at the Weberplex.">
   <meta name="theme-color" content="#140a0f">
   <meta property="og:title" content="Weberplex">
-  <meta property="og:description" content="Pick a night. Pick a picture. Vote on movie night.">
+  <meta property="og:description" content="Mark your evenings. Host a night. Vote on what we watch next.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23140a0f'/%3E%3Crect x='10' y='18' width='44' height='30' rx='3' fill='%23fbf3e2'/%3E%3Cg fill='%23ffc76e'%3E%3Ccircle cx='14' cy='12' r='3'/%3E%3Ccircle cx='26' cy='12' r='3'/%3E%3Ccircle cx='38' cy='12' r='3'/%3E%3Ccircle cx='50' cy='12' r='3'/%3E%3Ccircle cx='14' cy='54' r='3'/%3E%3Ccircle cx='26' cy='54' r='3'/%3E%3Ccircle cx='38' cy='54' r='3'/%3E%3Ccircle cx='50' cy='54' r='3'/%3E%3C/g%3E%3Cpath d='M18 26h28M18 33h20M18 40h24' stroke='%237d1b35' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +18,10 @@
   <div class="wrap">
     <header class="topbar">
       <a class="house" href="/">Weberplex</a>
-      <div class="whoami" id="whoami"></div>
+      <div class="topbar-right">
+        <button class="linkish" type="button" data-action="tour">How it works</button>
+        <div class="whoami" id="whoami"></div>
+      </div>
     </header>
 
     <section class="marquee" aria-live="polite">
@@ -27,6 +30,12 @@
         <h1>Weberplex</h1>
         <p class="sub">Warming up the projector…</p>
       </div>
+    </section>
+
+    <section class="news" id="news" hidden aria-live="polite">
+      <div class="section-head"><h2>Since you last looked</h2><span class="aside" id="newsWhen"></span></div>
+      <ul class="news-list" id="newsList"></ul>
+      <div class="row"><button class="btn btn-ghost btn-small" type="button" data-action="news-seen">Got it</button></div>
     </section>
 
     <section class="pass" id="pass" hidden>
@@ -44,93 +53,55 @@
       <p class="msg" id="passMsg" role="status" hidden></p>
     </section>
 
-    <section class="section" id="ticketSec" hidden>
-      <div class="section-head"><h2>Your ticket</h2><span class="countdown" id="countdown"></span></div>
-      <div id="ticket"></div>
+    <section class="section" id="nextSec">
+      <div class="section-head"><h2>Up next</h2><span class="countdown" id="countdown"></span></div>
+      <div id="next"></div>
+      <div id="moreNights"></div>
     </section>
 
-    <section class="section" id="showSec" hidden>
-      <div class="section-head"><h2>When can you come?</h2><span class="aside">Tick every night that works</span></div>
-      <div class="showtimes" id="showtimes"></div>
+    <section class="section" id="calSec">
+      <div class="section-head"><h2>When are you free?</h2><span class="aside">Next four weeks</span></div>
+      <p class="hint" style="margin-top:0">Tap every evening you could do. The last day you tapped shows below; that is where you can host it.</p>
+      <div class="cal" id="calendar"></div>
+      <div class="day-detail" id="dayDetail"></div>
     </section>
 
-    <section class="section" id="lineupSec" hidden>
-      <div class="section-head"><h2>Who's coming</h2><span class="aside" id="lineupCount"></span></div>
-      <div class="lineup" id="lineup"></div>
-    </section>
-
-    <section class="section" id="picksSec" hidden>
-      <div class="section-head"><h2>Your picks</h2><span class="picks-left" id="picksLeft"></span></div>
-      <div class="strip" id="strip"></div>
-      <div class="search">
-        <div class="chips browse-tabs" id="browseTabs" role="tablist" aria-label="Find a movie"></div>
-        <div class="search-row" id="searchRow">
-          <label class="sr-only" for="q">Search for a movie</label>
-          <input class="field" id="q" type="search" placeholder="Search a movie to suggest…" autocomplete="off" enterkeyhint="search">
-          <button class="btn btn-ghost" type="button" data-action="surprise">Surprise me</button>
+    <section class="section" id="shelfSec">
+      <div class="section-head"><h2>The shelf</h2><span class="aside" id="shelfCount"></span></div>
+      <p class="hint" style="margin-top:0">Every movie anyone has added. Thumbs-up what you'd watch: each night shows the favorite of the people coming.</p>
+      <details class="add-box" id="addBox">
+        <summary class="btn btn-bulb">Add a movie</summary>
+        <div class="search">
+          <div class="chips browse-tabs" id="browseTabs" role="tablist" aria-label="Find a movie"></div>
+          <div class="search-row" id="searchRow">
+            <label class="sr-only" for="q">Search for a movie</label>
+            <input class="field" id="q" type="search" placeholder="Search a movie to add…" autocomplete="off" enterkeyhint="search">
+            <button class="btn btn-ghost" type="button" data-action="surprise">Surprise me</button>
+          </div>
+          <label class="sr-only" for="pitch">Why this one (optional)</label>
+          <input class="field" id="pitch" maxlength="140" placeholder="Why this one? (optional, shows on the card)">
+          <div class="results" id="results" hidden></div>
+          <p class="hint" id="browseNote" hidden></p>
+          <div class="poster-grid" id="browseGrid" hidden></div>
+          <div id="surprise"></div>
+          <p class="msg" id="pickMsg" role="status"></p>
         </div>
-        <div class="results" id="results" hidden></div>
-        <p class="hint" id="browseNote" hidden></p>
-        <div class="poster-grid" id="browseGrid" hidden></div>
-        <div id="surprise"></div>
-        <p class="msg" id="pickMsg" role="status"></p>
-      </div>
+      </details>
+      <div class="chips shelf-filter" id="sortChips" role="group" aria-label="Sort the shelf"></div>
+      <div class="chips shelf-filter" id="shelfChips" role="group" aria-label="Filter the shelf"></div>
+      <div class="ballot" id="shelf"></div>
     </section>
 
-    <section class="section" id="ballotSec" hidden>
-      <div class="section-head"><h2>The ballot</h2><span class="aside">Thumbs-up anything you'd watch</span></div>
-      <div class="chips shelf-filter" id="shelfChips" role="group" aria-label="Filter the ballot" hidden></div>
-      <div class="ballot" id="ballot"></div>
-    </section>
-
-    <section class="section" id="reviewSec" hidden>
-      <div class="section-head"><h2>After the credits</h2><span class="aside" id="reviewAvg"></span></div>
-      <form class="review-form" id="reviewForm" hidden>
-        <span class="label">Your rating</span>
-        <div class="stars" id="stars" role="radiogroup" aria-label="Stars">
-          <button class="star" type="button" data-star="1" role="radio" aria-label="1 star">★</button>
-          <button class="star" type="button" data-star="2" role="radio" aria-label="2 stars">★</button>
-          <button class="star" type="button" data-star="3" role="radio" aria-label="3 stars">★</button>
-          <button class="star" type="button" data-star="4" role="radio" aria-label="4 stars">★</button>
-          <button class="star" type="button" data-star="5" role="radio" aria-label="5 stars">★</button>
-        </div>
-        <label class="sr-only" for="reviewLine">One-line review</label>
-        <input class="field" id="reviewLine" maxlength="140" placeholder="One line for the lobby card (optional)">
-        <div class="row"><button class="btn btn-primary" type="submit">Post review</button></div>
-      </form>
-      <div class="reviews" id="reviews"></div>
-    </section>
-
-    <section class="section" id="snackSec" hidden>
-      <div class="section-head"><h2>Concessions</h2><span class="aside">Who's bringing what</span></div>
-      <ul class="snacks" id="snacks"></ul>
-      <div class="chips" id="snackChips">
-        <button class="chip" type="button" data-action="quick-snack" data-item="Popcorn">Popcorn</button>
-        <button class="chip" type="button" data-action="quick-snack" data-item="Candy">Candy</button>
-        <button class="chip" type="button" data-action="quick-snack" data-item="Drinks">Drinks</button>
-        <button class="chip" type="button" data-action="quick-snack" data-item="Pizza">Pizza</button>
-        <button class="chip" type="button" data-action="quick-snack" data-item="Ice cream">Ice cream</button>
-      </div>
-      <form class="snack-form" id="snackForm">
-        <label class="sr-only" for="snackItem">What you're bringing</label>
-        <input class="field" id="snackItem" maxlength="40" placeholder="I'll bring…">
-        <button class="btn btn-ghost" type="submit">Add</button>
-      </form>
-    </section>
-
-    <section class="section" id="finalSec" hidden>
-      <div class="section-head"><h2>How the vote went</h2></div>
-      <div class="results-list" id="finalList"></div>
-    </section>
-
-    <section class="section" id="pastSec" hidden>
-      <div class="section-head"><h2>Past screenings</h2></div>
+    <section class="section" id="watchedSec" hidden>
+      <div class="section-head"><h2>Watched</h2><span class="aside" id="statsLine"></span></div>
+      <div id="rateBox"></div>
       <div class="past" id="past"></div>
+      <p class="hint" id="hostsLine"></p>
     </section>
 
     <footer class="footer">
       <span>Movie data and posters from Stremio's public Cinemeta catalog.</span>
-      <a href="/host">Host console</a>
+      <span class="row"><button class="linkish" type="button" data-action="tour">How it works</button> · <a href="/host">Owner console</a></span>
     </footer>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

@@ -1,16 +1,15 @@
 // Pure helpers — no Firebase, no DOM. Unit-tested in tests/logic.test.mjs.
 
-export const MAX_PICKS = 5;
-
-// House picks (host-seeded) are owned by the empty key, which no guest name
+// House picks (owner-seeded) are owned by the empty key, which no guest name
 // can produce (see validKey in firestore.rules).
 export const HOUSE = '';
 export const isHouse = (m) => m?.by === HOUSE;
 
-// Shelf tags in display order; anything else sorts after these.
-export const SHELF_ORDER = ['Unseen', 'Rewatch', 'Recent favorite', 'Foreign', 'Found footage'];
+// Shelf tags in display order; anything else sorts after these. Seen/unseen
+// is per person now (the "seen it" marks), not a tag.
+export const SHELF_ORDER = ['Recent favorite', 'Foreign', 'Found footage'];
 
-// The filter chips a ballot needs: tags actually present, in shelf order.
+// The filter chips a shelf needs: tags actually present, in shelf order.
 export function shelfTags(movies) {
   const present = new Set(movies.flatMap((m) => m.shelf || []));
   const known = SHELF_ORDER.filter((t) => present.has(t));
@@ -44,54 +43,168 @@ export function initials(name) {
 const toDate = (v) => (v instanceof Date ? v : v?.toDate ? v.toDate() : v ? new Date(v) : null);
 const toMs = (v) => toDate(v)?.getTime() ?? 0;
 
-// The whole ballot in one pass: who's going when, and what's winning.
-export function tally({ dates = [], rsvps = [], movies = [], votes = [], offers = [] }) {
-  const hosts = new Map();
-  for (const o of [...offers].sort((a, b) => toMs(a.at) - toMs(b.at))) {
-    if (!hosts.has(o.dateId)) hosts.set(o.dateId, []);
-    hosts.get(o.dateId).push({ nameKey: o.nameKey, name: o.name });
-  }
-  const going = new Map();
-  for (const r of rsvps) {
-    if (!going.has(r.dateId)) going.set(r.dateId, []);
-    going.get(r.dateId).push({ nameKey: r.nameKey, name: r.name });
-  }
-  const datesOut = dates
-    .map((d) => {
-      const g = (going.get(d.id) || []).sort((a, b) => a.name.localeCompare(b.name));
-      return { ...d, startsAt: toDate(d.startsAt), going: g, count: g.length, offers: hosts.get(d.id) || [] };
-    })
-    .sort((a, b) => toMs(a.startsAt) - toMs(b.startsAt));
-  const topCount = Math.max(0, ...datesOut.map((d) => d.count));
-  const bestDates = topCount > 0 ? datesOut.filter((d) => d.count === topCount).map((d) => d.id) : [];
-
-  const movieIds = new Set(movies.map((m) => m.imdbId));
-  const voters = new Map();
-  for (const v of votes) {
-    if (!movieIds.has(v.movie)) continue; // orphan vote from a removed movie
-    if (!voters.has(v.movie)) voters.set(v.movie, []);
-    voters.get(v.movie).push({ nameKey: v.nameKey, name: v.name });
-  }
-  const moviesOut = movies
-    .map((m) => {
-      const vs = (voters.get(m.imdbId) || []).sort((a, b) => a.name.localeCompare(b.name));
-      return { ...m, voters: vs, votes: vs.length };
-    })
-    .sort((a, b) => b.votes - a.votes || toMs(a.at) - toMs(b.at) || a.title.localeCompare(b.title));
-  const topVotes = Math.max(0, ...moviesOut.map((m) => m.votes));
-  const leaders = topVotes > 0 ? moviesOut.filter((m) => m.votes === topVotes) : [];
-
-  return { dates: datesOut, bestDates, movies: moviesOut, leaders, tie: leaders.length > 1 };
+// ---- the shelf ----------------------------------------------------------------
+// Every movie anyone added, minus the ones a finished night has shown.
+export function watchedIds(nights = []) {
+  return new Set(nights.filter((n) => n.status === 'done' && n.lockedMovieId).map((n) => n.lockedMovieId));
 }
 
-// "Ferger" -> "Ferger's". Empty when a night has no house set.
+// Thumbs and "seen it" marks per movie, most wanted first.
+export function tallyShelf({ movies = [], votes = [], seen = [], watched = new Set() }) {
+  const group = (rows) => {
+    const by = new Map();
+    for (const r of rows) {
+      if (!by.has(r.movie)) by.set(r.movie, []);
+      by.get(r.movie).push({ nameKey: r.nameKey, name: r.name });
+    }
+    for (const v of by.values()) v.sort((a, b) => a.name.localeCompare(b.name));
+    return by;
+  };
+  const voters = group(votes);
+  const seers = group(seen);
+  const out = movies
+    .filter((m) => !watched.has(m.imdbId))
+    .map((m) => {
+      const vs = voters.get(m.imdbId) || [];
+      return { ...m, voters: vs, votes: vs.length, seenBy: seers.get(m.imdbId) || [] };
+    })
+    .sort((a, b) => b.votes - a.votes || toMs(a.at) - toMs(b.at) || a.title.localeCompare(b.title));
+  const top = Math.max(0, ...out.map((m) => m.votes));
+  const leaders = top > 0 ? out.filter((m) => m.votes === top) : [];
+  return { movies: out, leaders, tie: leaders.length > 1 };
+}
+
+// The movie for a night: most thumbs from the people coming; if none of them
+// voted, most thumbs overall; if nobody voted at all, anything on the shelf.
+// Ties go to the reel (rand).
+export function pickMovie({ movies = [], votes = [], watched = new Set(), attendees = [], rand = Math.random }) {
+  const shelf = tallyShelf({ movies, votes, watched }).movies;
+  if (!shelf.length) return null;
+  const coming = new Set(attendees);
+  const fromComing = (m) => m.voters.filter((v) => coming.has(v.nameKey)).length;
+  let pool;
+  let basis;
+  const topComing = Math.max(0, ...shelf.map(fromComing));
+  if (topComing > 0) { pool = shelf.filter((m) => fromComing(m) === topComing); basis = 'coming'; }
+  else if (shelf[0].votes > 0) { pool = shelf.filter((m) => m.votes === shelf[0].votes); basis = 'everyone'; }
+  else { pool = shelf; basis = 'shelf'; }
+  const movie = pool[Math.floor(rand() * pool.length) % pool.length];
+  return { movie, tie: pool.length > 1 ? pool.map((m) => m.imdbId) : [], basis, score: basis === 'coming' ? topComing : movie.votes };
+}
+
+// The fields a lock writes, shared by the browser and the server clock.
+export function lockFields(pick) {
+  const { imdbId, title, year, poster, runtime, rating, genres, trailer } = pick.movie;
+  return {
+    status: 'locked', lockedMovieId: imdbId,
+    lockedMovie: { imdbId, title, year, poster, runtime, rating, genres, trailer },
+    lockedTie: pick.tie || [],
+  };
+}
+
+// ---- nights -------------------------------------------------------------------
+// A night is one doc per day (id = 'YYYY-MM-DD'), created by whoever
+// volunteers to host it. The movie locks itself a day before showtime, and
+// the night files itself as watched the morning after.
+export const LOCK_LEAD_MS = 24 * 3600 * 1000;
+export const WATCHED_AFTER_MS = 12 * 3600 * 1000;
+export const lockAt = (n) => new Date(toMs(n.startsAt) - LOCK_LEAD_MS);
+export const lockDue = (n, now = new Date()) => n.status === 'planned' && toMs(now) >= lockAt(n).getTime();
+export const doneDue = (n, now = new Date()) => n.status === 'locked' && toMs(now) >= toMs(n.startsAt) + WATCHED_AFTER_MS;
+
+// Planned or locked nights that haven't wrapped up yet, soonest first.
+export function upcomingNights(nights = [], now = new Date()) {
+  return nights
+    .filter((n) => (n.status === 'planned' || n.status === 'locked') && toMs(n.startsAt) + WATCHED_AFTER_MS > toMs(now))
+    .sort((a, b) => toMs(a.startsAt) - toMs(b.startsAt));
+}
+
+export function pastNights(nights = []) {
+  return nights.filter((n) => n.status === 'done').sort((a, b) => toMs(b.startsAt) - toMs(a.startsAt));
+}
+
+// Who has hosted how often (finished nights), most first.
+export function hostCounts(nights = []) {
+  const counts = new Map();
+  for (const n of nights) if (n.status === 'done' && n.host) counts.set(n.host, (counts.get(n.host) || 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+// ---- the calendar -------------------------------------------------------------
+export const CALENDAR_DAYS = 28;
+
+export function dayKey(date) {
+  const d = toDate(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+export function dayFromKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Four weeks of evenings, starting today.
+export function calendarDays(now = new Date(), n = CALENDAR_DAYS) {
+  return Array.from({ length: n }, (_, i) => dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)));
+}
+
+// Per day: who's free, and the night on it (if someone is hosting).
+export function tallyDays(days, { free = [], nights = [] }) {
+  const freeBy = new Map();
+  for (const f of free) {
+    if (!freeBy.has(f.day)) freeBy.set(f.day, []);
+    freeBy.get(f.day).push({ nameKey: f.nameKey, name: f.name });
+  }
+  const nightBy = new Map(nights.filter((n) => n.status === 'planned' || n.status === 'locked').map((n) => [n.day, n]));
+  return days.map((day) => {
+    const people = (freeBy.get(day) || []).sort((a, b) => a.name.localeCompare(b.name));
+    return { day, free: people, count: people.length, night: nightBy.get(day) || null };
+  });
+}
+
+export const attendeesFor = (day, free = []) => free.filter((f) => f.day === day);
+
+// "Jo" -> "Jo's". Empty when there's no name.
 export const placeLabel = (place) => (place ? `${place}'s` : '');
 
-// Lowest free slot 1..5 for this person, or null when all five are used.
-export function nextFreeSlot(takenSlots) {
-  const taken = new Set(takenSlots);
-  for (let s = 1; s <= MAX_PICKS; s++) if (!taken.has(s)) return s;
-  return null;
+// ---- "Since you last looked" ------------------------------------------------
+// What changed after `since` (ms), leaving out the viewer's own actions.
+// Returns banner lines plus the ids to badge.
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const nameList = (names) => {
+  const u = [...new Set(names)];
+  if (u.length <= 2) return u.join(' and ');
+  return `${u.slice(0, 2).join(', ')} and ${u.length - 2} more`;
+};
+
+export function sinceLastLook({ nights = [], movies = [], votes = [], free = [], since, meKey = '' }) {
+  const out = { items: [], movies: new Set(), votes: new Map(), days: new Set() };
+  if (!since) return out;
+  const fresh = (t) => toMs(t) > since;
+  const theirs = (k) => k !== meKey;
+  for (const n of nights) {
+    if (n.status !== 'planned' && n.status !== 'locked') continue;
+    if (fresh(n.createdAt) && theirs(n.hostKey)) {
+      out.days.add(n.day);
+      out.items.push({ kind: 'night', text: `${n.host} is hosting ${showtimeLong(n.startsAt)}`, target: '#nextSec' });
+    }
+    if (n.status === 'locked' && fresh(n.lockedAt)) {
+      out.items.push({ kind: 'locked', text: `Locked for ${showtimeParts(n.startsAt).dow}: ${n.lockedMovie?.title || 'the movie'}`, target: '#nextSec' });
+    }
+  }
+  const added = movies.filter((m) => fresh(m.at) && theirs(m.by));
+  for (const m of added) out.movies.add(m.imdbId);
+  if (added.length) {
+    const titles = added.slice(0, 3).map((m) => m.title).join(', ');
+    out.items.push({ kind: 'movies', text: `${plural(added.length, 'new movie')} on the shelf: ${titles}${added.length > 3 ? '…' : ''}`, target: '#shelfSec' });
+  }
+  const live = new Set(movies.map((m) => m.imdbId));
+  const newVotes = votes.filter((v) => fresh(v.at) && theirs(v.nameKey) && live.has(v.movie));
+  for (const v of newVotes) out.votes.set(v.movie, (out.votes.get(v.movie) || 0) + 1);
+  if (newVotes.length) out.items.push({ kind: 'votes', text: `${plural(newVotes.length, 'new thumbs-up', 'new thumbs-up')} on ${plural(out.votes.size, 'movie')}`, target: '#shelfSec' });
+  const marks = free.filter((f) => fresh(f.at) && theirs(f.nameKey));
+  for (const f of marks) out.days.add(f.day);
+  if (marks.length) out.items.push({ kind: 'free', text: `${nameList(marks.map((f) => f.name))} marked free evenings`, target: '#calSec' });
+  return out;
 }
 
 export function countdownParts(target, now = new Date()) {

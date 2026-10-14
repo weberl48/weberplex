@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Weberplex Host Console</title>
+  <title>Weberplex Owner Console</title>
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#140a0f">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%237d1b35'/%3E%3Crect x='10' y='18' width='44' height='30' rx='3' fill='%23fbf3e2'/%3E%3Cg fill='%23ffc76e'%3E%3Ccircle cx='14' cy='12' r='3'/%3E%3Ccircle cx='26' cy='12' r='3'/%3E%3Ccircle cx='38' cy='12' r='3'/%3E%3Ccircle cx='50' cy='12' r='3'/%3E%3C/g%3E%3C/svg%3E">
@@ -16,23 +16,23 @@
   <div class="wrap">
     <header class="topbar">
       <a class="house" href="/">Weberplex</a>
-      <div class="whoami"><span>Host console</span> <button class="linkish" type="button" id="forget" hidden>Forget key</button></div>
+      <div class="whoami"><span>Owner console</span> <button class="linkish" type="button" id="forget" hidden>Forget key</button></div>
     </header>
 
     <section class="marquee">
       <div class="board">
         <p class="kicker">Projection booth</p>
-        <h1>Host console</h1>
-        <p class="sub" id="boothSub">Book a night, watch the votes, lock the show</p>
+        <h1>Owner console</h1>
+        <p class="sub" id="boothSub">Curate the shelf, send movies to the Shield</p>
       </div>
     </section>
 
     <section class="section" id="keySec" hidden>
       <div class="host-card">
-        <h3>Enter the host key</h3>
-        <p class="hint">It's in your host link, or in <code>.env.local</code> in the project folder. This browser will remember it.</p>
+        <h3>Enter the owner key</h3>
+        <p class="hint">It's in your owner link, or in <code>.env.local</code> in the project folder. This browser will remember it.</p>
         <form class="row" id="keyForm">
-          <label class="sr-only" for="keyInput">Host key</label>
+          <label class="sr-only" for="keyInput">Owner key</label>
           <input class="field" id="keyInput" type="password" autocomplete="current-password" style="flex:1 1 14rem" required>
           <button class="btn btn-bulb" type="submit">Unlock</button>
         </form>
@@ -49,42 +49,24 @@
       </div>
     </section>
 
-    <section class="section" id="newSec" hidden>
-      <div class="section-head"><h2>Book a new night</h2></div>
-      <form class="host-card" id="newForm">
-        <label class="label" for="newTitle">Theme or title (optional)</label>
-        <input class="field" id="newTitle" maxlength="60" placeholder="e.g. Spooky Season, Sequel Saturday">
-        <span class="label">Candidate nights (guests volunteer to host)</span>
-        <div id="newDates" class="date-list"></div>
-        <div class="row">
-          <button class="btn btn-ghost btn-small" type="button" id="addNewDate">+ Another night</button>
-        </div>
-        <div class="row"><button class="btn btn-primary" type="submit">Open voting</button></div>
-        <p class="msg" id="newMsg" role="status"></p>
+    <section class="section" id="seasonSec" hidden>
+      <div class="section-head"><h2>Season title</h2><span class="aside">Shows on the marquee</span></div>
+      <form class="row host-card" id="seasonForm">
+        <label class="sr-only" for="seasonInput">Season title</label>
+        <input class="field" id="seasonInput" maxlength="60" placeholder="e.g. Spooky Season (leave empty for none)" style="flex:1 1 14rem">
+        <button class="btn btn-ghost" type="submit">Save</button>
       </form>
     </section>
 
-    <section class="section" id="nightSec" hidden>
-      <div class="section-head"><h2 id="nightTitle">Tonight's ballot</h2><span class="status-pill" id="nightStatus"></span></div>
+    <section class="section" id="nightsSec" hidden>
+      <div class="section-head"><h2>Planned nights</h2><span class="aside">Hosts plan these themselves</span></div>
+      <ul class="date-list" id="nightsList"></ul>
+    </section>
 
-      <div class="host-card" id="openCard" hidden>
-        <h3>Nights on offer</h3>
-        <ul class="date-list" id="dateList"></ul>
-        <form class="row" id="addDateForm">
-          <label class="sr-only" for="addDateInput">Add a night</label>
-          <input class="field" id="addDateInput" type="datetime-local" style="flex:1 1 14rem" required>
-          <button class="btn btn-ghost" type="submit">Add night</button>
-        </form>
-        <form class="row" id="renameForm">
-          <label class="sr-only" for="renameInput">Title</label>
-          <input class="field" id="renameInput" maxlength="60" placeholder="Theme or title" style="flex:1 1 14rem">
-          <button class="btn btn-ghost" type="submit">Rename</button>
-        </form>
-      </div>
-
-      <div class="host-card" id="houseCard" hidden style="margin-top:14px">
+    <section class="section" id="houseSec" hidden>
+      <div class="host-card" id="houseCard">
         <h3>House picks</h3>
-        <p class="hint">Movies you add here go straight onto the ballot and don't use anyone's five. Tags apply to the next one you add.</p>
+        <p class="hint">Add movies to the shelf as the house. Tags apply to the next one you add.</p>
         <div class="chips" id="houseTags" role="group" aria-label="Tags for the next house pick"></div>
         <div class="chips browse-tabs" id="houseTabs" role="tablist" aria-label="Find a house pick"></div>
         <form class="row" id="houseForm">
@@ -97,47 +79,17 @@
         <div class="poster-grid" id="houseGrid" hidden></div>
         <p class="msg" id="houseMsg" role="status"></p>
       </div>
+    </section>
 
-      <div class="host-card" id="lockCard" hidden style="margin-top:14px">
-        <h3>Lock the show</h3>
-        <span class="label">Night</span>
-        <div class="pick-list" id="lockDates"></div>
-        <div id="lockHostWrap" hidden>
-          <span class="label">Who's hosting</span>
-          <div class="pick-list" id="lockHost" style="margin-top:6px"></div>
-        </div>
-        <span class="label">Picture</span>
-        <div class="pick-list" id="lockMovies"></div>
-        <div class="row">
-          <button class="btn btn-ghost" type="button" id="spinBtn">Spin the reel</button>
-          <button class="btn btn-bulb" type="button" id="lockBtn">Lock it in</button>
-        </div>
-        <p class="hint" id="spinHint"></p>
-        <p class="msg" id="lockMsg" role="status"></p>
-      </div>
-
-      <div class="host-card" id="lockedCard" hidden>
-        <h3 id="lockedWhat"></h3>
-        <p class="hint" id="lockedWhen"></p>
-        <div class="lineup" id="lockedWho"></div>
-        <form class="row" id="placeForm">
-          <label class="label" for="placeSel">Whose house</label>
-          <select class="field place" id="placeSel"></select>
-          <button class="btn btn-ghost btn-small" type="submit">Save</button>
-        </form>
-        <div class="row">
-          <button class="btn btn-bulb" type="button" id="shieldLockedBtn">Show on the Shield</button>
-          <button class="btn btn-ghost" type="button" id="reopenBtn">Reopen voting</button>
-          <button class="btn btn-primary" type="button" id="finishBtn">We watched it</button>
-          <button class="btn btn-ghost" type="button" id="cancelBtn">Cancel the night</button>
-        </div>
-        <p class="hint">"We watched it" moves the night to Past screenings. Reviews stay open there.</p>
-      </div>
+    <section class="section" id="shelfSec" hidden>
+      <div class="section-head"><h2>The shelf</h2><span class="aside" id="shelfCount"></span></div>
+      <p class="hint" style="margin-top:0">Send any movie to the basement screen, or take one off the shelf.</p>
+      <div class="pick-list" id="shelfList"></div>
     </section>
 
     <section class="section" id="ha" hidden>
       <div class="section-head"><h2>Home Assistant</h2></div>
-      <p class="hint">HA polls <code id="statusUrl"></code> for the tablet card, the warm-up and the lock notification.</p>
+      <p class="hint">HA polls <code id="statusUrl"></code> for the tablet card, the warm-up and the notifications. That poll also locks movies on time when nobody has the site open.</p>
     </section>
 
     <footer class="footer"><span>Weberplex</span><a href="/">Guest page</a></footer>

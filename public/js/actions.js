@@ -1,7 +1,7 @@
 // Every write the site makes. Firestore functions are injected (`F`) so the
 // browser passes the CDN SDK and the rules tests pass the npm SDK — the tests
-// exercise exactly these batches against firestore.rules.
-import { HOUSE, MAX_PICKS, cleanName, nameKey, nextFreeSlot } from './logic.js';
+// exercise exactly these writes against firestore.rules.
+import { HOUSE, cleanName, nameKey, lockFields } from './logic.js';
 
 function secureId(len = 24) {
   const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -10,27 +10,17 @@ function secureId(len = 24) {
   return Array.from(bytes, (b) => abc[b % abc.length]).join('');
 }
 
-// A candidate night: a time, and optionally whose house it's at.
-function dateDoc(d) {
-  const startsAt = d instanceof Date ? d : d.startsAt;
-  const place = d instanceof Date ? '' : String(d.place || '').trim().slice(0, 30);
-  return place ? { startsAt, place } : { startsAt };
-}
-
-export class PicksFullError extends Error {
-  constructor() { super(`You've used all ${MAX_PICKS} picks. Remove one to add another.`); this.code = 'picks-full'; }
-}
-export class AlreadyPickedError extends Error {
+export class AlreadyOnShelfError extends Error {
   constructor(movie) {
-    super(`${movie.title} is already on the ballot (picked by ${movie.byName}). Give it a thumbs up instead.`);
-    this.code = 'already-picked';
+    super(`${movie.title} is already on the shelf${movie.byName ? ` (added by ${movie.byName})` : ''}. Give it a thumbs-up instead.`);
+    this.code = 'already-on-shelf';
   }
 }
 
 export function makeActions(db, F) {
-  const { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, query, where } = F;
-  const night = (n) => doc(db, 'nights', n);
-  const sub = (n, name, id) => doc(db, 'nights', n, name, id);
+  const { doc, collection, writeBatch, serverTimestamp, getDoc, runTransaction } = F;
+  const night = (day) => doc(db, 'nights', day);
+  const batched = async (fill) => { const b = writeBatch(db); fill(b); await b.commit(); };
 
   function me(name) {
     const clean = cleanName(name);
@@ -39,14 +29,17 @@ export function makeActions(db, F) {
     return { name: clean, nameKey: key };
   }
 
-  // Host writes: every batch re-stamps the night with a fresh op and creates
-  // the matching hostops doc holding the key (see freshHostOp in the rules).
-  function hostBatch(hostKey) {
+  // Owner writes: a fresh hostops doc holding the key, plus config/season
+  // re-stamped with that op in the same batch (see ownerTouched in the rules).
+  function ownerBatch(hostKey) {
     const batch = writeBatch(db);
     const op = secureId(24);
     batch.set(doc(db, 'hostops', op), { key: hostKey, at: serverTimestamp() });
-    return { batch, op };
+    batch.set(doc(db, 'config', 'season'), { op }, { merge: true });
+    return batch;
   }
+
+  const freeDoc = (who, day) => ({ day, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
 
   return {
     me,
@@ -57,230 +50,173 @@ export function makeActions(db, F) {
       const snap = await getDoc(ref);
       if (!snap.exists()) {
         try {
-          const b = writeBatch(db);
-          b.set(ref, { name: who.name, at: serverTimestamp() });
-          await b.commit();
+          await batched((b) => b.set(ref, { name: who.name, at: serverTimestamp() }));
         } catch (e) {
-          // Someone else registered the same name a moment ago — that's fine.
-          if (!(await getDoc(ref)).exists()) throw e;
+          if (!(await getDoc(ref)).exists()) throw e; // someone registered it a moment ago
         }
         return who;
       }
       return { name: snap.data().name, nameKey: who.nameKey };
     },
 
-    async setRsvp(nightId, dateId, who, going) {
-      const ref = sub(nightId, 'rsvps', `${dateId}__${who.nameKey}`);
-      const b = writeBatch(db);
-      if (going) b.set(ref, { dateId, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
-      else b.delete(ref);
-      await b.commit();
-    },
-
-    // `movie` is the output of movieFromMeta(). `pool` is the current movie
-    // list (to explain duplicates nicely); slots are re-read so a stale page
-    // can't pick a taken slot.
-    async suggest(nightId, who, movie, pool = []) {
-      const existing = pool.find((m) => m.imdbId === movie.imdbId);
-      if (existing) throw new AlreadyPickedError(existing);
-      const mine = await getDocs(query(collection(db, 'nights', nightId, 'slots'), where('by', '==', who.nameKey)));
-      const slot = nextFreeSlot(mine.docs.map((d) => d.data().slot));
-      if (slot == null) throw new PicksFullError();
-      const b = writeBatch(db);
-      b.set(sub(nightId, 'movies', movie.imdbId), {
-        ...movie, by: who.nameKey, byName: who.name, slot, at: serverTimestamp(),
+    // ---- the shelf ---------------------------------------------------------
+    // `movie` is the output of movieFromMeta(). Adding also gives it your thumb.
+    async addMovie(who, movie, pitch = '') {
+      const ref = doc(db, 'movies', movie.imdbId);
+      const existing = await getDoc(ref);
+      if (existing.exists()) throw new AlreadyOnShelfError(existing.data());
+      await batched((b) => {
+        b.set(ref, { ...movie, pitch: String(pitch).trim().slice(0, 140), by: who.nameKey, byName: who.name, at: serverTimestamp() });
+        b.set(doc(db, 'votes', `${movie.imdbId}__${who.nameKey}`), { movie: movie.imdbId, title: movie.title, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
       });
-      b.set(sub(nightId, 'slots', `${who.nameKey}__${slot}`), { movie: movie.imdbId, by: who.nameKey, slot });
-      try {
-        await b.commit();
-      } catch (e) {
-        const snap = await getDoc(sub(nightId, 'movies', movie.imdbId));
-        if (snap.exists()) throw new AlreadyPickedError(snap.data());
-        throw e;
+    },
+
+    // Takes a movie off the shelf with its thumbs and seen marks.
+    async removeMovie(movie, voteKeys = [], seenKeys = []) {
+      await batched((b) => {
+        b.delete(doc(db, 'movies', movie.imdbId));
+        for (const k of voteKeys) b.delete(doc(db, 'votes', `${movie.imdbId}__${k}`));
+        for (const k of seenKeys) b.delete(doc(db, 'seen', `${movie.imdbId}__${k}`));
+      });
+    },
+
+    async setVote(movie, who, on) {
+      const ref = doc(db, 'votes', `${movie.imdbId}__${who.nameKey}`);
+      await batched((b) => (on
+        ? b.set(ref, { movie: movie.imdbId, title: movie.title, nameKey: who.nameKey, name: who.name, at: serverTimestamp() })
+        : b.delete(ref)));
+    },
+
+    async setSeen(movie, who, on) {
+      const ref = doc(db, 'seen', `${movie.imdbId}__${who.nameKey}`);
+      await batched((b) => (on ? b.set(ref, { movie: movie.imdbId, nameKey: who.nameKey, name: who.name, at: serverTimestamp() }) : b.delete(ref)));
+    },
+
+    // ---- the calendar --------------------------------------------------------
+    async setFree(day, who, isFree) {
+      const ref = doc(db, 'free', `${day}__${who.nameKey}`);
+      await batched((b) => (isFree ? b.set(ref, freeDoc(who, day)) : b.delete(ref)));
+    },
+
+    // Volunteer to host `day`, starting at `startsAt`. Creates the night (or
+    // revives a cancelled one) and marks you free.
+    async hostNight(who, day, startsAt) {
+      const ref = night(day);
+      const snap = await getDoc(ref);
+      if (snap.exists() && snap.data().status !== 'cancelled') {
+        throw new Error(`${snap.data().host} is already hosting that evening.`);
       }
-      return slot;
+      const free = doc(db, 'free', `${day}__${who.nameKey}`);
+      const isFree = (await getDoc(free)).exists();
+      await batched((b) => {
+        b.set(ref, {
+          day, startsAt, host: who.name, hostKey: who.nameKey, status: 'planned', createdAt: serverTimestamp(),
+          lockedMovieId: null, lockedMovie: null, lockedTie: [], lockedAt: null, finishedAt: null,
+        });
+        if (!isFree) b.set(free, freeDoc(who, day));
+      });
     },
 
-    // Removes a pick, its slot and the votes on it, all in one batch.
-    async unsuggest(nightId, movie, voteNameKeys = []) {
-      const b = writeBatch(db);
-      b.delete(sub(nightId, 'movies', movie.imdbId));
-      b.delete(sub(nightId, 'slots', `${movie.by}__${movie.slot}`));
-      for (const k of voteNameKeys) b.delete(sub(nightId, 'votes', `${movie.imdbId}__${k}`));
-      await b.commit();
+    async setNightTime(day, startsAt) {
+      await batched((b) => b.update(night(day), { startsAt }));
     },
 
-    // Offering to host also counts you in for that night.
-    async setOffer(nightId, dateId, who, on) {
-      const b = writeBatch(db);
-      const ref = sub(nightId, 'offers', `${dateId}__${who.nameKey}`);
-      if (on) {
-        b.set(ref, { dateId, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
-        const rsvp = sub(nightId, 'rsvps', `${dateId}__${who.nameKey}`);
-        if (!(await getDoc(rsvp)).exists()) b.set(rsvp, { dateId, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
-      } else {
-        b.delete(ref);
-      }
-      await b.commit();
+    // Lock the movie. A transaction, so two phones noticing the deadline at
+    // once can't lock different movies.
+    async lockNight(day, pick) {
+      return runTransaction(db, async (tx) => {
+        const snap = await tx.get(night(day));
+        if (!snap.exists() || snap.data().status !== 'planned') return false;
+        tx.update(night(day), { ...lockFields(pick), lockedAt: serverTimestamp() });
+        return true;
+      });
     },
 
-    async setVote(nightId, imdbId, who, on) {
-      const ref = sub(nightId, 'votes', `${imdbId}__${who.nameKey}`);
-      const b = writeBatch(db);
-      if (on) b.set(ref, { movie: imdbId, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
-      else b.delete(ref);
-      await b.commit();
+    async unlockNight(day) {
+      await batched((b) => b.update(night(day), { status: 'planned', lockedMovieId: null, lockedMovie: null, lockedTie: [], lockedAt: null }));
     },
 
-    async addSnack(nightId, who, rawItem) {
+    async finishNight(day) {
+      return runTransaction(db, async (tx) => {
+        const snap = await tx.get(night(day));
+        if (!snap.exists() || snap.data().status !== 'locked') return false;
+        tx.update(night(day), { status: 'done', finishedAt: serverTimestamp() });
+        return true;
+      });
+    },
+
+    async cancelNight(day) {
+      await batched((b) => b.update(night(day), { status: 'cancelled', finishedAt: serverTimestamp() }));
+    },
+
+    async addSnack(day, who, rawItem) {
       const item = String(rawItem ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
       if (!item) throw new Error('Say what you’re bringing.');
-      const b = writeBatch(db);
-      b.set(doc(collection(db, 'nights', nightId, 'snacks')), { item, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
-      await b.commit();
+      await batched((b) => b.set(doc(collection(db, 'nights', day, 'snacks')), { item, nameKey: who.nameKey, name: who.name, at: serverTimestamp() }));
     },
 
-    async removeSnack(nightId, snackId) {
-      const b = writeBatch(db);
-      b.delete(sub(nightId, 'snacks', snackId));
-      await b.commit();
+    async removeSnack(day, snackId) {
+      await batched((b) => b.delete(doc(db, 'nights', day, 'snacks', snackId)));
     },
 
-    async review(nightId, who, stars, line = '') {
-      const b = writeBatch(db);
-      b.set(sub(nightId, 'reviews', who.nameKey), {
+    async review(day, who, stars, line = '') {
+      await batched((b) => b.set(doc(db, 'nights', day, 'reviews', who.nameKey), {
         stars: Math.max(1, Math.min(5, Math.round(stars))),
         line: String(line).trim().slice(0, 140),
         nameKey: who.nameKey, name: who.name, at: serverTimestamp(),
-      });
-      await b.commit();
+      }));
     },
 
-    // ---- host ---------------------------------------------------------------
+    // ---- owner -------------------------------------------------------------------
     async seedHostKey(hostKey) {
-      const b = writeBatch(db);
-      b.set(doc(db, 'config', 'host'), { key: hostKey });
+      await batched((b) => b.set(doc(db, 'config', 'host'), { key: hostKey }));
+    },
+
+    // Proves the key without changing anything visible.
+    async checkHostKey(hostKey) {
+      try { await ownerBatch(hostKey).commit(); return true; } catch { return false; }
+    },
+
+    // The marquee's season title ("Spooky Season"); empty clears it.
+    async setSeason(hostKey, title) {
+      const b = ownerBatch(hostKey);
+      b.set(doc(db, 'config', 'season'), { title: String(title).trim().slice(0, 60) }, { merge: true });
       await b.commit();
     },
 
-    // Proves the key without changing anything visible: re-stamps the op on
-    // an existing night. With no night yet there is nothing to prove against,
-    // so the answer is null and creating the first night is the real check.
-    async checkHostKey(hostKey, nightId) {
-      if (!nightId) return null;
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), { op });
-      try { await batch.commit(); return true; } catch { return false; }
-    },
-
-    async createNight(hostKey, { title = '', dates = [] }) {
-      const { batch, op } = hostBatch(hostKey);
-      const ref = doc(collection(db, 'nights'));
-      batch.set(ref, {
-        title: String(title).trim().slice(0, 60), status: 'open', op,
-        createdAt: serverTimestamp(), lockedDateId: null, lockedMovieId: null,
-        lockedStartsAt: null, lockedPlace: null, lockedMovie: null, lockedAt: null, finishedAt: null,
-      });
-      for (const d of dates) batch.set(doc(collection(db, 'nights', ref.id, 'dates')), dateDoc(d));
-      await batch.commit();
-      return ref.id;
-    },
-
-    async renameNight(hostKey, nightId, title) {
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), { op, title: String(title).trim().slice(0, 60) });
-      await batch.commit();
-    },
-
-    async addDate(hostKey, nightId, when, place = '') {
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), { op });
-      batch.set(doc(collection(db, 'nights', nightId, 'dates')), dateDoc({ startsAt: when, place }));
-      await batch.commit();
-    },
-
-    async removeDate(hostKey, nightId, dateId, rsvpNameKeys = [], offerNameKeys = []) {
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), { op });
-      batch.delete(sub(nightId, 'dates', dateId));
-      for (const k of rsvpNameKeys) batch.delete(sub(nightId, 'rsvps', `${dateId}__${k}`));
-      for (const k of offerNameKeys) batch.delete(sub(nightId, 'offers', `${dateId}__${k}`));
-      await batch.commit();
-    },
-
-    // House picks: host-seeded, tagged, and outside everyone's five (slot 0).
-    // Skips titles already on the ballot. Returns the ids it added.
-    async addHousePicks(hostKey, nightId, movies, pool = []) {
-      const taken = new Set(pool.map((m) => m.imdbId));
+    // House picks: owner-added, tagged, owned by nobody. Skips anything on the
+    // shelf already. Returns the ids it added.
+    async addHousePicks(hostKey, movies, shelf = []) {
+      const taken = new Set(shelf.map((m) => m.imdbId));
       const fresh = movies.filter((m) => !taken.has(m.imdbId));
       if (!fresh.length) return [];
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), { op });
+      const b = ownerBatch(hostKey);
       for (const m of fresh) {
-        batch.set(sub(nightId, 'movies', m.imdbId), {
-          ...m, shelf: (m.shelf || []).slice(0, 4), by: HOUSE, byName: 'The house', slot: 0, at: serverTimestamp(),
+        b.set(doc(db, 'movies', m.imdbId), {
+          ...m, shelf: (m.shelf || []).slice(0, 4), pitch: String(m.pitch || '').slice(0, 140),
+          by: HOUSE, byName: 'The house', at: serverTimestamp(),
         });
       }
-      await batch.commit();
+      await b.commit();
       return fresh.map((m) => m.imdbId);
     },
 
-    async removeMovie(hostKey, nightId, movie, voteNameKeys = []) {
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), { op });
-      batch.delete(sub(nightId, 'movies', movie.imdbId));
-      if (movie.slot >= 1) batch.delete(sub(nightId, 'slots', `${movie.by}__${movie.slot}`));
-      for (const k of voteNameKeys) batch.delete(sub(nightId, 'votes', `${movie.imdbId}__${k}`));
-      await batch.commit();
+    async ownerRemoveMovie(hostKey, movie, voteKeys = [], seenKeys = []) {
+      const b = ownerBatch(hostKey);
+      b.delete(doc(db, 'movies', movie.imdbId));
+      for (const k of voteKeys) b.delete(doc(db, 'votes', `${movie.imdbId}__${k}`));
+      for (const k of seenKeys) b.delete(doc(db, 'seen', `${movie.imdbId}__${k}`));
+      await b.commit();
     },
 
     // HA watches control/shield and opens this movie in Stremio on the Shield.
     async showOnShield(hostKey, movie) {
-      const { batch, op } = hostBatch(hostKey);
+      const batch = writeBatch(db);
+      const op = secureId(24);
+      batch.set(doc(db, 'hostops', op), { key: hostKey, at: serverTimestamp() });
       batch.set(doc(db, 'control', 'shield'), {
         imdb: movie.imdbId, title: String(movie.title || '').slice(0, 120), seq: Date.now(), op, at: serverTimestamp(),
       });
-      await batch.commit();
-    },
-
-    // `place` overrides the date's house: a volunteer's name, or null for TBD.
-    async lock(hostKey, nightId, date, movie, place = date.place || null) {
-      const { batch, op } = hostBatch(hostKey);
-      const { imdbId, title, year, poster, runtime, rating, genres, trailer } = movie;
-      batch.update(night(nightId), {
-        op, status: 'locked', lockedAt: serverTimestamp(),
-        lockedDateId: date.id, lockedStartsAt: date.startsAt, lockedPlace: place || null,
-        lockedMovieId: imdbId,
-        lockedMovie: { imdbId, title, year, poster, runtime, rating, genres, trailer },
-      });
-      await batch.commit();
-    },
-
-    // Set or change whose house a locked night is at.
-    async setPlace(hostKey, nightId, place) {
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), { op, lockedPlace: String(place || '').trim().slice(0, 30) || null });
-      await batch.commit();
-    },
-
-    async reopen(hostKey, nightId) {
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), {
-        op, status: 'open', lockedDateId: null, lockedMovieId: null,
-        lockedStartsAt: null, lockedPlace: null, lockedMovie: null, lockedAt: null,
-      });
-      await batch.commit();
-    },
-
-    async finish(hostKey, nightId) {
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), { op, status: 'done', finishedAt: serverTimestamp() });
-      await batch.commit();
-    },
-
-    async cancel(hostKey, nightId) {
-      const { batch, op } = hostBatch(hostKey);
-      batch.update(night(nightId), { op, status: 'cancelled', finishedAt: serverTimestamp() });
       await batch.commit();
     },
   };

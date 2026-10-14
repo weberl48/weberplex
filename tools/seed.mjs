@@ -1,57 +1,50 @@
-// Seed house picks onto the current night (books one if none is open).
-//   HOST_KEY=... node tools/seed.mjs seed/spooky-season.json [--emu]
-// Each pick: { q, year, imdb, tags }. `imdb` is pinned so a re-run never
-// drifts to a different film; titles already on the ballot are skipped.
+// Seed house picks onto the shelf.
+//   HOST_KEY=... node tools/seed.mjs seed/spooky-season.json [--emu] [--seen-as "Lucas"]
+// Each pick: { q, year, imdb, tags }. `imdb` is pinned so a re-run never drifts
+// to a different film; anything already on the shelf is skipped. Tags that are
+// shelf tags (Foreign, Found footage, Recent favorite) are kept. With
+// --seen-as, picks tagged "Rewatch" get a "seen it" mark under that name
+// (seen/unseen is per person now, not a tag).
 import { readFileSync } from 'node:fs';
 import { initializeApp } from 'firebase/app';
 import {
-  getFirestore, connectFirestoreEmulator, doc, collection, writeBatch, serverTimestamp,
-  getDoc, getDocs, query, where, orderBy, limit,
+  getFirestore, connectFirestoreEmulator, doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction,
 } from 'firebase/firestore';
 import { makeActions } from '../public/js/actions.js';
-import { movieFromMeta } from '../public/js/logic.js';
+import { movieFromMeta, SHELF_ORDER } from '../public/js/logic.js';
 import { firebaseConfig } from '../public/js/config.js';
 
-const [file, flag] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const file = args.find((a) => a.endsWith('.json'));
+const emu = args.includes('--emu');
+const seenAs = args.includes('--seen-as') ? args[args.indexOf('--seen-as') + 1] : null;
 const KEY = process.env.HOST_KEY;
-if (!file || !KEY) { console.error('usage: HOST_KEY=... node tools/seed.mjs <seed.json> [--emu]'); process.exit(2); }
+if (!file || !KEY) { console.error('usage: HOST_KEY=... node tools/seed.mjs <seed.json> [--emu] [--seen-as Name]'); process.exit(2); }
 const seed = JSON.parse(readFileSync(file, 'utf8'));
 
 const db = getFirestore(initializeApp(firebaseConfig));
-if (flag === '--emu') connectFirestoreEmulator(db, '127.0.0.1', 8181);
-const A = makeActions(db, { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, query, where });
+if (emu) connectFirestoreEmulator(db, '127.0.0.1', 8181);
+const A = makeActions(db, { doc, collection, writeBatch, serverTimestamp, getDoc, runTransaction });
 
-const nights = (await getDocs(query(collection(db, 'nights'), orderBy('createdAt', 'desc'), limit(10))))
-  .docs.map((d) => ({ id: d.id, ...d.data() }));
-let night = nights.find((n) => n.status === 'open' || n.status === 'locked');
-if (!night) {
-  const id = await A.createNight(KEY, { title: seed.title || '', dates: [] });
-  night = { id, title: seed.title, status: 'open' };
-  console.log(`booked a new night "${seed.title}" (${id}); add dates in the host console`);
-} else {
-  console.log(`using the current night "${night.title || 'Movie night'}" (${night.id}, ${night.status})`);
-}
-
-const pool = (await getDocs(collection(db, 'nights', night.id, 'movies'))).docs.map((d) => d.data());
+const shelf = (await getDocs(collection(db, 'movies'))).docs.map((d) => d.data());
 const movies = [];
 for (const p of seed.picks) {
   const res = await fetch(`https://v3-cinemeta.strem.io/meta/movie/${p.imdb}.json`);
   const meta = res.ok ? (await res.json()).meta : null;
   if (!meta) { console.warn(`  ! no catalog entry for ${p.q} (${p.imdb}); skipped`); continue; }
-  movies.push({ ...movieFromMeta({ ...meta, id: p.imdb }), shelf: p.tags || [] });
+  movies.push({ ...movieFromMeta({ ...meta, id: p.imdb }), shelf: (p.tags || []).filter((t) => SHELF_ORDER.includes(t)) });
 }
+const added = await A.addHousePicks(KEY, movies, shelf);
+console.log(`added ${added.length} house picks, skipped ${movies.length - added.length} already on the shelf`);
 
-// One batch if the rules allow it; otherwise smaller batches.
-let added = [];
-try {
-  added = await A.addHousePicks(KEY, night.id, movies, pool);
-} catch (e) {
-  if (e?.code !== 'permission-denied') throw e;
-  console.log('  one big batch was refused; adding in groups of 5');
-  for (let i = 0; i < movies.length; i += 5) {
-    added.push(...await A.addHousePicks(KEY, night.id, movies.slice(i, i + 5), pool));
+if (seenAs) {
+  const who = A.me(seenAs);
+  const rewatch = seed.picks.filter((p) => (p.tags || []).includes('Rewatch'));
+  for (const p of rewatch) {
+    if ((await getDoc(doc(db, 'seen', `${p.imdb}__${who.nameKey}`))).exists()) continue;
+    await A.setSeen({ imdbId: p.imdb }, who, true);
   }
+  console.log(`marked ${rewatch.length} as seen by ${who.name}`);
 }
-const skipped = movies.length - added.length;
-console.log(`added ${added.length} house picks${skipped ? `, skipped ${skipped} already on the ballot` : ''}`);
+if (seed.title && args.includes('--season')) await A.setSeason(KEY, seed.title);
 process.exit(0);

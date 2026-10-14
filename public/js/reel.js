@@ -1,7 +1,7 @@
 // "Spin the reel": a slot-machine strip of posters that lands on `winner`.
 import { esc, posterImg } from './ui.js';
 
-export function spinReel(movies, winner, { title = 'Spinning the reel…' } = {}) {
+export function spinReel(movies, winner, { title = 'Spinning the reel…', done = 'Use this one' } = {}) {
   return new Promise((resolve) => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const seq = [];
@@ -19,19 +19,19 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…' } = {}
           ${seq.map((m) => `<div class="reel-item">${posterImg(m.poster, m.title)}</div>`).join('')}
         </div></div>
         <p class="reel-result" aria-live="polite"></p>
-        <div class="row" style="justify-content:center"><button class="btn btn-bulb" type="button" hidden>Use this one</button></div>
+        <div class="row" style="justify-content:center"><button class="btn btn-bulb" type="button" hidden>${esc(done)}</button></div>
       </div>`;
     document.body.append(overlay);
     const win = overlay.querySelector('.reel-window');
     const track = overlay.querySelector('.reel-track');
     const result = overlay.querySelector('.reel-result');
-    const done = overlay.querySelector('button');
+    const okBtn = overlay.querySelector('button');
     const finish = () => {
       result.textContent = `It's ${winner.title}.`;
-      done.hidden = false;
-      done.focus();
+      okBtn.hidden = false;
+      okBtn.focus();
     };
-    done.addEventListener('click', () => { overlay.remove(); resolve(winner); });
+    okBtn.addEventListener('click', () => { overlay.remove(); resolve(winner); });
     // Step by the window's inner height and size every tile to match, or the
     // border width accumulates and the reel stops between two posters.
     const h = win.clientHeight;

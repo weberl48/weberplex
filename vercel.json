@@ -26,5 +26,11 @@
       "destination": "https://weberplex.vercel.app/:path*",
       "permanent": false
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/tick",
+      "schedule": "0 9 * * *"
+    }
   ]
 }

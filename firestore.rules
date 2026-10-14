@@ -1,10 +1,14 @@
 rules_version = '2';
 
-// Weberplex — every rule the site depends on lives here.
-// There is no server: the browser writes straight to Firestore, so these
-// rules ARE the backend. Guests are identified by name only (by design);
-// the host proves itself by writing a fresh `hostops/{op}` doc carrying the
-// host key in the same batch as the change (the key doc is never readable).
+// Weberplex — every rule the site depends on lives here. There is no server
+// in the write path: browsers write straight to Firestore, so these rules ARE
+// the backend. Guests are identified by name only (by design). The owner
+// proves the key by writing a fresh `hostops/{op}` doc carrying it in the same
+// batch as the change; the key doc itself is never readable.
+//
+// Data: a shelf of movies (top-level, it only grows), thumbs and "seen it"
+// marks per person, free evenings per person, and nights (one doc per day,
+// created by whoever volunteers to host it).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -14,30 +18,38 @@ service cloud.firestore {
         && k.matches('^[a-z0-9]+(-[a-z0-9]+)*$');
     }
     function validName(s) { return s is string && s.size() >= 1 && s.size() <= 24; }
+    function validDay(d) { return d is string && d.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
     function stamped(d) { return d.at == request.time; }
 
     function hostKey() { return get(/databases/$(database)/documents/config/host).data.key; }
 
-    // A host op is valid only if its hostops doc is created in THIS batch
-    // (so an old op id seen in a night doc can't be replayed) and carries
-    // the key.
+    // A host op is valid only if its hostops doc is created in THIS batch (so
+    // an old op id can't be replayed) and carries the key.
     function freshHostOp(op) {
       return op is string && op.matches('^[A-Za-z0-9]{16,48}$')
         && !exists(/databases/$(database)/documents/hostops/$(op))
         && getAfter(/databases/$(database)/documents/hostops/$(op)).data.key == hostKey();
     }
-    function nightNow(n) { return get(/databases/$(database)/documents/nights/$(n)).data; }
-    // True when this batch also re-stamps the night with a fresh host op.
-    function hostTouched(n) {
-      return freshHostOp(getAfter(/databases/$(database)/documents/nights/$(n)).data.op);
+    // True when this batch re-stamps config/season with a fresh owner op.
+    function ownerTouched() {
+      return freshHostOp(getAfter(/databases/$(database)/documents/config/season).data.op);
     }
+    function movieExists(id) { return exists(/databases/$(database)/documents/movies/$(id)); }
 
-    // ---- host plumbing -----------------------------------------------------
+    // ---- owner plumbing -----------------------------------------------------
     match /config/host {
       allow read, update, delete: if false;
       // One-shot: once it exists, a second set() is an update and is refused.
       allow create: if request.resource.data.keys().hasOnly(['key'])
         && request.resource.data.key is string && request.resource.data.key.size() >= 20;
+    }
+    match /config/season {
+      allow read: if true;
+      allow create, update: if freshHostOp(request.resource.data.op)
+        && request.resource.data.keys().hasOnly(['op', 'title'])
+        && (!('title' in request.resource.data)
+            || (request.resource.data.title is string && request.resource.data.title.size() <= 60));
+      allow delete: if false;
     }
     match /hostops/{op} {
       allow read, update, delete: if false;
@@ -45,9 +57,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['key', 'at'])
         && request.resource.data.key is string && stamped(request.resource.data);
     }
-
-    // "Show on the Shield": the host points the basement screen at a movie.
-    // Home Assistant polls this one doc and opens the movie in Stremio.
+    // "Show on the Shield": Home Assistant polls this doc and opens the movie.
     match /control/shield {
       allow read: if true;
       allow create, update: if freshHostOp(request.resource.data.op)
@@ -58,7 +68,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ---- the guest list ----------------------------------------------------
+    // ---- people -------------------------------------------------------------
     match /people/{key} {
       allow read: if true;
       allow create: if validKey(key) && validName(request.resource.data.name)
@@ -66,129 +76,126 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // ---- nights ------------------------------------------------------------
-    match /nights/{n} {
+    // ---- the shelf ----------------------------------------------------------
+    // Guests add movies under their name; house picks (by == '') need the
+    // owner key. Movies are never edited. Anyone may take a guest's movie off
+    // the shelf (name-only trust); house picks only come off with the key.
+    match /movies/{m} {
       allow read: if true;
-      allow create, update: if freshHostOp(request.resource.data.op)
-        && request.resource.data.status in ['open', 'locked', 'done', 'cancelled']
-        && request.resource.data.title is string && request.resource.data.title.size() <= 60;
+      allow create: if m.matches('^tt[0-9]{5,10}$')
+        && request.resource.data.keys().hasOnly(['imdbId', 'title', 'year', 'poster', 'runtime', 'rating', 'genres',
+             'trailer', 'description', 'pitch', 'shelf', 'by', 'byName', 'at'])
+        && request.resource.data.imdbId == m
+        && request.resource.data.title is string && request.resource.data.title.size() >= 1
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.description is string && request.resource.data.description.size() <= 600
+        && request.resource.data.poster is string && request.resource.data.poster.size() <= 300
+        && request.resource.data.genres is list && request.resource.data.genres.size() <= 6
+        && (!('pitch' in request.resource.data)
+            || (request.resource.data.pitch is string && request.resource.data.pitch.size() <= 140))
+        && (!('shelf' in request.resource.data)
+            || (request.resource.data.shelf is list && request.resource.data.shelf.size() <= 4))
+        && validName(request.resource.data.byName) && stamped(request.resource.data)
+        && ((validKey(request.resource.data.by) && !('shelf' in request.resource.data))
+            || (request.resource.data.by == '' && ownerTouched()));
+      allow delete: if resource.data.by != '' || ownerTouched();
+      allow update: if false;
+    }
+
+    // Thumbs-up ("I'd watch it") and "seen it": one doc per person per movie.
+    match /votes/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['movie', 'title', 'nameKey', 'name', 'at'])
+        && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
+        && request.resource.data.movie is string
+        && id == request.resource.data.movie + '__' + request.resource.data.nameKey
+        && request.resource.data.title is string && request.resource.data.title.size() <= 120
+        && existsAfter(/databases/$(database)/documents/movies/$(request.resource.data.movie))
+        && stamped(request.resource.data);
+      allow delete: if true;
+      allow update: if false;
+    }
+    match /seen/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['movie', 'nameKey', 'name', 'at'])
+        && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
+        && request.resource.data.movie is string
+        && id == request.resource.data.movie + '__' + request.resource.data.nameKey
+        && movieExists(request.resource.data.movie) && stamped(request.resource.data);
+      allow delete: if true;
+      allow update: if false;
+    }
+
+    // ---- the calendar -------------------------------------------------------
+    match /free/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['day', 'nameKey', 'name', 'at'])
+        && validDay(request.resource.data.day)
+        && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
+        && id == request.resource.data.day + '__' + request.resource.data.nameKey
+        && stamped(request.resource.data);
+      allow delete: if true;
+      allow update: if false;
+    }
+
+    // ---- nights ---------------------------------------------------------------
+    // One per day, created by its volunteer host. Allowed changes:
+    //   planned -> planned   new start time
+    //   planned -> locked    the movie is picked (by a phone or the server clock)
+    //   locked  -> planned   unlock before showtime
+    //   locked  -> done      after showtime
+    //   planned/locked -> cancelled, and cancelled -> planned (someone re-hosts)
+    function newNight(day) {
+      let d = request.resource.data;
+      return validDay(day) && d.day == day
+        && d.keys().hasOnly(['day', 'startsAt', 'host', 'hostKey', 'status', 'createdAt',
+            'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt', 'finishedAt'])
+        && d.status == 'planned' && d.startsAt is timestamp
+        && validName(d.host) && validKey(d.hostKey)
+        && d.createdAt == request.time && d.lockedMovieId == null && d.lockedAt == null;
+    }
+    function nightChangeOk(day) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let changed = after.diff(before).affectedKeys();
+      return (before.status == 'planned' && after.status == 'planned'
+            && changed.hasOnly(['startsAt']) && after.startsAt is timestamp)
+        || (before.status == 'planned' && after.status == 'locked'
+            && changed.hasOnly(['status', 'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt'])
+            && after.lockedAt == request.time && movieExists(after.lockedMovieId))
+        || (before.status == 'locked' && after.status == 'planned' && request.time < before.startsAt
+            && changed.hasOnly(['status', 'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt'])
+            && after.lockedMovieId == null)
+        || (before.status == 'locked' && after.status == 'done' && request.time > before.startsAt
+            && changed.hasOnly(['status', 'finishedAt']) && after.finishedAt == request.time)
+        || (before.status in ['planned', 'locked'] && after.status == 'cancelled'
+            && changed.hasOnly(['status', 'finishedAt']))
+        || (before.status == 'cancelled' && newNight(day));
+    }
+
+    match /nights/{day} {
+      allow read: if true;
+      allow create: if newNight(day);
+      allow update: if nightChangeOk(day);
       allow delete: if false;
-
-      match /dates/{d} {
-        allow read: if true;
-        allow create: if hostTouched(n) && request.resource.data.startsAt is timestamp
-          && request.resource.data.keys().hasOnly(['startsAt', 'place'])
-          && (!('place' in request.resource.data)
-              || (request.resource.data.place is string && request.resource.data.place.size() <= 30));
-        allow delete: if hostTouched(n);
-        allow update: if false;
-      }
-
-      match /rsvps/{id} {
-        allow read: if true;
-        allow create: if nightNow(n).status in ['open', 'locked']
-          && request.resource.data.keys().hasOnly(['dateId', 'nameKey', 'name', 'at'])
-          && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
-          && request.resource.data.dateId is string
-          && id == request.resource.data.dateId + '__' + request.resource.data.nameKey
-          && exists(/databases/$(database)/documents/nights/$(n)/dates/$(request.resource.data.dateId))
-          && stamped(request.resource.data);
-        allow delete: if nightNow(n).status in ['open', 'locked'] || hostTouched(n);
-        allow update: if false;
-      }
-
-      // "I can host": any guest can offer to host a candidate night while
-      // voting is open. The host picks among the offers when locking.
-      match /offers/{id} {
-        allow read: if true;
-        allow create: if nightNow(n).status == 'open'
-          && request.resource.data.keys().hasOnly(['dateId', 'nameKey', 'name', 'at'])
-          && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
-          && request.resource.data.dateId is string
-          && id == request.resource.data.dateId + '__' + request.resource.data.nameKey
-          && exists(/databases/$(database)/documents/nights/$(n)/dates/$(request.resource.data.dateId))
-          && stamped(request.resource.data);
-        allow delete: if nightNow(n).status == 'open' || hostTouched(n);
-        allow update: if false;
-      }
-
-      // A guest's movie and its slot doc are written together. Slot ids are
-      // `<nameKey>__<1..5>` and each points at exactly one movie that points
-      // back, so nobody can hold more than five movies per night.
-      // House picks (host-seeded) carry by == '' and slot 0: no guest name
-      // can produce an empty key, and they never touch anyone's five.
-      match /movies/{m} {
-        allow read: if true;
-        allow create: if m.matches('^tt[0-9]{5,10}$')
-          && request.resource.data.keys().hasOnly(['imdbId', 'title', 'year', 'poster', 'runtime',
-               'rating', 'genres', 'trailer', 'description', 'by', 'byName', 'slot', 'shelf', 'at'])
-          && request.resource.data.imdbId == m
-          && request.resource.data.title is string && request.resource.data.title.size() >= 1
-          && request.resource.data.title.size() <= 120
-          && request.resource.data.description is string && request.resource.data.description.size() <= 600
-          && request.resource.data.poster is string && request.resource.data.poster.size() <= 300
-          && request.resource.data.genres is list && request.resource.data.genres.size() <= 6
-          && (!('shelf' in request.resource.data)
-              || (request.resource.data.shelf is list && request.resource.data.shelf.size() <= 4))
-          && validName(request.resource.data.byName)
-          && request.resource.data.slot is int
-          && stamped(request.resource.data)
-          && ((nightNow(n).status == 'open'
-               && validKey(request.resource.data.by)
-               && request.resource.data.slot >= 1 && request.resource.data.slot <= 5
-               && getAfter(/databases/$(database)/documents/nights/$(n)/slots/$(request.resource.data.by + '__' + string(request.resource.data.slot))).data.movie == m)
-            || (hostTouched(n) && request.resource.data.by == '' && request.resource.data.slot == 0));
-        allow delete: if (nightNow(n).status == 'open' && resource.data.slot >= 1
-            && !existsAfter(/databases/$(database)/documents/nights/$(n)/slots/$(resource.data.by + '__' + string(resource.data.slot))))
-          || hostTouched(n);
-        allow update: if false;
-      }
-
-      match /slots/{id} {
-        allow read: if true;
-        allow create: if nightNow(n).status == 'open'
-          && request.resource.data.keys().hasOnly(['movie', 'by', 'slot'])
-          && validKey(request.resource.data.by)
-          && request.resource.data.slot is int
-          && request.resource.data.slot >= 1 && request.resource.data.slot <= 5
-          && id == request.resource.data.by + '__' + string(request.resource.data.slot)
-          && request.resource.data.movie is string
-          && getAfter(/databases/$(database)/documents/nights/$(n)/movies/$(request.resource.data.movie)).data.by == request.resource.data.by
-          && getAfter(/databases/$(database)/documents/nights/$(n)/movies/$(request.resource.data.movie)).data.slot == request.resource.data.slot;
-        allow delete: if !existsAfter(/databases/$(database)/documents/nights/$(n)/movies/$(resource.data.movie));
-        allow update: if false;
-      }
-
-      match /votes/{id} {
-        allow read: if true;
-        allow create: if nightNow(n).status == 'open'
-          && request.resource.data.keys().hasOnly(['movie', 'nameKey', 'name', 'at'])
-          && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
-          && request.resource.data.movie is string
-          && id == request.resource.data.movie + '__' + request.resource.data.nameKey
-          && exists(/databases/$(database)/documents/nights/$(n)/movies/$(request.resource.data.movie))
-          && stamped(request.resource.data);
-        allow delete: if nightNow(n).status == 'open' || hostTouched(n);
-        allow update: if false;
-      }
 
       match /snacks/{id} {
         allow read: if true;
-        allow create: if nightNow(n).status in ['open', 'locked']
+        allow create: if get(/databases/$(database)/documents/nights/$(day)).data.status in ['planned', 'locked']
           && request.resource.data.keys().hasOnly(['item', 'nameKey', 'name', 'at'])
           && request.resource.data.item is string
           && request.resource.data.item.size() >= 1 && request.resource.data.item.size() <= 40
           && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
           && stamped(request.resource.data);
-        allow delete: if nightNow(n).status in ['open', 'locked'] || hostTouched(n);
+        allow delete: if get(/databases/$(database)/documents/nights/$(day)).data.status in ['planned', 'locked'];
         allow update: if false;
       }
 
-      // Reviews open once the locked showtime has passed.
+      // Reviews open once the showtime has passed.
       match /reviews/{key} {
         allow read: if true;
-        allow create, update: if nightNow(n).status in ['locked', 'done']
-          && nightNow(n).lockedStartsAt is timestamp && request.time > nightNow(n).lockedStartsAt
+        allow create, update: if get(/databases/$(database)/documents/nights/$(day)).data.status in ['locked', 'done']
+          && request.time > get(/databases/$(database)/documents/nights/$(day)).data.startsAt
           && request.resource.data.keys().hasOnly(['stars', 'line', 'nameKey', 'name', 'at'])
           && key == request.resource.data.nameKey && validKey(key)
           && validName(request.resource.data.name)
