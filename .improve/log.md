@@ -17,3 +17,8 @@
 - The scenario now films the turn and walks Gma through the reveal's Count me in; earlier "name to counted" numbers were measuring a leftover toast.
 - Critics: no Blockers. Next: keep the next open night alive while the nearest is locked, the name step's guard and toast placement, the sample ticket and amber discipline.
 - Not acted on: link previews name the locked movie (user chose to keep the poster, critique #1).
+
+## Iteration 4 (2026-10-14)
+- Kept: the next open night stays alive and taps stay honest (4616f02), the face-down sample ticket and attendee-only rating (faf2b0d). Impeccable 31/40.
+- Critics: a failed name step can say "Sent." (my bug), a phone's lock can use stale data, Esc spoils the reveal, Stats leak the face-down pick, the reveal and reel land without people.
+- Next: honest to the end, the reveal and reel with people, face down everywhere plus a clean name step at big text. Iteration 5 ends with the checkpoint judge.
