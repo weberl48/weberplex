@@ -18,7 +18,7 @@ export class AlreadyOnShelfError extends Error {
 }
 
 export function makeActions(db, F) {
-  const { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction } = F;
+  const { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, deleteField } = F;
   const night = (day) => doc(db, 'nights', day);
   const batched = async (fill) => { const b = writeBatch(db); fill(b); await b.commit(); };
 
@@ -41,6 +41,9 @@ export function makeActions(db, F) {
   }
 
   const freeDoc = (who, day) => ({ day, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
+  // One person's key in a night's vetoes map, as a field path: the write
+  // touches only that key, so it can't collide with anyone else's veto.
+  const vetoPath = (who) => `vetoes.${who.nameKey}`;
 
   return {
     me,
@@ -109,9 +112,21 @@ export function makeActions(db, F) {
     },
 
     // ---- the calendar --------------------------------------------------------
+    // Dropping out of a planned night also takes back your veto there, in the
+    // same batch (the rules look at the free mark as it was before the batch,
+    // so the veto is still allowed to go).
     async setFree(day, who, isFree) {
       const ref = doc(db, 'free', `${day}__${who.nameKey}`);
-      await batched((b) => (isFree ? b.set(ref, freeDoc(who, day)) : b.delete(ref)));
+      let vetoed = false;
+      if (!isFree) {
+        const snap = await getDoc(night(day));
+        vetoed = snap.exists() && snap.data().status === 'planned' && !!snap.data().vetoes?.[who.nameKey];
+      }
+      await batched((b) => {
+        if (isFree) { b.set(ref, freeDoc(who, day)); return; }
+        b.delete(ref);
+        if (vetoed) b.update(night(day), { [vetoPath(who)]: deleteField() });
+      });
     },
 
     // Volunteer to host `day`, starting at `startsAt`, with an optional theme
@@ -143,19 +158,16 @@ export function makeActions(db, F) {
       await batched((b) => b.update(night(day), { theme: cleanTheme(theme) }));
     },
 
-    // Your one veto on a night (movieId = null takes it back). A transaction,
-    // so two people vetoing at once both keep theirs. False if the night has
-    // moved on (locked, cancelled) in the meantime.
+    // Your one veto on a night (movieId = null takes it back). Writes only your
+    // own key, so two people vetoing at once both keep theirs (rewriting the
+    // whole map would look like a change to someone else's key to the rules).
+    // False if the night has moved on (locked, cancelled) in the meantime.
     async setVeto(day, who, movieId) {
-      return runTransaction(db, async (tx) => {
-        const snap = await tx.get(night(day));
-        if (!snap.exists() || snap.data().status !== 'planned') return false;
-        const vetoes = { ...(snap.data().vetoes || {}) };
-        if (movieId) vetoes[who.nameKey] = movieId;
-        else delete vetoes[who.nameKey];
-        tx.update(night(day), { vetoes });
-        return true;
-      });
+      const snap = await getDoc(night(day));
+      if (!snap.exists() || snap.data().status !== 'planned') return false;
+      if (!movieId && !snap.data().vetoes?.[who.nameKey]) return true; // nothing to take back
+      await batched((b) => b.update(night(day), { [vetoPath(who)]: movieId || deleteField() }));
+      return true;
     },
 
     // Lock the movie. A transaction, so two phones noticing the deadline at

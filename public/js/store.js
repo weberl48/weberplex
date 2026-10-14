@@ -5,9 +5,10 @@ export function watch(db, F, path, cb, onErr) {
   return F.onSnapshot(F.collection(db, ...path.split('/')), (snap) => cb(rows(snap)), onErr);
 }
 
-// The most recent 90 nights (one doc per day), newest first.
+// Every night (one doc per day), newest first. No cap: the shelf and the stats
+// need all the watched ones, or an old movie would come back to the shelf.
 export function watchNights(db, F, cb, onErr) {
-  return F.onSnapshot(F.query(F.collection(db, 'nights'), F.orderBy('day', 'desc'), F.limit(90)), (snap) => cb(rows(snap)), onErr);
+  return F.onSnapshot(F.query(F.collection(db, 'nights'), F.orderBy('day', 'desc')), (snap) => cb(rows(snap)), onErr);
 }
 
 // Free evenings from `fromDay` on (older marks don't matter).

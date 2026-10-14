@@ -5,12 +5,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
-  doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, setDoc, updateDoc,
+  doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, deleteField, setDoc, updateDoc,
 } from 'firebase/firestore';
 import { makeActions, AlreadyOnShelfError } from '../public/js/actions.js';
 import { pickMovie } from '../public/js/logic.js';
 
-const F = { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction };
+const F = { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, deleteField };
 const KEY = 'host-key-for-tests-0123456789';
 const BAD = 'wrong-key-wrong-key-wrong';
 let env, db, A;
@@ -299,6 +299,50 @@ test('the host and people who are free can veto once, and undo it', async () => 
   await A.setFree(d, al, true);
   await A.setFree(d, al, false);
   await assertFails(A.setVeto(d, al, movie(2).imdbId));
+});
+
+test('people vetoing at the same moment all keep their veto, and undo the same way', async () => {
+  const jo = await A.join('Jo');
+  const sam = await A.join('Sam');
+  const al = await A.join('Al');
+  for (const i of [1, 2, 3]) await A.addMovie(jo, movie(i));
+  const d = day(4);
+  await A.hostNight(jo, d, new Date(Date.now() + 4 * 86400000));
+  await A.setFree(d, sam, true);
+  await A.setFree(d, al, true);
+  const id = (n) => movie(n).imdbId;
+  assert.deepEqual(await Promise.all([A.setVeto(d, jo, id(1)), A.setVeto(d, sam, id(2)), A.setVeto(d, al, id(3))]), [true, true, true]);
+  assert.deepEqual(await vetoesOf(d), { jo: id(1), sam: id(2), al: id(3) });
+  assert.deepEqual(await Promise.all([A.setVeto(d, sam, null), A.setVeto(d, al, null)]), [true, true]);
+  assert.deepEqual(await vetoesOf(d), { jo: id(1) });
+  // Still one write, one key: the field-path write can't smuggle in someone else's.
+  await assertFails(updateDoc(doc(db, 'nights', d), { 'vetoes.sam': id(1), 'vetoes.al': id(1) }));
+});
+
+test('dropping out of a night takes your veto with you', async () => {
+  const jo = await A.join('Jo');
+  const sam = await A.join('Sam');
+  const al = await A.join('Al');
+  await A.addMovie(jo, movie(1));
+  await A.addMovie(jo, movie(2));
+  const d = day(4);
+  await A.hostNight(jo, d, new Date(Date.now() + 4 * 86400000));
+  await A.setFree(d, sam, true);
+  await A.setFree(d, al, true);
+  await A.setVeto(d, sam, movie(1).imdbId);
+  await A.setVeto(d, al, movie(2).imdbId);
+  await assertSucceeds(A.setFree(d, sam, false));
+  assert.equal((await getDoc(doc(db, 'free', `${d}__sam`))).exists(), false, 'the free mark is gone');
+  assert.deepEqual(await vetoesOf(d), { al: movie(2).imdbId }, 'and Sam’s veto with it');
+  // Dropping out with no veto is the plain delete; so is marking free again.
+  await assertSucceeds(A.setFree(d, sam, false));
+  await A.setFree(d, sam, true);
+  assert.equal(await A.setVeto(d, sam, movie(2).imdbId), true, 'back in, a fresh veto');
+  // On a locked night the vetoes no longer matter: dropping out just drops the mark.
+  await A.lockNight(d, { movie: movie(1), tie: [] });
+  await assertSucceeds(A.setFree(d, al, false));
+  assert.deepEqual(await vetoesOf(d), { al: movie(2).imdbId, sam: movie(2).imdbId });
+  assert.equal((await getDoc(doc(db, 'free', `${d}__al`))).exists(), false);
 });
 
 test('a veto is one key per write, for a movie on the shelf, on a planned night', async () => {

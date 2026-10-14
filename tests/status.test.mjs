@@ -4,12 +4,12 @@ import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, deleteField, updateDoc, setDoc } from 'firebase/firestore';
 import { makeActions } from '../public/js/actions.js';
 import { buildStatus } from '../lib/status.js';
 import { tick } from '../lib/tick.js';
 
-const F = { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction };
+const F = { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, deleteField };
 const P = 'demo-picture-show';
 const where = { base: 'http://127.0.0.1:8181/v1', projectId: P, apiKey: '' };
 const H = 3600 * 1000;
@@ -170,6 +170,23 @@ test('a theme and a veto together; a theme nothing fits is ignored', async () =>
   const r = await tick(where);
   assert.equal(r.actions[0].movie, 'Movie 1');
   assert.equal(r.actions[0].themeFallback, true);
+});
+
+test('with every movie vetoed the leader is still reported, and the clock locks that same movie', async () => {
+  const { sam, jo, d } = await themedNight();
+  const al = await A.join('Al');
+  await A.setFree(d, al, true);
+  await A.setVeto(d, sam, movie(1).imdbId);
+  await A.setVeto(d, jo, movie(2).imdbId);
+  await A.setVeto(d, al, movie(3).imdbId);
+  const s = await buildStatus(where);
+  assert.equal(s.vetoes, 3);
+  assert.equal(s.leader_title, 'Movie 1', 'vetoes that would empty the shelf are ignored');
+  assert.equal(s.leader_basis, 'coming');
+  assert.equal(s.leader_votes, 2);
+  const r = await tick(where);
+  assert.equal(r.actions[0].movie, 'Movie 1');
+  assert.equal(r.actions[0].basis, 'coming');
 });
 
 test('a night from before themes and vetoes reads and locks as it always did', async () => {

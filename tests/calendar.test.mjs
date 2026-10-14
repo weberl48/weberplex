@@ -5,14 +5,14 @@ import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, deleteField, setDoc, updateDoc } from 'firebase/firestore';
 import { makeActions } from '../public/js/actions.js';
 import { buildCalendar } from '../lib/calendar.js';
 import { buildPreview, genericPreview } from '../lib/preview.js';
 import calendarHandler from '../api/calendar.js';
 import previewHandler from '../api/preview.js';
 
-const F = { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction };
+const F = { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, deleteField };
 const P = 'demo-picture-show';
 const where = { base: 'http://127.0.0.1:8181/v1', projectId: P, apiKey: '' };
 const SITE = 'https://weberplex.test';

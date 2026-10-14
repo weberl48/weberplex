@@ -289,12 +289,27 @@ def main():
         expect(jo.locator('#board')).to_contain_text('Theme: Foreign')
         expect(sam.locator('#next .theme-chip')).to_have_text('Foreign')
         shot(jo, '04b3-host-themed-night')
+        # The host's tools sit in Up next and in the day panel: each Change time
+        # button saves the menu beside it, not the first one on the page.
+        expect(jo.locator('#dayDetail .host-tools select[id^="dd-time-"]')).to_have_count(1)
+        jo.select_option(f'#dayDetail #dd-time-{day2}', '21:00')
+        jo.click('#dayDetail [data-action="night-time"]')
+        expect(jo.locator('#next h3').first).to_contain_text(re.compile(r'9:00\sPM'), timeout=10000)
+        expect(jo.locator('#toast')).to_contain_text('Moved to')  # the write has landed, not just the local echo
+        jo.select_option(f'#dayDetail #dd-time-{day2}', '20:00')
+        jo.click('#dayDetail [data-action="night-time"]')
+        expect(jo.locator('#next h3').first).to_contain_text(re.compile(r'8:00\sPM'), timeout=10000)
         sam.click('#next [data-action="free"]')  # Count me in
         expect(sam.locator('#next .dd-line').first).to_contain_text('Sam')
-        # The theme narrows "what the people coming want" to movies that fit it.
-        expect(sam.locator('#next .leaders')).to_contain_text('No thumbs from them yet')
+        # The theme narrows "what the people coming want" to movies that fit it; their
+        # thumbs are all on other movies, and the page says so rather than "no thumbs".
+        expect(sam.locator('#next .leaders')).to_contain_text('Their thumbs are all on vetoed or off-theme movies')
         # The host clears the theme from the host tools; it clears on Sam's phone too.
+        # Arrowing through the menu quickly lands on the last choice, not an earlier one.
         jo.select_option('#next select[data-theme-day]', '')
+        jo.select_option('#next select[data-theme-day]', 'Foreign')
+        jo.select_option('#next select[data-theme-day]', '')
+        jo.wait_for_timeout(1000)
         expect(jo.locator('#next .theme-chip')).to_have_count(0)
         expect(sam.locator('#next .theme-chip')).to_have_count(0)
         expect(sam.locator('#next .leaders li')).to_have_count(3)  # Paddington, the other finalist, Jo's trending pick
@@ -317,6 +332,7 @@ def main():
         sam.click('#next [data-action="unveto"]')
         expect(sam.locator('#next .vetoes')).to_have_count(0)
         expect(sam.locator('#next [data-action="veto"]')).to_have_count(3)
+        expect(sam.locator('#toast')).to_contain_text('Veto taken back')  # the write landed, not just the local echo
         veto_button(sam, 'veto').click()
         expect(sam.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
 
@@ -359,6 +375,15 @@ def main():
         expect(fresh.locator('.reveal-overlay')).to_be_visible(timeout=10000)
         fresh.keyboard.press('Escape')
         expect(fresh.locator('.reveal-overlay')).to_have_count(0)
+        # What a visitor watched before giving a name counts as theirs: no second
+        # reveal once they join, and it is saved on their person doc.
+        fresh.fill('#passName', 'Fran')
+        fresh.click('#passForm button[type=submit]')
+        expect(fresh.locator('#whoami')).to_contain_text('Fran')
+        fresh.wait_for_timeout(1500)
+        expect(fresh.locator('.reveal-overlay')).to_have_count(0)
+        reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/fran'))['fields']['reels']['arrayValue']['values']]
+        assert any(r.startswith(f'r:{day2}.') for r in reels), reels
 
         # Unlock and re-pick with the theme back on: the theme beats thumbs, and the
         # new movie gets its own reveal.
@@ -376,6 +401,23 @@ def main():
         sam.click('.reveal-overlay button')
         expect(sam.locator('#next .ticket h3')).to_contain_text(house_title, ignore_case=True)
         expect(sam.locator('#next')).to_contain_text('Theme')
+        # "Not you?" on Sam's phone: the next person on it still gets the reveal Sam just
+        # saw (signed out, until they give a name); once they do it is theirs: not played
+        # again, and saved on their person doc.
+        sam.click('[data-action=switch]')
+        expect(sam.locator('.reveal-overlay')).to_be_visible(timeout=10000)
+        expect(sam.locator('.reveal-title')).to_have_text(house_title)
+        sam.keyboard.press('Escape')
+        expect(sam.locator('.reveal-overlay')).to_have_count(0)
+        sam.fill('#passName', 'Kim')
+        sam.click('#passForm button[type=submit]')
+        expect(sam.locator('#whoami')).to_contain_text('Kim')
+        expect(sam.locator('.tour-overlay')).to_be_visible(timeout=10000)  # a new person gets the walkthrough first
+        sam.click('[data-tour="skip"]')
+        sam.wait_for_timeout(1500)
+        expect(sam.locator('.reveal-overlay')).to_have_count(0)
+        reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/kim'))['fields']['reels']['arrayValue']['values']]
+        assert any(r.startswith(f'r:{day2}.') for r in reels), reels
         expect(jo.locator('.reveal-title')).to_have_text(house_title, timeout=15000)
         jo.keyboard.press('Escape')
 
