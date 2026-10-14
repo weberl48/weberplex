@@ -71,12 +71,12 @@ export function makeActions(db, F) {
       });
     },
 
-    // Takes a movie off the shelf with its thumbs and seen mark.
-    async removeMovie(movie, voteKeys = []) {
+    // Takes a movie off the shelf with its thumbs and seen marks.
+    async removeMovie(movie, voteKeys = [], seenKeys = []) {
       await batched((b) => {
         b.delete(doc(db, 'movies', movie.imdbId));
         for (const k of voteKeys) b.delete(doc(db, 'votes', `${movie.imdbId}__${k}`));
-        b.delete(doc(db, 'seen', movie.imdbId));
+        for (const k of seenKeys) b.delete(doc(db, 'seen', `${movie.imdbId}__${k}`));
       });
     },
 
@@ -87,10 +87,8 @@ export function makeActions(db, F) {
         : b.delete(ref)));
     },
 
-    // "Seen" is one shared mark per movie: the first person to mark it sets
-    // it for everyone; anyone can clear it.
     async setSeen(movie, who, on) {
-      const ref = doc(db, 'seen', movie.imdbId);
+      const ref = doc(db, 'seen', `${movie.imdbId}__${who.nameKey}`);
       await batched((b) => (on ? b.set(ref, { movie: movie.imdbId, nameKey: who.nameKey, name: who.name, at: serverTimestamp() }) : b.delete(ref)));
     },
 
@@ -203,11 +201,11 @@ export function makeActions(db, F) {
       return fresh.map((m) => m.imdbId);
     },
 
-    async ownerRemoveMovie(hostKey, movie, voteKeys = []) {
+    async ownerRemoveMovie(hostKey, movie, voteKeys = [], seenKeys = []) {
       const b = ownerBatch(hostKey);
       b.delete(doc(db, 'movies', movie.imdbId));
       for (const k of voteKeys) b.delete(doc(db, 'votes', `${movie.imdbId}__${k}`));
-      b.delete(doc(db, 'seen', movie.imdbId));
+      for (const k of seenKeys) b.delete(doc(db, 'seen', `${movie.imdbId}__${k}`));
       await b.commit();
     },
 

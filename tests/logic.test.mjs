@@ -40,10 +40,9 @@ test('the shelf leaves out watched movies and ranks by thumbs', () => {
   const watched = watchedIds(nights);
   assert.deepEqual([...watched].sort(), ['tt4', 'tt9']);
   const t = tallyShelf({ movies, votes, seen: [{ movie: 'tt2', nameKey: 'jo', name: 'Jo' }], watched });
-  assert.equal(t.movies[2].seen, null);
   assert.deepEqual(t.movies.map((m) => m.imdbId), ['tt1', 'tt2', 'tt3']);
   assert.equal(t.movies[0].votes, 3);
-  assert.deepEqual(t.movies[1].seen, { nameKey: 'jo', name: 'Jo' });
+  assert.deepEqual(t.movies[1].seenBy.map((x) => x.name), ['Jo']);
   assert.deepEqual(t.leaders.map((m) => m.imdbId), ['tt1']);
   assert.deepEqual(shelfTags(movies), ['Foreign']);
 });

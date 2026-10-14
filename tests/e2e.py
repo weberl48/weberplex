@@ -165,9 +165,8 @@ def main():
 
         # Seen marks and the filter.
         card(sam, jaws).locator('[data-action="seen"]').click()
-        expect(card(sam, jaws)).to_contain_text('marked by Sam')
-        expect(card(jo, jaws).locator('[data-action="seen"]')).to_have_text('Seen ✓')  # shared
-        sam.click('#shelfChips [data-tag="Not seen"]')
+        expect(card(sam, jaws)).to_contain_text('Seen by Sam')
+        sam.click('#shelfChips [data-tag="Unseen by me"]')
         expect(card(sam, jaws)).to_have_count(0)
         sam.click('#shelfChips [data-tag="All"]')
 

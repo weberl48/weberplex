@@ -3,8 +3,8 @@
 // Each pick: { q, year, imdb, tags }. `imdb` is pinned so a re-run never drifts
 // to a different film; anything already on the shelf is skipped. Tags that are
 // shelf tags (Foreign, Found footage, Recent favorite) are kept. With
-// --seen-as, picks tagged "Rewatch" get the shared "seen" mark, credited to
-// that name.
+// --seen-as, picks tagged "Rewatch" get a "seen it" mark under that name
+// (seen/unseen is per person now, not a tag).
 import { readFileSync } from 'node:fs';
 import { initializeApp } from 'firebase/app';
 import {
@@ -41,7 +41,7 @@ if (seenAs) {
   const who = A.me(seenAs);
   const rewatch = seed.picks.filter((p) => (p.tags || []).includes('Rewatch'));
   for (const p of rewatch) {
-    if ((await getDoc(doc(db, 'seen', p.imdb))).exists()) continue;
+    if ((await getDoc(doc(db, 'seen', `${p.imdb}__${who.nameKey}`))).exists()) continue;
     await A.setSeen({ imdbId: p.imdb }, who, true);
   }
   console.log(`marked ${rewatch.length} as seen by ${who.name}`);

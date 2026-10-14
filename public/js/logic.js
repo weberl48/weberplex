@@ -5,8 +5,8 @@
 export const HOUSE = '';
 export const isHouse = (m) => m?.by === HOUSE;
 
-// Shelf tags in display order; anything else sorts after these. "Seen" is a
-// shared mark per movie (seen/{imdbId}), not a tag.
+// Shelf tags in display order; anything else sorts after these. Seen/unseen
+// is per person now (the "seen it" marks), not a tag.
 export const SHELF_ORDER = ['Recent favorite', 'Foreign', 'Found footage'];
 
 // The filter chips a shelf needs: tags actually present, in shelf order.
@@ -49,7 +49,7 @@ export function watchedIds(nights = []) {
   return new Set(nights.filter((n) => n.status === 'done' && n.lockedMovieId).map((n) => n.lockedMovieId));
 }
 
-// Thumbs per movie and the shared "seen" mark, most wanted first.
+// Thumbs and "seen it" marks per movie, most wanted first.
 export function tallyShelf({ movies = [], votes = [], seen = [], watched = new Set() }) {
   const group = (rows) => {
     const by = new Map();
@@ -61,12 +61,12 @@ export function tallyShelf({ movies = [], votes = [], seen = [], watched = new S
     return by;
   };
   const voters = group(votes);
-  const seenBy = new Map(seen.map((s) => [s.movie, { nameKey: s.nameKey, name: s.name }]));
+  const seers = group(seen);
   const out = movies
     .filter((m) => !watched.has(m.imdbId))
     .map((m) => {
       const vs = voters.get(m.imdbId) || [];
-      return { ...m, voters: vs, votes: vs.length, seen: seenBy.get(m.imdbId) || null };
+      return { ...m, voters: vs, votes: vs.length, seenBy: seers.get(m.imdbId) || [] };
     })
     .sort((a, b) => b.votes - a.votes || toMs(a.at) - toMs(b.at) || a.title.localeCompare(b.title));
   const top = Math.max(0, ...out.map((m) => m.votes));
