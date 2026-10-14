@@ -34,8 +34,10 @@ reel, which plays once on everyone's phone; a clear winner gets the **reveal**
 instead, once per person: the house goes dark and a face-down card waits in a
 ring of chasing bulbs until you tap it over to the poster. It waits until the
 page has everything it needs, so it knows whether you're coming: it ends on
-**See my ticket** if you are, and on **Count me in** if you have a name and
-aren't (the news cards then wait in their bar instead of covering the ticket). Until your reel or
+**See my ticket** if you are, and on **Count me in** if you aren't (with no
+name yet, it asks for one first, then lands on your ticket). The news cards
+wait in their bar instead of covering the ticket, and until your reveal has
+played (say you backed out of it) they never name the locked movie. Until your reel or
 reveal has played, the page keeps the movie face down (the marquee reads "The
 movie is…", and so does your ticket). It plays after How it works and before
 the news cards, so a "Locked for Friday" card never spoils it, and it counts as

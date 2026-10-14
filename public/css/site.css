@@ -724,6 +724,10 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 .reveal-stage::after { background-position: 9px 0, 9px 100%, 0 9px, 100% 9px; }
 .reveal-stage.waiting::before, .reveal-stage.waiting::after { animation: chase 0.9s steps(1) infinite; }
 .reveal-stage.waiting::after { animation-delay: -0.45s; }
+/* turned: the bulbs flash three times and hold lit, with the reel's glow */
+.reveal-stage.landed { box-shadow: 0 0 40px rgba(255, 199, 110, 0.35); }
+.reveal-stage.landed::before, .reveal-stage.landed::after { animation: blaze 0.24s steps(1) 4; }
+@keyframes blaze { 0% { opacity: 1; } 50% { opacity: 0.15; } }
 .reveal-card {
   position: relative; display: block; width: min(13rem, 62vw); aspect-ratio: 2 / 3; margin: 0; padding: 0;
   border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: 8px;
@@ -742,7 +746,7 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 .reveal-poster { transform: rotateY(180deg); background: #050203; }
 .reveal-poster img, .reveal-poster .noimg { width: 100%; height: 100%; object-fit: cover; }
 .reveal-poster .noimg { display: grid; place-items: center; padding: 12px; font-family: var(--f-display); color: var(--screen); }
-.reveal-title { margin: 16px 0 0; min-height: 1.4em; font: 400 var(--step-2)/1.15 var(--f-display); color: var(--screen); overflow-wrap: anywhere; }
+.reveal-title { margin: 16px 0 0; min-height: 1.4em; font: 400 var(--step-3)/1.1 var(--f-display); color: var(--bulb); text-wrap: balance; overflow-wrap: break-word; }
 .reveal-when { margin: 4px 0 14px; min-height: 1.5em; color: var(--dim); }
 
 /* a landscape phone is about 390px tall: shrink the posters so the OK button fits */
@@ -801,7 +805,7 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .marquee::before, .marquee::after, .reveal-stage::before, .reveal-stage::after { animation: none; }
+  .marquee::before, .marquee::after, .reveal-stage::before, .reveal-stage::after, .reveal-stage.landed::before, .reveal-stage.landed::after { animation: none; }
   .marquee::after, .reveal-stage::after { opacity: 0.4; }
   *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
 }

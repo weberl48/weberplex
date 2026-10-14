@@ -362,7 +362,7 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
         push({ kind: 'night', text: `${n.host} is hosting ${showtimeLong(n.startsAt)}`, detail: [n.theme && `Theme: ${n.theme}.`, imFree(n.day) && 'You’re free that evening, so you’re on the list.'].filter(Boolean).join(' '), target: '#nextSec' });
       }
       if (n.status === 'locked' && fresh(n.lockedAt)) {
-        push({ kind: 'locked', text: `Locked for ${showtimeParts(n.startsAt).dow}: ${title || 'the movie'}`, detail: `${placeLabel(n.host)} ${dow} night, ${showtimeParts(n.startsAt).time}.`, target: '#nextSec', title, poster });
+        push({ kind: 'locked', text: `Locked for ${dow}: ${title || 'the movie'}`, detail: `${placeLabel(n.host)} ${dow} night, ${showtimeParts(n.startsAt).time}.`, target: '#nextSec', title, poster });
       }
       if (fresh(n.movedAt) && theirs(n.hostKey)) {
         out.days.add(n.day);

@@ -395,6 +395,56 @@ def reveal_invite_checks(browser, errors):
     emu('PATCH', f'{DOCS}/nights/{day}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
 
 
+def reveal_ending_checks(browser, errors):
+    """A visitor with no name ends the reveal on Count me in too: it asks the name, then lands
+    on their ticket. Someone who backs out of the face-down card gets news that never names it."""
+    now = datetime.now(timezone.utc)
+    day = (now + timedelta(days=2)).strftime('%Y-%m-%d')
+    emu('PATCH', f'{DOCS}/nights/{day}', {'fields': fields({
+        'day': day, 'startsAt': now + timedelta(days=2), 'host': 'Hal', 'hostKey': 'hal', 'status': 'locked', 'createdAt': now - timedelta(hours=3),
+        'theme': '', 'vetoes': {}, 'lockedTie': [], 'lockedMovieId': 'tt0073195', 'lockedAt': now - timedelta(minutes=30),
+        'lockedMovie': {'imdbId': 'tt0073195', 'title': 'Jaws', 'year': '1975', 'poster': '', 'runtime': '124 min', 'rating': '', 'genres': ['Thriller'], 'trailer': ''}})}, owner=True)
+    ctx = browser.new_context(viewport=PHONE)
+    page = ctx.new_page()
+    page.on('pageerror', lambda e: errors.append(f'pia: {e}'))
+    page.goto(f'{SITE}/?emu')
+    skip_tour(page)
+    expect(page.locator('.reveal-overlay')).to_be_visible(timeout=15000)
+    page.click('.reveal-card')
+    expect(page.locator('.reveal-overlay h2')).to_have_text(re.compile(r'’s feature$'), timeout=10000)  # the heading resolves
+    expect(page.locator('.reveal-actions button')).to_have_text(['Count me in', 'Not this time'])
+    page.click('.reveal-actions [data-r="in"]')
+    expect(page.locator('#pass')).to_be_visible(timeout=10000)
+    page.fill('#passName', 'Quentin')  # (not like any name on the list, or it asks 'Is that you?')
+    page.click('#passForm button[type=submit]')
+    expect(page.locator('#next .ticket')).to_be_focused(timeout=15000)
+    assert json.loads(emu('GET', f'{DOCS}/free/{day}__quentin', owner=True)).get('fields'), 'Quentin is on the list'
+    ctx.close()
+
+    # Ola last looked before the lock, and backs out of the face-down card.
+    emu('PATCH', f'{DOCS}/people/ola', {'fields': fields({'name': 'Ola', 'at': now - timedelta(days=3), 'toured': True,
+                                                          'lastSeen': now - timedelta(hours=2)})}, owner=True)
+    page = as_person(browser, errors, 'ola', 'Ola')
+    page.goto(f'{SITE}/?emu')
+    expect(page.locator('.reveal-overlay')).to_be_visible(timeout=15000)
+    page.go_back()  # Android back before it turns
+    expect(page.locator('.reveal-overlay')).to_have_count(0)
+    walk = page.locator('.tour-overlay')
+    expect(walk).to_be_visible(timeout=10000)
+    texts = []
+    for _ in range(12):
+        texts.append(walk.inner_text())
+        nxt = walk.locator('[data-tour="next"]')
+        if not nxt.count():
+            break
+        nxt.click()
+    # (Jaws is also new on the shelf, which is fine: the lock is what must stay face down.)
+    assert not any(re.search(r'Locked for .*Jaws', t) for t in texts), 'no news card names a face-down movie'
+    assert any('movie is locked' in t for t in texts), texts
+    page.context.close()
+    emu('PATCH', f'{DOCS}/nights/{day}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
+
+
 def news_cards_checks(browser, errors):
     """Since you last looked, from another person's real actions: Hal (hosting) moves the time,
     sets a theme, vetoes a movie and calls a snack; Wren, whose last look was just before, gets one card
@@ -980,6 +1030,7 @@ def main():
         news_cards_checks(browser, errors)
         honest_sending_checks(browser, errors)
         reveal_invite_checks(browser, errors)
+        reveal_ending_checks(browser, errors)
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)

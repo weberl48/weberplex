@@ -329,8 +329,20 @@ function newsRsvp(day) {
   return `<div class="row news-votes"><button class="btn btn-bulb btn-rsvp" type="button" data-action="free" data-day="${n.day}" data-night="1" aria-pressed="false" data-done="You’re in">Count me in</button></div>`;
 }
 const scrollToSection = (sel) => $(sel)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+// A night whose movie is still face down for you (its reveal hasn't played,
+// or you backed out of it) never names the movie in the news.
+function unspoiled(c) {
+  const hidden = L.upcomingNights(S.nights).filter((n) => n.status === 'locked' && faceDown(n));
+  if (!hidden.length) return c;
+  const blank = (n) => `${L.dayFromKey(n.day).toLocaleDateString(undefined, { weekday: 'long' })}’s movie is locked`;
+  const titles = hidden.map((n) => [n.lockedMovie?.title || '', blank(n)]).filter(([t]) => t);
+  const rest = c.rest?.map((t) => titles.find(([title]) => t.includes(title))?.[1] || t);
+  const n = c.kind === 'locked' && hidden.find((x) => x.day === c.day);
+  if (!n) return rest ? { ...c, rest } : c;
+  return { ...c, rest, text: blank(n), detail: 'It’s face down until you turn it over: Reveal the movie, in Up next.', poster: undefined, title: '' };
+}
 function walkNews() {
-  const cards = S.news?.cards || [];
+  const cards = (S.news?.cards || []).map(unspoiled);
   const voted = new Set(S.votes.filter((v) => v.nameKey === S.me?.nameKey).map((v) => v.movie));
   // Show me remembers the card it left from; Walk me through picks up there.
   openTour({
@@ -612,13 +624,19 @@ function play(n, key, show) {
     S.revealing = null;
     // The reveal is the visit's peak: the news cards don't open over the
     // ticket that follows it (the bar keeps the count).
-    if (seen) S.walked = true;
-    if (rsvp && S.me) {
-      const when = L.dayFromKey(n.day).toLocaleDateString(undefined, { weekday: 'long' });
-      once(`free:${n.day}`, async () => { await A.setFree(n.day, S.me, true); toast(`You’re in for ${when}.`); });
-    }
+    const ticket = seen && (rsvp || imFree(n.day));
+    if (ticket) S.walked = true;
+    const when = L.dayFromKey(n.day).toLocaleDateString(undefined, { weekday: 'long' });
+    if (rsvp && S.me) once(`free:${n.day}`, async () => { await A.setFree(n.day, S.me, true); toast(`You’re in for ${when}.`); });
     render();
-    if (seen && (rsvp || imFree(n.day))) setTimeout(() => landOnTicket(), 0); // after the repaint
+    if (rsvp && !S.me) {
+      // No name yet: the name form first, then Count me in goes through and
+      // lands on the ticket.
+      setTimeout(() => requireMe($(`#next [data-action="free"][data-day="${n.day}"]`), `You’re in for ${when}.`, { ticket: true }), 0);
+      return;
+    }
+    if (ticket) setTimeout(() => landOnTicket(), 0); // after the repaint
+    else if (seen) setTimeout(() => { if (document.activeElement === document.body) { $('#nextSec').setAttribute('tabindex', '-1'); $('#nextSec').focus({ preventScroll: true }); } }, 0);
   });
 }
 // After the reveal, someone coming lands on their ticket (it can take a moment
@@ -631,8 +649,11 @@ function landOnTicket(tries = 30) {
   t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
 }
 const doneFor = (n) => (imFree(n.day) ? 'See my ticket' : 'OK');
-// Someone with a name who isn't coming yet ends the reveal on an invitation.
-const inviteFor = (n) => !!S.me && !imFree(n.day) && !isMine(n) && !showing(n);
+// Someone not coming yet ends the reveal on an invitation (with no name yet,
+// Count me in asks for one first).
+const inviteFor = (n) => !imFree(n.day) && !isMine(n) && !showing(n);
+// The reveal's heading once it has turned: "Friday's feature".
+const featureOf = (n) => `${L.dayFromKey(n.day).toLocaleDateString(undefined, { weekday: 'long' })}’s feature`;
 const blocked = () => !!document.querySelector('.tour-overlay, .reel-overlay, .reveal-overlay');
 
 // The reel settled a tie: play it once per person so everyone sees how.
@@ -650,7 +671,7 @@ function maybeRevealMovie(n) {
   if (S.me && !myDoc()) return; // wait until we know which reveals you've seen
   const p = pendingShow(n);
   if (!p || p.tie || p.deferred || blocked()) return;
-  play(n, p.key, () => revealMovie(n.lockedMovie, { when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n), invite: inviteFor(n) }));
+  play(n, p.key, () => revealMovie(n.lockedMovie, { when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n), invite: inviteFor(n), feature: featureOf(n) }));
 }
 
 // ---- the calendar --------------------------------------------------------------
@@ -953,9 +974,9 @@ function renderStats(shelf) {
 // (the control is found again by its key, since the page repaints). `done`
 // says what happened, after the welcome.
 let pending = null;
-function requireMe(el = null, done = '') {
+function requireMe(el = null, done = '', { ticket = false } = {}) {
   if (S.me) return S.me;
-  pending = el ? { key: keyOf(el), done } : null;
+  pending = el ? { key: keyOf(el), done, ticket } : null;
   const pass = $('#pass');
   pass.hidden = false;
   pass.classList.remove('flash');

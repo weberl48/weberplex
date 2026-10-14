@@ -12,7 +12,8 @@ const bigPoster = (url) => (url || '').replace('/poster/small/', '/poster/medium
 // coming). `invite`: someone not coming yet gets Count me in / Not this time.
 // Resolves { movie, seen, rsvp }: `seen` is false when back closed it before
 // the card turned (it plays again next visit); `rsvp` is true for Count me in.
-export function revealMovie(movie, { when = '', place = '', doneText = 'OK', invite = false } = {}) {
+// `feature` replaces "The movie is…" once it has turned ("Friday's feature").
+export function revealMovie(movie, { when = '', place = '', doneText = 'OK', invite = false, feature = '' } = {}) {
   return new Promise((resolve) => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const overlay = document.createElement('div');
@@ -48,6 +49,9 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK', inv
     const finish = () => {
       if (!actions.hidden) return;
       card.classList.add('flipped');
+      // The house lights it up: the bulbs flash and hold lit, the heading resolves.
+      stage.classList.add('landed');
+      if (feature) overlay.querySelector('h2').textContent = feature;
       overlay.querySelector('.reveal-title').textContent = movie.title;
       overlay.querySelector('.reveal-when').textContent = [when, place && `at ${place}`].filter(Boolean).join(' ');
       actions.hidden = false;
