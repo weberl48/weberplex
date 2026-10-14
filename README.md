@@ -1,153 +1,115 @@
 # Weberplex
 
-Movie night at the Webers'. Friends open one link, tick the nights they can
-make, suggest up to **five** movies each, and thumbs-up the ballot. The host
-locks the night and the picture; Home Assistant takes it from there.
+Movie night at the Webers' (and wherever else someone hosts). Friends open
+one link, mark the evenings they're free, volunteer to host, add movies to a
+shared shelf, and thumbs-up what they'd watch. The site picks the movie.
 
-- Guest site: https://weberplex.vercel.app (the old
-  speakeasy-picture-show.vercel.app address redirects here)
-- Host console: https://weberplex.vercel.app/host (the ready-made
-  link with the key is `HOST_LINK` in `.env.local`, which git ignores)
+- Site: https://weberplex.vercel.app (the old speakeasy-picture-show.vercel.app
+  address redirects here)
+- Owner console: https://weberplex.vercel.app/host (the ready-made link with
+  the key is `HOST_LINK` in `.env.local`, which git ignores)
 - HA endpoint: https://weberplex.vercel.app/api/status
+- Code: https://github.com/weberl48/weberplex (pushes to `master` deploy)
 
-## What guests can do
+## How it works
 
-| Phase | What shows |
+| Part | What people do |
 | --- | --- |
-| No night booked | Dark marquee, last movie, past screenings |
-| Voting open | Name gate, showtimes to tick, five-frame filmstrip of your picks, browse tabs (Search · Trending · Trending <ballot genre> · New this year · For you) + "Surprise me", the ballot (posters, tags, trailer, Stremio link, plot, votes, front-runner/tie ribbons, tag filters), concessions |
-| Locked (before showtime) | Admit-one ticket with a ticket number, Add to calendar (.ics with a 2-hour alert), trailer, "Can't make it", who's coming, final vote tally, concessions |
-| Showing (after showtime) | Same ticket, plus star ratings and one-line reviews |
-| Finished | Moves to Past screenings with the average rating |
+| **Calendar** | Four weeks of evenings. Tap the ones you're free. Anyone can pick a day, choose a start time and tap **I can host**: that puts a movie night on it (one per day; first volunteer hosts). |
+| **Up next** | The nearest night: when, whose house, who's coming, what *those people* have thumbed up, snacks. The host can change the time, lock early, unlock, mark it watched, or cancel. |
+| **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one". Thumbs-up ("I'd watch it") and **Seen it** are per person and carry over. Sort by most wanted, newest, fewest have seen, shortest; filter by tag, unseen by me, added by me. No cap. |
+| **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. |
 
-Hosting is volunteer-based: every candidate night is posted as "host
-needed". Any guest can tap **I can host** (which also counts them in), and the
-host picks among the volunteers when locking, or leaves it undecided and sets
-it later from the locked night, where the regulars (`PLACES` in
-`public/js/config.js`: Weber, Ferger, Libby, Huey) are quick choices. The
-house shows on the showtimes, marquee, ticket and calendar file. Home
-Assistant only warms the basement when the house is one of the names in
-`binary_sensor.movie_night_at_home`.
+**The pick.** A day before each night, the movie locks itself: the most
+thumbs from the people free that night; if none of them voted, the most
+thumbs overall; if nobody voted, anything on the shelf. Ties go to the reel,
+which plays once on everyone's phone. A watched movie leaves the shelf. The
+night files itself as watched the morning after.
 
-The host console books a night (title plus any number of candidate times),
-adds or removes nights, adds **house picks** (tagged, outside everyone's five;
-same browse tabs, with "For the crowd"), removes picks, renames, sends any
-movie to the basement screen (**Show on the Shield**), **spins the reel** to
-break a tie (or to pick at random), locks, reopens, marks a night watched, or
-cancels.
-
-**For you** is content-based (no keyless source offers "people who liked X"):
-it builds a taste profile from what a person thumbed up and picked (or the
-house list until they vote), pulls popular and featured titles in their top
-two genres, and scores shared director > writer > cast, genre overlap, a
-foreign-film lean, and rating. Each tile says why ("Because you liked The
-Witch (Robert Eggers)"). Trending is Cinemeta's Popular catalog, which ranks
-by current Stremio + Trakt popularity.
-
-Seed a ballot from a list: `HOST_KEY=... npm run seed -- seed/<list>.json`
-(pinned IMDb ids; see `seed/spooky-season.json`).
-
-Everything updates live on every open phone.
+Also: a "since you last looked" banner (new nights, locks, movies, thumbs,
+free marks), a first-visit walkthrough (and **How it works** to replay it),
+tickets with an .ics invite, Stremio links on every card, and a season title
+on the marquee.
 
 ## How it's built
 
-There is no server. The static site in `public/` talks straight to Firestore
-(project id `speakeasy-picture-show`, which Firebase can't rename), and
-**`firestore.rules` is the whole backend**:
+There is no server in the write path. The static site in `public/` writes
+straight to Firestore (project id `speakeasy-picture-show`, which Firebase
+can't rename), and **`firestore.rules` is the backend**:
 
 - Guests are identified by name only (a deliberate choice: no accounts).
-  `logic.nameKey()` turns a name into the key the rules validate.
-- **Five picks:** each movie is written with a slot doc `slots/<nameKey>__<1..5>`
-  that points back at it. Slots can't be updated, so nobody can hold a sixth.
-- **One movie per ballot:** movie doc id = IMDb id; a second create is refused.
-- **Host-only changes:** a host write is a batch that also creates
-  `hostops/<fresh id>` holding the key. The rules compare it with
-  `config/host` (never readable) and require the op doc to be new in that
-  batch, so an old op id can't be replayed.
-- Picks and votes freeze when a night locks; RSVPs and snacks stay open;
-  reviews open once the locked showtime has passed.
+- `movies/{imdbId}`: the shelf. Guests add under their name; house picks
+  (`by == ''`) need the owner key. Movies are never edited.
+- `votes/` and `seen/`: one doc per person per movie. `free/{day}__{name}`:
+  the calendar.
+- `nights/{YYYY-MM-DD}`: one per day, created by its host. The rules allow
+  only these changes: new time; planned → locked (to a movie on the shelf);
+  locked → planned before showtime; locked → done after showtime; cancel;
+  and re-hosting a cancelled day. Snacks and reviews live under each night.
+- The owner key (a fresh `hostops/<id>` doc in the same batch, compared with
+  the never-readable `config/host`) guards only: the season title, house
+  picks, removing house picks, and Show on the Shield.
 
-Movie data comes from Stremio's public Cinemeta catalog (keyless, CORS-open),
-so every pick carries the IMDb id the Shield's Stremio deep link needs.
+**The clock.** Any phone that notices a night is due locks it (in a
+transaction) or files it. `/api/tick` does the same server-side, run by HA's
+status poll and a daily Vercel cron, so quiet weeks still lock on time. It
+needs no key: locking a due night is something any guest may do.
 
 ```
 public/            static site (Vercel serves it; cleanUrls)
-  js/logic.js      pure helpers: tally, slots, tickets, .ics, Cinemeta mapping
-  js/actions.js    every write batch (injected SDK, shared with the tests)
+  js/logic.js      pure helpers: shelf tally, the pick, calendar, news, .ics
+  js/actions.js    every write (injected SDK, shared with the tests)
   js/store.js      live subscriptions
-  js/app.js        guest page          js/host.js   host console
-  js/reel.js       spin-the-reel       js/ui.js     DOM helpers
-lib/status.js      flattens the current night for HA (Firestore REST, no creds)
-api/status.js      Vercel function wrapping lib/status.js (60 s edge cache)
+  js/app.js        guest page          js/host.js   owner console
+  js/browse.js     Trending / New / For you tabs   js/tour.js  walkthrough
+  js/reel.js       the tie-breaker     js/ui.js     DOM helpers
+lib/tick.js        the server clock    lib/status.js  JSON for HA
+lib/firestore-rest.js  tiny REST client for both
+api/               Vercel functions: status, tick (cron daily)
 firestore.rules    the backend
-tests/             logic + rules + status (emulator) and e2e.py (Playwright)
+seed/              house lists (pinned IMDb ids); tools/seed.mjs loads them
+tests/             logic + rules + server (emulator) and e2e.py (Playwright)
 ```
 
 ## Home Assistant
 
-`/config/packages/movie_night.yaml` on the Pi (the canonical copy) defines:
+`/config/packages/movie_night.yaml` on the Pi (the canonical copy):
 
-- `sensor.movie_night` (REST, every 15 min): state `none` / `open` / `locked`,
-  with movie, poster, showtime, warm-up time, attendees, leader, snacks.
-- `sensor.movie_night_shield_request` (Firestore REST, every 15 s) and
-  `automation.movie_night_show_on_the_shield`: the host console's "Show on the
-  Shield" opens that movie in Stremio within seconds. Requests older than two
-  minutes are ignored, so restarts never replay one.
-- `sensor.movie_night_showtime`: timestamp of the locked showtime.
-- `script.movie_night_start`: Movie scene, then the winner's Stremio detail page
-  by IMDb id, then a "Now showing" announcement on the Voice PE if it's online.
-- `script.movie_night_open_in_stremio`: the deep link on its own.
-- `automation.movie_night_warm_up_the_basement`: runs
-  `script.speakeasy_warmup_basement` 30 minutes before showtime and pushes.
-- `automation.movie_night_locked_notification`: pushes the poster when a night
-  locks, and again if the date or movie changes.
+- `sensor.movie_night` (every 30 min): `none` / `planned` / `locked` for the
+  next night, with host, start, lock time, attendees, leader or movie, snacks.
+- Pushes when someone volunteers to host and when a movie locks.
+- `binary_sensor.movie_night_at_home`: the night is in our basement (host is
+  Weber or Lucas). Only then does the basement warm up 30 minutes before, and
+  the tablet card offers "tap to start the show".
+- `script.movie_night_start`, `script.movie_night_open_in_stremio`, and the
+  Show-on-the-Shield automation (polls `control/shield` every 15 s).
 
-The tablet card lives in `/config/dashboards/speakeasy.yaml`, bar view, right
-under the greeting hero. Tap it (with a confirm) to start the show.
-
-## Tests
-
-```bash
-npm test           # logic, then rules + status in the emulator
-npm run test:e2e   # whole-night Playwright run (serves the site itself)
-```
-
-`e2e.py` runs a host and two guests through a whole night: five picks and a
-refused sixth, a duplicate, a tie broken by the reel, lock, ticket and .ics,
-reopen, reviews, then "We watched it". Run the site locally with
-`python -m http.server 5173 --directory public` and open `/?emu` to use the
-emulator.
-
-## Operations
-
-- Deploy: `vercel deploy --prod` from this folder.
-- Rules: `firebase deploy --only firestore:rules`.
-- Delete a night for good: `firebase firestore:delete nights/<id> --recursive -P speakeasy-picture-show`.
-- Rotate the host key: delete `config/host` in the Firebase console, then create
-  it again (the rules allow a one-time create), and update `.env.local`.
-- Spark plan quota: 50k reads a day, and running out breaks the site until
-  midnight Pacific. Budget: the Shield poll is ~5.8k/day; the status poll every
-  15 min reads the whole ballot while voting is open (27 movies + votes) but
-  only RSVPs + snacks once a night is locked; a guest page load reads every doc
-  of the current night once. Watch usage in the Firebase console before
-  shortening either poll.
+The tablet card lives in `/config/dashboards/speakeasy.yaml`, bar view.
 
 ## Making changes
 
 Anyone can open a pull request; people Lucas adds as collaborators can push.
 
-1. Clone it, then `npm install` (Node 18+; Java is needed for the Firestore
-   emulator the tests use).
-2. Run the site locally with `python -m http.server 5173 --directory public`
-   and open http://localhost:5173/?emu with the emulator running
-   (`firebase emulators:start --only firestore --project speakeasy-picture-show`),
-   so you never touch the real ballot.
-3. Before opening a PR: `npm test` and `npm run test:e2e`.
-4. When a change lands on `master`, Vercel redeploys weberplex.vercel.app
-   (pull requests get their own preview link).
-   Changes to `firestore.rules` go live only when Lucas runs
-   `firebase deploy --only firestore:rules`, so call them out in the PR.
+1. Clone it, then `npm install` (Node 18+; Java for the Firestore emulator).
+2. `npm test` (logic, then rules + server in the emulator) and
+   `npm run test:e2e` (a whole night in three browsers; serves the site itself).
+3. Run locally: `python -m http.server 5173 --directory public`, open
+   http://localhost:5173/?emu with the emulator running.
+4. Merges to `master` redeploy the site. Rule changes go live only when Lucas
+   runs `firebase deploy --only firestore:rules`, so call them out.
 
-Never commit `.env.local` (it holds the host key; `.gitignore` already
-excludes it). The Firebase web config in `public/js/config.js` is public by
-design: `firestore.rules` is what protects the data.
+Never commit `.env.local` (it holds the owner key). The Firebase web config
+in `public/js/config.js` is public by design.
+
+## Operations
+
+- Seed a list: `HOST_KEY=... npm run seed -- seed/<list>.json [--seen-as Lucas] [--season]`
+- Run the clock by hand: `node tools/tick.mjs`
+- Rotate the owner key: delete `config/host` in the Firebase console, create
+  it again (the rules allow one create), update `.env.local`.
+- Read budget: Spark allows 50k reads a day and going over breaks the site
+  until the daily reset. Page loads read the whole shelf, thumbs, seen marks
+  and upcoming free marks; HA's status poll reads every thumbs-up while a
+  night is planned. Watch usage in the Firebase console as the shelf grows.
+- An old pre-rebuild night doc (`nights/KjFWrXDWTF21O8drpded`) is left in
+  place; nothing reads it.
