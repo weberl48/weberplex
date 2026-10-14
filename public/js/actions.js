@@ -1,7 +1,7 @@
 // Every write the site makes. Firestore functions are injected (`F`) so the
 // browser passes the CDN SDK and the rules tests pass the npm SDK — the tests
 // exercise exactly these writes against firestore.rules.
-import { HOUSE, cleanName, nameKey, lockFields } from './logic.js';
+import { HOUSE, cleanName, nameKey, lockFields, cleanTheme } from './logic.js';
 
 function secureId(len = 24) {
   const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -114,9 +114,9 @@ export function makeActions(db, F) {
       await batched((b) => (isFree ? b.set(ref, freeDoc(who, day)) : b.delete(ref)));
     },
 
-    // Volunteer to host `day`, starting at `startsAt`. Creates the night (or
-    // revives a cancelled one) and marks you free.
-    async hostNight(who, day, startsAt) {
+    // Volunteer to host `day`, starting at `startsAt`, with an optional theme
+    // ('' = none). Creates the night (or revives a cancelled one) and marks you free.
+    async hostNight(who, day, startsAt, theme = '') {
       const ref = night(day);
       const snap = await getDoc(ref);
       if (snap.exists() && snap.data().status !== 'cancelled') {
@@ -128,6 +128,7 @@ export function makeActions(db, F) {
         b.set(ref, {
           day, startsAt, host: who.name, hostKey: who.nameKey, status: 'planned', createdAt: serverTimestamp(),
           lockedMovieId: null, lockedMovie: null, lockedTie: [], lockedAt: null, finishedAt: null,
+          theme: cleanTheme(theme), vetoes: {},
         });
         if (!isFree) b.set(free, freeDoc(who, day));
       });
@@ -135,6 +136,26 @@ export function makeActions(db, F) {
 
     async setNightTime(day, startsAt) {
       await batched((b) => b.update(night(day), { startsAt }));
+    },
+
+    // The night's theme ('' clears it); only while it is still planned.
+    async setTheme(day, theme) {
+      await batched((b) => b.update(night(day), { theme: cleanTheme(theme) }));
+    },
+
+    // Your one veto on a night (movieId = null takes it back). A transaction,
+    // so two people vetoing at once both keep theirs. False if the night has
+    // moved on (locked, cancelled) in the meantime.
+    async setVeto(day, who, movieId) {
+      return runTransaction(db, async (tx) => {
+        const snap = await tx.get(night(day));
+        if (!snap.exists() || snap.data().status !== 'planned') return false;
+        const vetoes = { ...(snap.data().vetoes || {}) };
+        if (movieId) vetoes[who.nameKey] = movieId;
+        else delete vetoes[who.nameKey];
+        tx.update(night(day), { vetoes });
+        return true;
+      });
     },
 
     // Lock the movie. A transaction, so two phones noticing the deadline at

@@ -18,16 +18,21 @@ shared shelf, and thumbs-up what they'd watch. The site picks the movie.
 | Part | What people do |
 | --- | --- |
 | **Calendar** | Four weeks of evenings. Tap the ones you're free. Anyone can pick a day, choose a start time and tap **I can host**: that puts a movie night on it (one per day; first volunteer hosts; the start has to be in the future, and hosting less than a day out locks the movie right away). |
-| **Up next** | The nearest night: when, whose house, who's coming, what *those people* have thumbed up, snacks. The host can change the time, lock early, unlock (until a day before), mark it watched (once it's started), or cancel (until it starts). |
+| **Up next** | The nearest night: when, whose house, who's coming, its theme, what *those people* have thumbed up, snacks. Everyone coming (and the host) gets one **veto** on a movie for this night. The host can change the time or theme, lock early, unlock (until a day before), mark it watched (once it's started), or cancel (until it starts). |
 | **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one". Thumbs-up ("I'd watch it") and **Seen it** are per person and carry over; every card shows who has seen it. Sort by most wanted, newest, fewest have seen, shortest; filter by tag, unseen by me, added by me. No cap. |
 | **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. |
 | **Stats** | The long view, worked out in your browser from what the page already has: nights and hours watched, movies added, thumbs-ups and who gives the most; the most wanted movies on the shelf; whose shelf picks made a night (house picks count as "House"); and, when you're signed in, who you agree with most (how alike your thumbs-ups are, once you and they have at least three). |
 
 **The pick.** A day before each night, the movie locks itself: the most
 thumbs from the people free that night; if none of them voted, the most
-thumbs overall; if nobody voted, anything on the shelf. Ties go to the reel,
-which plays once on everyone's phone. A watched movie leaves the shelf. The
-night files itself as watched the morning after.
+thumbs overall; if nobody voted, anything on the shelf. A night can have a
+**theme** (a shelf tag or a genre, picked when hosting or later from the host
+tools): the pick sticks to movies that fit it, or to the whole shelf when none
+do. A **veto** takes a movie out of that night's pick (one per person, undoable
+until the lock; if everything is vetoed the vetoes are ignored). Ties go to the
+reel, which plays once on everyone's phone; a clear winner gets the **reveal**
+instead, a card that flips to the poster once per person. A watched movie leaves
+the shelf. The night files itself as watched the morning after.
 
 Also: a "since you last looked" banner (new nights, locks, movies, thumbs,
 free marks), a first-visit walkthrough (and **How it works** to replay it),
@@ -54,13 +59,16 @@ can't rename), and **`firestore.rules` is the backend**:
   The browser remembers only that name. Everything else about a person
   lives on `people/{name}`: when they last looked (for the "since you last
   looked" banner), whether they've seen the walkthrough, their usual start
-  time, and which tie reels they've watched. So it follows them to any phone.
+  time, and which tie reels and movie reveals they've watched. So it follows
+  them to any phone.
 - `movies/{imdbId}`: the shelf. Guests add under their name; house picks
   (`by == ''`) need the owner key. Movies are never edited.
 - `votes/` and `seen/`: one doc per person per movie. `free/{day}__{name}`:
   the calendar.
 - `nights/{YYYY-MM-DD}`: one per day, created by its host. The rules allow
-  only these changes: new time; planned → locked (to a movie on the shelf);
+  only these changes: new time; a new theme; one person's veto set or taken
+  back (the host's or someone free that evening's; one key per write, at most
+  30 a night); planned → locked (to a movie on the shelf);
   locked → planned before showtime; locked → done after showtime; cancel;
   and re-hosting a cancelled day. Snacks and reviews live under each night.
 - The owner password (a fresh `hostops/<id>` doc in the same batch, compared
@@ -81,6 +89,7 @@ public/            static site (Vercel serves it; cleanUrls)
   js/app.js        guest page          js/host.js   owner console
   js/browse.js     Trending / New / For you tabs   js/tour.js  walkthrough
   js/reel.js       the tie-breaker     js/ui.js     DOM helpers
+  js/reveal.js     the flip-the-card reveal of a locked movie
 lib/tick.js        the server clock    lib/status.js  JSON for HA
 lib/calendar.js    the .ics feed       lib/preview.js  link-preview page
 lib/firestore-rest.js  tiny REST client for the server files
@@ -96,6 +105,7 @@ tests/             logic + rules + server (emulator) and e2e.py (Playwright)
 
 - `sensor.movie_night` (every 30 min): `none` / `planned` / `locked` for the
   next night, with host, start, lock time, attendees, leader or movie, snacks.
+  `/api/status` also reports the night's `theme` and how many `vetoes` it has.
 - Pushes when someone volunteers to host and when a movie locks.
 - `binary_sensor.movie_night_at_home`: the night is in our basement (host is
   Weber or Lucas). Only then does the basement warm up 30 minutes before, and
@@ -131,8 +141,10 @@ in `public/js/config.js` is public by design.
 - Read budget: Spark allows 50k reads a day and going over breaks the site
   until the daily reset. Page loads read the whole shelf, thumbs, seen marks
   and upcoming free marks; HA's status poll reads every thumbs-up while a
-  night is planned. Watch usage in the Firebase console as the shelf grows.
-  `/calendar.ics` (nights plus the last month's free marks) is cached 15
+  night is planned (and the whole shelf too while that night has a theme:
+  matching a theme needs each movie's tags). Vetoes and themes live on the
+  night doc, so the clock needs no extra reads for them. Watch usage in the
+  Firebase console as the shelf grows. `/calendar.ics` (nights plus the last month's free marks) is cached 15
   minutes and `/api/preview` (the same reads as the status poll) 5 minutes.
 - Link previews: `vercel.json` *redirects* `/` to `/api/preview` only when the
   user-agent is a known preview bot (a redirect, not a rewrite, because Vercel

@@ -7,6 +7,7 @@ import {
   dayKey, dayFromKey, calendarDays, tallyDays, sinceLastLook, shelfTags, excludedFor,
   icsEvent, icsCalendar, icsFold, icsEscape,
   tasteMatch, pickLeaders, mostWanted, recap,
+  vetoedFor, pickable, fitsTheme, themeOptions, cleanTheme, showtimeShort,
 } from '../public/js/logic.js';
 
 const at = (ms) => new Date(ms);
@@ -287,4 +288,100 @@ test('movieFromMeta maps Cinemeta fields within rule limits', () => {
   assert.equal(m.imdbId, 'tt15239678');
   assert.equal(m.trailer, 'U2Qp5pL3ovA');
   assert.equal(m.description.length, 600);
+});
+
+// ---- themes and vetoes ----------------------------------------------------------
+// A small shelf with tags and genres. Thumbs: Alpha 3, Bravo 2 (both from the
+// people coming), Charlie 1, Delta 0.
+const tmovies = [
+  { imdbId: 'tt1', title: 'Alpha', at: at(1), genres: ['Comedy'] },
+  { imdbId: 'tt2', title: 'Bravo', at: at(2), genres: ['Horror', 'Thriller'], shelf: ['Foreign'] },
+  { imdbId: 'tt3', title: 'Charlie', at: at(3), genres: ['Horror'] },
+  { imdbId: 'tt4', title: 'Delta', at: at(4), genres: ['Drama'], shelf: ['Recent favorite'] },
+];
+const tvotes = [
+  ...['al', 'bo', 'cy'].map((k) => ({ movie: 'tt1', nameKey: k, name: k })),
+  ...['al', 'bo'].map((k) => ({ movie: 'tt2', nameKey: k, name: k })),
+  { movie: 'tt3', nameKey: 'al', name: 'al' },
+];
+const tpick = (extra) => pickMovie({ movies: tmovies, votes: tvotes, attendees: ['al', 'bo', 'cy'], rand: () => 0, ...extra });
+
+test('a veto takes a movie out of the pick', () => {
+  assert.equal(tpick().movie.imdbId, 'tt1');
+  const v = tpick({ vetoed: new Set(['tt1']) });
+  assert.equal(v.movie.imdbId, 'tt2', 'the next favorite wins');
+  assert.equal(v.basis, 'coming');
+  assert.deepEqual(v.tie, []);
+  // Vetoing the whole top tier hands it to the next tier.
+  assert.equal(tpick({ vetoed: new Set(['tt1', 'tt2']) }).movie.imdbId, 'tt3');
+  // The votes of the people coming still decide first: Delta (no thumbs) is never next.
+  assert.equal(tpick({ vetoed: new Set(['tt1', 'tt2', 'tt3']) }).movie.imdbId, 'tt4');
+  assert.deepEqual([...vetoedFor({ vetoes: { al: 'tt1', bo: 'tt1', cy: 'tt3' } })].sort(), ['tt1', 'tt3']);
+  assert.equal(vetoedFor({}).size, 0, 'old nights have no vetoes field');
+  assert.equal(vetoedFor(undefined).size, 0);
+});
+
+test('when every movie is vetoed the vetoes are ignored', () => {
+  const all = new Set(tmovies.map((m) => m.imdbId));
+  const p = tpick({ vetoed: all });
+  assert.equal(p.movie.imdbId, 'tt1');
+  assert.equal(p.basis, 'coming');
+  // Watched movies leave the shelf before vetoes are weighed.
+  assert.equal(tpick({ vetoed: all, watched: new Set(['tt4']) }).movie.imdbId, 'tt1');
+});
+
+test('a theme narrows the pick to movies with that tag or genre', () => {
+  // Horror: Bravo and Charlie fit; Bravo has more thumbs from the people coming.
+  const h = tpick({ theme: 'Horror' });
+  assert.equal(h.movie.imdbId, 'tt2');
+  assert.equal(h.themeFallback, false);
+  // Case-insensitive, and shelf tags count as well as genres.
+  assert.equal(tpick({ theme: 'horror' }).movie.imdbId, 'tt2');
+  assert.equal(tpick({ theme: 'recent favorite' }).movie.imdbId, 'tt4');
+  assert.equal(tpick({ theme: 'FOREIGN' }).movie.imdbId, 'tt2');
+  // A theme beats thumbs: Delta has none and still wins its own theme.
+  assert.equal(tpick({ theme: 'Drama' }).basis, 'shelf');
+  // No theme at all is the plain pick, flagged false.
+  assert.equal(tpick().themeFallback, false);
+  assert.equal(tpick({ theme: '' }).themeFallback, false);
+  // The theme's ties still go to the reel.
+  const tie = pickMovie({ movies: tmovies, votes: [], theme: 'Horror', rand: () => 0.99 });
+  assert.deepEqual(tie.tie.sort(), ['tt2', 'tt3']);
+});
+
+test('a theme nothing fits falls back to the whole shelf and says so', () => {
+  const w = tpick({ theme: 'Western' });
+  assert.equal(w.themeFallback, true);
+  assert.equal(w.movie.imdbId, 'tt1', 'the ordinary favorite');
+  // Vetoes apply first: with the only Horror favorite vetoed, the other fits.
+  assert.equal(tpick({ theme: 'Horror', vetoed: new Set(['tt2']) }).movie.imdbId, 'tt3');
+  // Both Horror movies vetoed: no fit left, so the theme drops and the rest of the shelf is picked.
+  const none = tpick({ theme: 'Horror', vetoed: new Set(['tt2', 'tt3']) });
+  assert.equal(none.themeFallback, true);
+  assert.equal(none.movie.imdbId, 'tt1');
+  // pickable() is what the UI lists "what the people coming want" from.
+  const shelf = tmovies.map((m) => ({ ...m, voters: [], votes: 0 }));
+  assert.deepEqual(pickable(shelf, { theme: 'Horror' }).movies.map((m) => m.imdbId), ['tt2', 'tt3']);
+  assert.equal(pickable(shelf, { theme: 'Western' }).themeFallback, true);
+  assert.equal(pickable(shelf, { vetoed: new Set(['tt1']) }).movies.length, 3);
+  assert.equal(pickable(shelf, { vetoed: new Set(shelf.map((m) => m.imdbId)) }).movies.length, 4);
+  assert.equal(pickMovie({ movies: [], votes: [], theme: 'Horror' }), null);
+});
+
+test('the theme menu: shelf tags first, then genres, each once', () => {
+  assert.deepEqual(themeOptions(tmovies), ['Recent favorite', 'Foreign', 'Comedy', 'Drama', 'Horror', 'Thriller']);
+  assert.deepEqual(themeOptions([]), []);
+  // A genre spelled like a tag, another case, or too long to store is left out.
+  assert.deepEqual(themeOptions([{ shelf: ['Horror'], genres: ['horror', 'x'.repeat(41)] }]), ['Horror']);
+  assert.equal(fitsTheme({ genres: ['Horror'] }, ' horror '), true);
+  assert.equal(fitsTheme({}, 'Horror'), false);
+  assert.equal(fitsTheme({}, ''), true);
+  assert.equal(cleanTheme('  Spooky   Night '), 'Spooky Night');
+  assert.equal(cleanTheme(null), '');
+  assert.equal(cleanTheme('x'.repeat(60)).length, 40);
+});
+
+test('showtimeShort reads like a person would say it', () => {
+  assert.equal(showtimeShort(new Date(2026, 9, 16, 20, 0), 'en-US'), 'Friday 8 PM');
+  assert.equal(showtimeShort(new Date(2026, 9, 16, 19, 30), 'en-US'), 'Friday 7:30 PM');
 });

@@ -4,7 +4,7 @@ import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, updateDoc } from 'firebase/firestore';
+import { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, updateDoc, setDoc } from 'firebase/firestore';
 import { makeActions } from '../public/js/actions.js';
 import { buildStatus } from '../lib/status.js';
 import { tick } from '../lib/tick.js';
@@ -103,4 +103,91 @@ test('the clock leaves far-off nights alone and files finished ones', async () =
   assert.equal(s.state, 'planned');
   assert.equal(s.night_day, dayOf(far));
   assert.equal(s.last_movie, 'Movie 1');
+});
+
+// ---- vetoes and themes ------------------------------------------------------------
+// Jo hosts a night 20 h out (inside the lock window); Sam is coming. Movie 1 is the
+// favorite of the people coming (two thumbs), movie 2 the runner-up (one), movie 3 a
+// Horror film nobody thumbed.
+async function themedNight({ theme = '' } = {}) {
+  const sam = await A.join('Sam'); const jo = await A.join('Jo');
+  await A.addMovie(jo, movie(1));
+  await A.addMovie(jo, movie(2));
+  await A.addMovie(jo, { ...movie(3), genres: ['Horror', 'Thriller'] });
+  await A.setVote(movie(3), jo, false);
+  await A.setVote(movie(1), sam, true);
+  const start = new Date(Date.now() + 20 * H);
+  const d = dayOf(start);
+  await A.hostNight(jo, d, start, theme);
+  await A.setFree(d, sam, true);
+  return { sam, jo, d };
+}
+
+test('the status leader and the clock both honour a veto', async () => {
+  const { sam, d } = await themedNight();
+  const before = await buildStatus(where);
+  assert.equal(before.leader_title, 'Movie 1');
+  assert.equal(before.vetoes, 0);
+  assert.equal(before.theme, null);
+  await A.setVeto(d, sam, movie(1).imdbId);
+  const s = await buildStatus(where);
+  assert.equal(s.vetoes, 1);
+  assert.equal(s.leader_title, 'Movie 2', 'the vetoed favorite is not the leader');
+  const r = await tick(where);
+  assert.equal(r.actions[0].action, 'locked');
+  assert.equal(r.actions[0].movie, 'Movie 2');
+  assert.equal((await buildStatus(where)).movie_title, 'Movie 2');
+  // Vetoes sit on the night doc, so the next clock run needs nothing else.
+  assert.equal((await getDoc(doc(db, 'nights', d))).data().vetoes.sam, movie(1).imdbId);
+});
+
+test('the status leader and the clock both honour a theme', async () => {
+  const { d } = await themedNight({ theme: 'Horror' });
+  const s = await buildStatus(where);
+  assert.equal(s.theme, 'Horror');
+  assert.equal(s.leader_title, null, 'only the unthumbed Horror film fits, so nobody leads');
+  const r = await tick(where);
+  assert.equal(r.actions[0].action, 'locked');
+  assert.equal(r.actions[0].movie, 'Movie 3');
+  assert.equal(r.actions[0].basis, 'shelf');
+  assert.equal(r.actions[0].themeFallback, undefined);
+  const locked = await buildStatus(where);
+  assert.equal(locked.state, 'locked');
+  assert.equal(locked.theme, 'Horror');
+  assert.equal(locked.night_day, d);
+});
+
+test('a theme and a veto together; a theme nothing fits is ignored', async () => {
+  const { sam, d } = await themedNight({ theme: 'Comedy' });
+  // Comedy fits movies 1 and 2 (the default genre). Veto the favorite: 2 leads.
+  await A.setVeto(d, sam, movie(1).imdbId);
+  assert.equal((await buildStatus(where)).leader_title, 'Movie 2');
+  // A theme nothing fits (and nothing vetoed that would fit) leaves the pick as usual.
+  await A.setVeto(d, sam, null);
+  await A.setTheme(d, 'Western');
+  const s = await buildStatus(where);
+  assert.equal(s.leader_title, 'Movie 1');
+  const r = await tick(where);
+  assert.equal(r.actions[0].movie, 'Movie 1');
+  assert.equal(r.actions[0].themeFallback, true);
+});
+
+test('a night from before themes and vetoes reads and locks as it always did', async () => {
+  const jo = await A.join('Jo');
+  await A.addMovie(jo, movie(1));
+  const start = new Date(Date.now() + 20 * H);
+  const d = dayOf(start);
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'nights', d), {
+      day: d, startsAt: start, host: 'Jo', hostKey: 'jo', status: 'planned', createdAt: new Date(),
+      lockedMovieId: null, lockedMovie: null, lockedTie: [], lockedAt: null, finishedAt: null,
+    });
+  });
+  const s = await buildStatus(where);
+  assert.equal(s.state, 'planned');
+  assert.equal(s.theme, null);
+  assert.equal(s.vetoes, 0);
+  const r = await tick(where);
+  assert.equal(r.actions[0].action, 'locked');
+  assert.equal(r.actions[0].movie, 'Movie 1');
 });

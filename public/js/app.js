@@ -9,6 +9,7 @@ import { watch, watchNights, watchFree, watchDoc, loadRows } from './store.js';
 import { searchMovies, movieMeta, topMovies } from './cinemeta.js';
 import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 import { spinReel } from './reel.js';
+import { revealMovie } from './reveal.js';
 import { openTour } from './tour.js';
 import * as L from './logic.js';
 import { $, esc, THUMB, faces, posterImg, saveLocal, loadLocal, dropLegacyLocal, toast, downloadFile, writeError, armed, paint } from './ui.js';
@@ -27,7 +28,7 @@ const S = {
   day: null,                         // calendar day shown in detail
   hostTime: '20:00',                 // your usual start time, from your people doc
   toured: !!legacy.toured,           // walkthrough done this visit (saved once you have a name)
-  reelsSeen: new Set(),              // tie reels played this visit
+  reelsSeen: new Set(),              // tie reels and movie reveals played this visit
   sort: 'wanted', filter: 'All',
   tab: 'search', tabItems: [], tabNote: '', tabLoading: false,
   openPlots: new Set(), lastVotes: new Map(),
@@ -98,7 +99,7 @@ async function clock() {
     try {
       if (L.lockDue(n)) {
         const watched = new Set([...L.excludedFor(S.nights, n.day), ...lockedNow]);
-        const pick = L.pickMovie({ movies: S.movies, votes: S.votes, watched, attendees: comingTo(n.day).map((f) => f.nameKey) });
+        const pick = L.pickMovie({ movies: S.movies, votes: S.votes, watched, attendees: comingTo(n.day).map((f) => f.nameKey), vetoed: L.vetoedFor(n), theme: n.theme || '' });
         if (pick && await A.lockNight(n.day, pick)) lockedNow.add(pick.movie.imdbId);
       } else if (L.doneDue(n)) {
         await A.finishNight(n.day);
@@ -122,6 +123,7 @@ function hostTools(n) {
   if (n.status === 'planned') {
     tools.push(timeSelect(`time-${n.day}`, timeOf(n.startsAt.toDate())),
       `<button class="btn btn-ghost btn-small" type="button" data-action="night-time" data-day="${n.day}">Change time</button>`,
+      themeSelect(`theme-${n.day}`, n.theme, `data-theme-day="${n.day}"`),
       `<button class="btn btn-ghost btn-small" type="button" data-action="lock-now" data-day="${n.day}">Lock the movie now</button>`);
   }
   if (n.status === 'locked' && showing(n)) tools.push(`<button class="btn btn-primary btn-small" type="button" data-action="finish-night" data-day="${n.day}">We watched it</button>`);
@@ -130,14 +132,28 @@ function hostTools(n) {
   return tools.length ? `<div class="row host-tools"><span class="label">You’re hosting</span>${tools.join('')}</div>` : '';
 }
 
-// What the people coming would watch, best first (thumbs from them).
+// What the people coming would watch, best first (thumbs from them). Vetoed
+// movies are out and a theme narrows the field, exactly as in the pick.
 function leadersFor(n, shelf) {
   const coming = new Set(comingTo(n.day).map((f) => f.nameKey));
-  return shelf.movies
+  return L.pickable(shelf.movies, { vetoed: L.vetoedFor(n), theme: n.theme }).movies
     .map((m) => ({ m, n: m.voters.filter((v) => coming.has(v.nameKey)).length }))
     .filter((x) => x.n > 0)
     .sort((a, b) => b.n - a.n || b.m.votes - a.m.votes)
     .slice(0, 3);
+}
+
+// A veto's owner, by name (the host's, or anyone's from the people list).
+const nameOf = (n, key) => (key === n.hostKey ? n.host : S.people.find((p) => p.id === key)?.name || key);
+
+// The movies a night has vetoed and who vetoed each, for the struck-through list.
+function vetoesFor(n, shelf) {
+  const by = new Map();
+  for (const [key, id] of Object.entries(n.vetoes || {})) by.set(id, [...(by.get(id) || []), key]);
+  return [...by].map(([id, keys]) => ({
+    id, keys, title: shelf.movies.find((m) => m.imdbId === id)?.title || 'A movie that left the shelf',
+    names: keys.map((k) => nameOf(n, k)).sort((a, b) => a.localeCompare(b)),
+  })).sort((a, b) => a.title.localeCompare(b.title));
 }
 
 // ---- render --------------------------------------------------------------
@@ -164,6 +180,7 @@ const out = (sel) => ({ set innerHTML(html) { paint($(sel), html); } });function
     renderWatched();
     renderStats(shelf);
     maybeRevealTie(upcoming[0]);
+    maybeRevealMovie(upcoming[0]);
   });
 }
 
@@ -178,7 +195,7 @@ function renderBoard(n, shelf) {
   } else if (n.status === 'planned') {
     const lead = leadersFor(n, shelf)[0];
     kicker = S.season || 'Coming up'; title = `Movie night at ${L.placeLabel(n.host)}`;
-    sub = L.showtimeLong(n.startsAt);
+    sub = [L.showtimeLong(n.startsAt), n.theme && `Theme: ${n.theme}`].filter(Boolean).join(' · ');
     count = [`Movie locks in ${L.countdownText(L.lockAt(n))}`, lead && `Leading: ${lead.m.title}`].filter(Boolean).join(' · ');
   } else {
     kicker = showing(n) ? 'Now showing' : (S.season ? `${S.season} · now booking` : 'Now booking');
@@ -248,15 +265,23 @@ function renderNext(upcoming, shelf) {
   let body;
   if (n.status === 'planned') {
     const leads = leadersFor(n, shelf);
+    const vetoes = vetoesFor(n, shelf);
+    const myVeto = S.me && n.vetoes?.[S.me.nameKey];
+    const canVeto = !!S.me && (isMine(n) || going);
+    const noFit = n.theme && L.pickable(shelf.movies, { vetoed: L.vetoedFor(n), theme: n.theme }).themeFallback;
+    const vetoBtn = (action, label, id, title) => `<button class="mini" type="button" data-action="${action}" data-day="${n.day}" data-id="${esc(id)}" aria-label="${label}: ${esc(title)}">${label}</button>`;
     body = `
       <div class="host-card night-card">
         <div class="nc-head">
-          <div><h3>${esc(L.showtimeLong(n.startsAt))}</h3><p class="hint">At ${esc(L.placeLabel(n.host))} · the movie locks ${esc(L.showtimeLong(L.lockAt(n)))}</p></div>
+          <div><h3>${esc(L.showtimeLong(n.startsAt))}</h3><p class="hint">At ${esc(L.placeLabel(n.host))} · the movie locks ${esc(L.showtimeLong(L.lockAt(n)))}</p>
+            ${n.theme ? `<p class="theme-line"><span class="label">Theme</span> <span class="theme-chip">${esc(n.theme)}</span>${noFit ? ' <span class="hint">Nothing on the shelf fits yet, so the whole shelf is in play.</span>' : ''}</p>` : ''}</div>
           <button class="btn ${going ? 'btn-ghost' : 'btn-bulb'} btn-small" type="button" data-action="free" data-day="${n.day}" data-keep="1">${going ? 'Can’t make it' : 'Count me in'}</button>
         </div>
         <p class="dd-line">${coming.length ? `${faces(coming, S.me?.nameKey, 8)} ${esc(coming.map((c) => c.name).join(', '))}` : 'Nobody else has said they’re in yet.'}</p>
         <div><span class="label">What the people coming want</span>
-          <ol class="leaders">${leads.length ? leads.map((x) => `<li>${esc(x.m.title)} <span class="v">${x.n} 👍</span></li>`).join('') : '<li class="hint">No thumbs from them yet. The shelf’s favorite wins if it stays that way.</li>'}</ol>
+          <ol class="leaders">${leads.length ? leads.map((x) => `<li>${esc(x.m.title)} <span class="v">${x.n} 👍</span>${canVeto && !myVeto ? ` ${vetoBtn('veto', 'Veto', x.m.imdbId, x.m.title)}` : ''}</li>`).join('') : '<li class="hint">No thumbs from them yet. The shelf’s favorite wins if it stays that way.</li>'}</ol>
+          ${vetoes.length ? `<ul class="vetoes">${vetoes.map((x) => `<li><s>${esc(x.title)}</s> <span class="hint">vetoed by ${esc(x.names.join(', '))}</span>${canVeto && myVeto === x.id ? ` ${vetoBtn('unveto', 'Undo veto', x.id, x.title)}` : ''}</li>`).join('')}</ul>` : ''}
+          <p class="hint">One veto each. Vetoed movies can’t be picked this night.${S.me && !canVeto ? ' Count yourself in to use yours.' : ''}</p>
         </div>
         ${hostTools(n)}
       </div>`;
@@ -290,6 +315,7 @@ function renderNext(upcoming, shelf) {
         ${going && !showing(n) ? `<button class="btn btn-ghost" type="button" data-action="free" data-day="${n.day}" data-keep="1">Can't make it</button>` : ''}
       </div>
       <p class="dd-line" style="margin-top:10px">${coming.length} coming: ${faces(coming, S.me?.nameKey, 8)} ${esc(coming.map((c) => c.name).join(', '))}</p>
+      ${n.theme ? `<p class="dd-line">Theme: <span class="theme-chip">${esc(n.theme)}</span></p>` : ''}
       ${hostTools(n)}
       ${showing(n) ? reviewBox(n, sub.reviews) : ''}`;
   }
@@ -350,7 +376,29 @@ function maybeRevealTie(n) {
   spinReel(pool, winner, { title: `${pool.length}-way tie. The reel decides…`, done: 'Nice' });
 }
 
+// The moment the movie is revealed: once per person (once per phone when not
+// signed in), for the next night once it's locked with no tie (ties get the
+// reel) and before it starts. Never on top of the walkthrough or a reel.
+function maybeRevealMovie(n) {
+  if (n?.status !== 'locked' || !n.lockedMovie || n.lockedTie?.length > 1 || started(n)) return;
+  if (S.me && !myDoc()) return; // wait until we know which reveals you've seen
+  const key = `r:${n.day}.${n.lockedMovieId}`;
+  if (S.reelsSeen.has(key) || myDoc()?.reels?.includes(key) || document.querySelector('.tour-overlay, .reel-overlay, .reveal-overlay')) return;
+  S.reelsSeen.add(key);
+  savePrefs({ reels: [...(myDoc()?.reels || []), key] });
+  revealMovie(n.lockedMovie, { when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host) });
+}
+
 // ---- the calendar --------------------------------------------------------------
+// The theme menu: none, then the shelf's tags and genres. A theme already set
+// stays in the list even if the movies behind it have left the shelf.
+function themeSelect(id, value = '', attrs = '') {
+  const options = L.themeOptions(shelfNow().movies);
+  if (value && !options.some((t) => t.toLowerCase() === value.toLowerCase())) options.unshift(value);
+  return `<label class="sr-only" for="${id}">Theme</label><select class="field place" id="${id}" ${attrs}>
+    <option value="">No theme</option>${options.map((t) => `<option value="${esc(t)}"${t.toLowerCase() === (value || '').toLowerCase() ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
+}
+
 function renderCalendar() {
   const days = L.tallyDays(L.calendarDays(), { free: S.free, nights: S.nights });
   if (!S.day || !days.some((d) => d.day === S.day)) S.day = days.find((d) => d.night && d.night.status !== 'done')?.day || days[0].day;
@@ -383,10 +431,10 @@ function renderCalendar() {
     ${d.night?.status === 'done'
       ? `<p class="dd-line">Watched ${esc(d.night.lockedMovie?.title || '')} at ${esc(L.placeLabel(d.night.host))}.</p>`
       : d.night
-      ? `<p class="dd-line"><b>${esc(d.night.host)}</b> is hosting at ${esc(L.showtimeParts(d.night.startsAt).time)}${d.night.status === 'locked' ? ` · showing ${esc(d.night.lockedMovie?.title || '')}` : ''}</p>${hostTools(d.night)}`
-      : `<div class="row dd-host">${timeSelect('hostTime', S.hostTime)}
+      ? `<p class="dd-line"><b>${esc(d.night.host)}</b> is hosting at ${esc(L.showtimeParts(d.night.startsAt).time)}${d.night.theme ? ` · ${esc(d.night.theme)} night` : ''}${d.night.status === 'locked' ? ` · showing ${esc(d.night.lockedMovie?.title || '')}` : ''}</p>${hostTools(d.night)}`
+      : `<div class="row dd-host">${timeSelect('hostTime', S.hostTime)}${themeSelect('hostTheme')}
           <button class="btn btn-bulb btn-small" type="button" data-action="host" data-day="${d.day}">I can host</button>
-          <span class="hint">Hosting puts a movie night on this day; you're marked free.</span></div>`}`;
+          <span class="hint">Hosting puts a movie night on this day; you're marked free. A theme is optional: the pick sticks to it when it can.</span></div>`}`;
 }
 
 // ---- the shelf ------------------------------------------------------------------
@@ -593,7 +641,7 @@ async function join(name) {
   }
 }
 function startTour() {
-  openTour({ onDone: () => { S.toured = true; savePrefs({ toured: true }); if (!S.me && !$('#pass').hidden) $('#passName').focus(); } });
+  openTour({ onDone: () => { S.toured = true; savePrefs({ toured: true }); if (!S.me && !$('#pass').hidden) $('#passName').focus(); render(); } });
 }
 // No name yet: show the walkthrough now. With a name, applyPrefs decides once
 // your people doc arrives.
@@ -602,6 +650,15 @@ if (!S.me && !S.toured) startTour();
 $('#passForm').addEventListener('submit', (e) => { e.preventDefault(); join($('#passName').value); });
 document.addEventListener('change', (e) => {
   if (e.target.id === 'hostTime') { S.hostTime = e.target.value; savePrefs({ hostTime: S.hostTime }); }
+  const day = e.target.dataset.themeDay; // the host's theme menu on a planned night
+  if (!day) return;
+  const theme = e.target.value;
+  once(`theme:${day}`, async () => {
+    try {
+      await A.setTheme(day, theme);
+      toast(theme ? `Theme: ${theme}. The pick sticks to it when it can.` : 'Theme cleared.');
+    } catch (err) { e.target.value = S.nights.find((x) => x.day === day)?.theme || ''; throw err; }
+  });
 });
 document.addEventListener('submit', (e) => {
   const form = e.target.closest('.snack-form');
@@ -660,8 +717,9 @@ document.addEventListener('click', (e) => {
       const me = requireMe(); if (!me) return;
       const startsAt = startsAtFor(day, S.hostTime);
       if (startsAt <= new Date()) { toast('That time has already passed. Pick a later start.', true); return; }
+      const theme = document.getElementById('hostTheme')?.value || '';
       once(`host:${day}`, async () => {
-        await A.hostNight(me, day, startsAt);
+        await A.hostNight(me, day, startsAt, theme);
         const soon = L.lockAt({ startsAt }) <= new Date();
         toast(`You're hosting ${L.showtimeLong(startsAt)}. ${soon ? 'It is less than a day away, so the movie locks now.' : 'The movie locks a day before.'}`);
       });
@@ -676,9 +734,19 @@ document.addEventListener('click', (e) => {
     case 'lock-now': {
       if (!armed(el, 'Tap again to lock')) return;
       const n = S.nights.find((x) => x.day === day);
-      const pick = L.pickMovie({ movies: S.movies, votes: S.votes, watched: L.excludedFor(S.nights, day), attendees: comingTo(day).map((f) => f.nameKey) });
+      const pick = L.pickMovie({ movies: S.movies, votes: S.votes, watched: L.excludedFor(S.nights, day), attendees: comingTo(day).map((f) => f.nameKey), vetoed: L.vetoedFor(n), theme: n.theme || '' });
       if (!pick) { toast('The shelf is empty. Add a movie first.', true); return; }
       once(`lock:${day}`, async () => { await A.lockNight(n.day, pick); toast(`Locked: ${pick.movie.title}.`); });
+      break;
+    }
+    case 'veto': case 'unveto': {
+      const me = requireMe(); if (!me) return;
+      const on = el.dataset.action === 'veto';
+      const title = shelfNow().movies.find((x) => x.imdbId === id)?.title || 'that movie';
+      once(`veto:${day}`, async () => {
+        if (!(await A.setVeto(day, me, on ? id : null))) { toast('That night has already locked.', true); return; }
+        toast(on ? `Vetoed ${title}. It can’t be picked this night.` : 'Veto taken back.');
+      });
       break;
     }
     case 'unlock-night': if (armed(el)) once(`unlock:${day}`, () => A.unlockNight(day)); break;
@@ -833,7 +901,7 @@ function downloadIcs() {
     title: `Movie night: ${m.title}`,
     start: n.startsAt.toDate(),
     minutes: runtime ? runtime + 30 : 150,
-    description: `Weberplex: ${m.title}${m.year ? ` (${m.year})` : ''} at ${L.placeLabel(n.host)}. ${SITE_URL}`,
+    description: `Weberplex: ${m.title}${m.year ? ` (${m.year})` : ''} at ${L.placeLabel(n.host)}.${n.theme ? ` Theme: ${n.theme}.` : ''} ${SITE_URL}`,
     location: L.placeLabel(n.host),
     url: SITE_URL,
   }), 'text/calendar');

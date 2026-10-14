@@ -91,11 +91,50 @@ export function tallyShelf({ movies = [], votes = [], seen = [], watched = new S
   return { movies: out, leaders, tie: leaders.length > 1 };
 }
 
-// The movie for a night: most thumbs from the people coming; if none of them
-// voted, most thumbs overall; if nobody voted at all, anything on the shelf.
-// Ties go to the reel (rand).
-export function pickMovie({ movies = [], votes = [], watched = new Set(), attendees = [], rand = Math.random }) {
-  const shelf = tallyShelf({ movies, votes, watched }).movies;
+// ---- themes and vetoes ------------------------------------------------------
+// A night can carry a theme (a shelf tag or a genre) and each person coming
+// can veto one movie. Both live on the night doc, so the clock needs no more reads.
+export const THEME_MAX = 40;
+export const cleanTheme = (raw) => String(raw ?? '').replace(/\s+/g, ' ').trim().slice(0, THEME_MAX);
+
+// The movies a night has vetoed (nameKey -> imdbId on the doc).
+export const vetoedFor = (night) => new Set(Object.values(night?.vetoes || {}));
+
+const movieTags = (m) => [...(m.shelf || []), ...(m.genres || [])].map((t) => String(t).toLowerCase());
+export const fitsTheme = (m, theme) => !theme || movieTags(m).includes(String(theme).trim().toLowerCase());
+
+// What the theme menu offers: the shelf's tags in shelf order, then the genres
+// on the shelf, each once. `movies` is the unwatched shelf.
+export function themeOptions(movies = []) {
+  const out = [];
+  const seen = new Set();
+  const add = (t) => {
+    const k = String(t).toLowerCase();
+    if (!t || t.length > THEME_MAX || seen.has(k)) return;
+    seen.add(k);
+    out.push(t);
+  };
+  shelfTags(movies).forEach(add);
+  [...new Set(movies.flatMap((m) => m.genres || []))].sort().forEach(add);
+  return out;
+}
+
+// What a night may pick from, out of the unwatched shelf: vetoed movies are
+// out (unless that would empty it), then a theme narrows what's left to movies
+// tagged or classed with it. When none fit, the theme is dropped (`themeFallback`).
+export function pickable(shelf = [], { vetoed = new Set(), theme = '' } = {}) {
+  const open = shelf.filter((m) => !vetoed.has(m.imdbId));
+  const movies = open.length ? open : shelf;
+  if (!theme) return { movies, themeFallback: false };
+  const fits = movies.filter((m) => fitsTheme(m, theme));
+  return fits.length ? { movies: fits, themeFallback: false } : { movies, themeFallback: true };
+}
+
+// The movie for a night, from what's pickable: most thumbs from the people
+// coming; if none of them voted, most thumbs overall; if nobody voted at all,
+// anything left. Ties go to the reel (rand).
+export function pickMovie({ movies = [], votes = [], watched = new Set(), attendees = [], vetoed = new Set(), theme = '', rand = Math.random }) {
+  const { movies: shelf, themeFallback } = pickable(tallyShelf({ movies, votes, watched }).movies, { vetoed, theme });
   if (!shelf.length) return null;
   const coming = new Set(attendees);
   const fromComing = (m) => m.voters.filter((v) => coming.has(v.nameKey)).length;
@@ -106,7 +145,7 @@ export function pickMovie({ movies = [], votes = [], watched = new Set(), attend
   else if (shelf[0].votes > 0) { pool = shelf.filter((m) => m.votes === shelf[0].votes); basis = 'everyone'; }
   else { pool = shelf; basis = 'shelf'; }
   const movie = pool[Math.floor(rand() * pool.length) % pool.length];
-  return { movie, tie: pool.length > 1 ? pool.map((m) => m.imdbId) : [], basis, score: basis === 'coming' ? topComing : movie.votes };
+  return { movie, tie: pool.length > 1 ? pool.map((m) => m.imdbId) : [], basis, score: basis === 'coming' ? topComing : movie.votes, themeFallback };
 }
 
 // The fields a lock writes, shared by the browser and the server clock.
@@ -323,6 +362,13 @@ export function showtimeParts(when, locale = undefined) {
 export function showtimeLong(when, locale = undefined) {
   const d = toDate(when);
   return d.toLocaleString(locale, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+// "Friday 8 PM" (":30" only when it isn't on the hour), for the reveal.
+export function showtimeShort(when, locale = undefined) {
+  const d = toDate(when);
+  const time = d.toLocaleTimeString(locale, { hour: 'numeric', ...(d.getMinutes() ? { minute: '2-digit' } : {}) });
+  return `${d.toLocaleDateString(locale, { weekday: 'long' })} ${time}`.replace(/\u202f/g, ' ');
 }
 
 export function parseRuntime(text) {

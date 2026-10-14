@@ -44,7 +44,7 @@ const STEPS = [
   },
   {
     title: 'The movie picks itself',
-    body: 'A day before each night, it locks the movie the people coming want most (the reel breaks ties). You get a ticket and a calendar invite, call snacks, and rate it after the credits.',
+    body: 'A day before each night, it locks the movie the people coming want most (the reel breaks ties). Hosts can set a theme, and everyone coming gets one veto. You get a ticket and a calendar invite, call snacks, and rate it after the credits.',
     demo: `<div class="ticket tour-ticket"><div class="ticket-main"><p class="admit">ADMIT ONE</p><h3>The Witch</h3>
       <dl><dt>When</dt><dd>Fri, Oct 17 · 8:00 PM</dd><dt>Where</dt><dd>Jo's</dd></dl></div>
       <div class="ticket-stub"><span>No. 004213</span></div></div>`,

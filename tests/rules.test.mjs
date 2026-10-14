@@ -221,3 +221,172 @@ test('your settings live on your people doc', async () => {
   await assertFails(A.savePrefs(sam, { secret: 1 }));
   await assertFails(A.savePrefs({ name: 'Nobody', nameKey: 'nobody' }, { toured: true })); // join first
 });
+
+// ---- themes and vetoes ------------------------------------------------------------
+const nightDoc = (d, host, extra = {}) => ({
+  day: d, startsAt: new Date(Date.now() + 5 * 86400000), host, hostKey: host.toLowerCase(), status: 'planned', createdAt: new Date(),
+  lockedMovieId: null, lockedMovie: null, lockedTie: [], lockedAt: null, finishedAt: null, ...extra,
+});
+const asAdmin = (fn) => env.withSecurityRulesDisabled((ctx) => fn(ctx.firestore()));
+const vetoesOf = async (d) => (await getDoc(doc(db, 'nights', d))).data().vetoes;
+
+test('hosting can carry a theme; a night starts with no vetoes', async () => {
+  const jo = await A.join('Jo');
+  const d = day(5);
+  await assertSucceeds(A.hostNight(jo, d, new Date(Date.now() + 5 * 86400000), 'Foreign'));
+  const n = (await getDoc(doc(db, 'nights', d))).data();
+  assert.equal(n.theme, 'Foreign');
+  assert.deepEqual(n.vetoes, {});
+  const plain = day(6);
+  await A.hostNight(jo, plain, new Date(Date.now() + 6 * 86400000));
+  assert.equal((await getDoc(doc(db, 'nights', plain))).data().theme, '', 'no theme is an empty string');
+  // The rules cap the theme and refuse a night created with vetoes already in it.
+  const long = day(7);
+  const later = new Date(Date.now() + 7 * 86400000);
+  const forged = (extra) => setDoc(doc(db, 'nights', long), { ...nightDoc(long, 'Jo', { startsAt: later }), createdAt: serverTimestamp(), ...extra });
+  await assertFails(forged({ theme: 'x'.repeat(41), vetoes: {} }));
+  await assertFails(forged({ theme: 'ok', vetoes: { jo: 'tt0000001' } }));
+  await assertFails(forged({ theme: 5, vetoes: {} }));
+  await assertSucceeds(forged({ theme: 'x'.repeat(40), vetoes: {} }));
+});
+
+test('the theme can change while a night is planned, nothing else rides along', async () => {
+  const jo = await A.join('Jo');
+  const d = day(5);
+  await A.hostNight(jo, d, new Date(Date.now() + 5 * 86400000));
+  await assertSucceeds(A.setTheme(d, 'Horror'));
+  assert.equal((await getDoc(doc(db, 'nights', d))).data().theme, 'Horror');
+  await assertSucceeds(A.setTheme(d, ''));
+  assert.equal((await getDoc(doc(db, 'nights', d))).data().theme, '');
+  await assertSucceeds(A.setTheme(d, '  Drama   night '));
+  assert.equal((await getDoc(doc(db, 'nights', d))).data().theme, 'Drama night');
+  await assertFails(updateDoc(doc(db, 'nights', d), { theme: 'x'.repeat(41) }));
+  await assertFails(updateDoc(doc(db, 'nights', d), { theme: 7 }));
+  await assertFails(updateDoc(doc(db, 'nights', d), { theme: 'Sneaky', host: 'Somebody else' }));
+  await assertFails(updateDoc(doc(db, 'nights', d), { theme: 'Sneaky', status: 'cancelled' }));
+  // Locked nights keep the theme they were picked with.
+  await A.addMovie(jo, movie(1));
+  await A.lockNight(d, { movie: movie(1), tie: [] });
+  await assertFails(A.setTheme(d, 'Too late'));
+});
+
+test('the host and people who are free can veto once, and undo it', async () => {
+  const jo = await A.join('Jo');
+  const sam = await A.join('Sam');
+  const al = await A.join('Al');
+  await A.addMovie(jo, movie(1));
+  await A.addMovie(jo, movie(2));
+  const d = day(4);
+  await A.hostNight(jo, d, new Date(Date.now() + 4 * 86400000));
+  assert.equal(await A.setVeto(d, jo, movie(1).imdbId), true);
+  assert.deepEqual(await vetoesOf(d), { jo: movie(1).imdbId });
+  // Sam is not free that evening and not hosting: refused.
+  await assertFails(A.setVeto(d, sam, movie(2).imdbId));
+  await A.setFree(d, sam, true);
+  assert.equal(await A.setVeto(d, sam, movie(2).imdbId), true);
+  assert.deepEqual(await vetoesOf(d), { jo: movie(1).imdbId, sam: movie(2).imdbId });
+  // One veto each: a second movie goes through the undo.
+  await assertFails(A.setVeto(d, sam, movie(1).imdbId));
+  assert.equal(await A.setVeto(d, sam, null), true);
+  assert.deepEqual(await vetoesOf(d), { jo: movie(1).imdbId });
+  assert.equal(await A.setVeto(d, sam, movie(1).imdbId), true, 'and a new one after the undo');
+  assert.equal(await A.setVeto(d, jo, null), true);
+  assert.deepEqual(await vetoesOf(d), { sam: movie(1).imdbId });
+  // Undoing when you never vetoed changes nothing (a no-op write, like any other).
+  assert.equal(await A.setVeto(d, jo, null), true);
+  assert.deepEqual(await vetoesOf(d), { sam: movie(1).imdbId });
+  // Someone who was free and no longer is can't veto either.
+  await A.setFree(d, al, true);
+  await A.setFree(d, al, false);
+  await assertFails(A.setVeto(d, al, movie(2).imdbId));
+});
+
+test('a veto is one key per write, for a movie on the shelf, on a planned night', async () => {
+  const jo = await A.join('Jo');
+  const sam = await A.join('Sam');
+  await A.addMovie(jo, movie(1));
+  const d = day(4);
+  await A.hostNight(jo, d, new Date(Date.now() + 4 * 86400000));
+  await A.setFree(d, sam, true);
+  const night = () => doc(db, 'nights', d);
+  const id = movie(1).imdbId;
+  // Two keys at once, a key that isn't a valid name key, a movie that isn't there, odd shapes.
+  await assertFails(updateDoc(night(), { vetoes: { jo: id, sam: id } }));
+  await assertFails(updateDoc(night(), { vetoes: { 'Bad Key': id } }));
+  await assertFails(updateDoc(night(), { vetoes: { jo: 'tt9999999' } }));
+  await assertFails(updateDoc(night(), { vetoes: { jo: 42 } }));
+  await assertFails(updateDoc(night(), { vetoes: 'everything' }));
+  await assertFails(updateDoc(night(), { vetoes: { jo: id }, theme: 'Mixed in' }));
+  // Vetoing in somebody else's name works only if they are free (name-only trust,
+  // as with thumbs), and still one key per write.
+  await assertSucceeds(updateDoc(night(), { vetoes: { sam: id } }));
+  await assertSucceeds(updateDoc(night(), { vetoes: { sam: id, jo: id } })); // the host's key is the one added
+  await assertFails(updateDoc(night(), { vetoes: {} })); // two removed at once
+  await assertFails(updateDoc(night(), { vetoes: { jo: id, al: id } })); // one swapped for another
+  await assertSucceeds(updateDoc(night(), { vetoes: { jo: id } })); // Sam's taken back
+  await assertSucceeds(updateDoc(night(), { vetoes: {} }));
+  // A locked night takes no more vetoes.
+  await A.lockNight(d, { movie: movie(1), tie: [] });
+  assert.equal(await A.setVeto(d, sam, id), false);
+  await assertFails(updateDoc(night(), { vetoes: { sam: id } }));
+});
+
+test('at most 30 vetoes on a night', async () => {
+  const jo = await A.join('Jo');
+  await A.addMovie(jo, movie(1));
+  const d = day(4);
+  const thirty = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`guest-${i}`, movie(1).imdbId]));
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', d), nightDoc(d, 'Jo', { theme: '', vetoes: thirty })));
+  await assertFails(A.setVeto(d, jo, movie(1).imdbId));
+  await asAdmin((admin) => updateDoc(doc(admin, 'nights', d), { vetoes: Object.fromEntries(Object.entries(thirty).slice(1)) }));
+  await assertSucceeds(A.setVeto(d, jo, movie(1).imdbId));
+});
+
+test('nights from before themes and vetoes still lock, unlock and finish', async () => {
+  const jo = await A.join('Jo');
+  await A.addMovie(jo, movie(1));
+  const d = day(3);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', d), nightDoc(d, 'Jo', { startsAt: new Date(Date.now() + 3 * 86400000) })));
+  assert.equal('vetoes' in (await getDoc(doc(db, 'nights', d))).data(), false, 'an old doc has neither field');
+  await assertSucceeds(A.setNightTime(d, new Date(Date.now() + 3 * 86400000 + H)));
+  assert.equal(await A.lockNight(d, { movie: movie(1), tie: [] }), true);
+  await assertSucceeds(A.unlockNight(d));
+  assert.equal(await A.lockNight(d, { movie: movie(1), tie: [] }), true);
+  // A past old-style night is filed as watched.
+  const past = day(-2);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', past), nightDoc(past, 'Jo', {
+    startsAt: new Date(Date.now() - 3 * H), status: 'locked', lockedMovieId: movie(1).imdbId, lockedMovie: movie(1), lockedAt: new Date(Date.now() - 30 * H),
+  })));
+  assert.equal(await A.finishNight(past), true);
+  assert.equal((await getDoc(doc(db, 'nights', past))).data().status, 'done');
+  // The first veto or theme on an old doc adds the field.
+  const old2 = day(8);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', old2), nightDoc(old2, 'Jo', { startsAt: new Date(Date.now() + 8 * 86400000) })));
+  assert.equal(await A.setVeto(old2, jo, movie(1).imdbId), true);
+  assert.deepEqual(await vetoesOf(old2), { jo: movie(1).imdbId });
+  const old3 = day(9);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', old3), nightDoc(old3, 'Jo', { startsAt: new Date(Date.now() + 9 * 86400000) })));
+  await assertSucceeds(A.setTheme(old3, 'Horror'));
+});
+
+test('cancelling and re-hosting starts a night clean: no old vetoes or theme', async () => {
+  const jo = await A.join('Jo');
+  const sam = await A.join('Sam');
+  await A.addMovie(jo, movie(1));
+  const d = day(4);
+  const start = new Date(Date.now() + 4 * 86400000);
+  await A.hostNight(jo, d, start, 'Horror');
+  await A.setVeto(d, jo, movie(1).imdbId);
+  await A.cancelNight(d);
+  await assertSucceeds(A.hostNight(sam, d, start));
+  const n = (await getDoc(doc(db, 'nights', d))).data();
+  assert.deepEqual(n.vetoes, {});
+  assert.equal(n.theme, '');
+  assert.equal(n.host, 'Sam');
+});
+
+test('a reveal is remembered on your people doc next to the tie reels', async () => {
+  const sam = await A.join('Sam');
+  await assertSucceeds(A.savePrefs(sam, { reels: ['2026-10-31.tt0000001', 'r:2026-11-07.tt0000002'] }));
+  assert.deepEqual((await getDoc(doc(db, 'people', 'sam'))).data().reels, ['2026-10-31.tt0000001', 'r:2026-11-07.tt0000002']);
+});

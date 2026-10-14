@@ -161,19 +161,37 @@ service cloud.firestore {
 
     // ---- nights ---------------------------------------------------------------
     // One per day, created by its volunteer host. Allowed changes:
-    //   planned -> planned   new start time
+    //   planned -> planned   new start time, a theme, or one person's veto (set or cleared)
     //   planned -> locked    the movie is picked (by a phone or the server clock)
     //   locked  -> planned   unlock before showtime
     //   locked  -> done      after showtime
     //   planned/locked -> cancelled, and cancelled -> planned (someone re-hosts)
+    // A theme is free text (a shelf tag or genre); nights from before themes
+    // and vetoes existed have neither field, so every rule reads them with get().
+    function validTheme(t) { return t is string && t.size() <= 40; }
     function newNight(day) {
       let d = request.resource.data;
       return validDay(day) && d.day == day
         && d.keys().hasOnly(['day', 'startsAt', 'host', 'hostKey', 'status', 'createdAt',
-            'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt', 'finishedAt'])
+            'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt', 'finishedAt', 'theme', 'vetoes'])
         && d.status == 'planned' && d.startsAt is timestamp && d.startsAt > request.time
         && validName(d.host) && validKey(d.hostKey)
-        && d.createdAt == request.time && d.lockedMovieId == null && d.lockedAt == null;
+        && d.createdAt == request.time && d.lockedMovieId == null && d.lockedAt == null
+        && validTheme(d.get('theme', '')) && d.get('vetoes', {}) == {};
+    }
+    // One person's veto, set or cleared: exactly one key of `vetoes` appears or
+    // disappears (nothing else moves), it belongs to the host or to someone free
+    // that evening, and it names a movie on the shelf. At most 30 vetoes a night.
+    function vetoOk(day, before, after) {
+      let was = before.get('vetoes', {});
+      let added = after.vetoes.keys().removeAll(was.keys());
+      let gone = was.keys().removeAll(after.vetoes.keys());
+      let k = added.size() == 1 ? added[0] : gone[0];
+      return after.vetoes is map && after.vetoes.size() <= 30
+        && after.vetoes.diff(was).affectedKeys().size() == 1 && added.size() + gone.size() == 1
+        && validKey(k)
+        && (k == before.hostKey || exists(/databases/$(database)/documents/free/$(day + '__' + k)))
+        && (gone.size() == 1 || (after.vetoes[k] is string && movieExists(after.vetoes[k])));
     }
     function nightChangeOk(day) {
       let before = resource.data;
@@ -181,6 +199,10 @@ service cloud.firestore {
       let changed = after.diff(before).affectedKeys();
       return (before.status == 'planned' && after.status == 'planned'
             && changed.hasOnly(['startsAt']) && after.startsAt is timestamp && after.startsAt > request.time)
+        || (before.status == 'planned' && after.status == 'planned'
+            && changed.hasOnly(['theme']) && validTheme(after.theme))
+        || (before.status == 'planned' && after.status == 'planned'
+            && changed.hasOnly(['vetoes']) && vetoOk(day, before, after))
         || (before.status == 'planned' && after.status == 'locked'
             && changed.hasOnly(['status', 'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt'])
             && after.lockedAt == request.time && movieExists(after.lockedMovieId))

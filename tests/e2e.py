@@ -227,6 +227,7 @@ def main():
         expect(sam.locator('.reel-overlay button')).to_be_visible(timeout=15000)
         sam.locator('.reel-overlay button').click()
         expect(sam.locator('#next .ticket')).to_contain_text('ADMIT ONE', timeout=10000)
+        expect(sam.locator('.reveal-overlay')).to_have_count(0)  # a tie lock gets the reel, not the reveal
         shown = sam.locator('#next .ticket h3').inner_text().lower()  # uppercased by CSS
         winner = next((t for t in (alien, jaws) if t.lower() == shown), None)
         assert winner, shown
@@ -273,6 +274,120 @@ def main():
         card(sam, paddington).locator('.vote').click()
         expect(sam.locator('#tasteBox')).to_contain_text('You and Jo agree 75%')
         shot(sam, '04b-guest-stats')
+
+        # A more fun pick. Jo hosts a second night with a theme (the house pick is the
+        # only "Foreign" movie, and nobody has thumbed it).
+        cell2 = jo.locator('#calendar .day').nth(4)
+        day2 = cell2.get_attribute('data-day')
+        cell2.click()
+        expect(jo.locator(f'#calendar .day.on[data-day="{day2}"]')).to_have_count(1)
+        expect(jo.locator('#hostTheme option', has_text='Foreign')).to_have_count(1)
+        jo.select_option('#hostTheme', 'Foreign')
+        shot(jo, '04b2-host-form-theme')
+        jo.click('#dayDetail [data-action="host"]')
+        expect(jo.locator('#next .theme-chip')).to_have_text('Foreign')
+        expect(jo.locator('#board')).to_contain_text('Theme: Foreign')
+        expect(sam.locator('#next .theme-chip')).to_have_text('Foreign')
+        shot(jo, '04b3-host-themed-night')
+        sam.click('#next [data-action="free"]')  # Count me in
+        expect(sam.locator('#next .dd-line').first).to_contain_text('Sam')
+        # The theme narrows "what the people coming want" to movies that fit it.
+        expect(sam.locator('#next .leaders')).to_contain_text('No thumbs from them yet')
+        # The host clears the theme from the host tools; it clears on Sam's phone too.
+        jo.select_option('#next select[data-theme-day]', '')
+        expect(jo.locator('#next .theme-chip')).to_have_count(0)
+        expect(sam.locator('#next .theme-chip')).to_have_count(0)
+        expect(sam.locator('#next .leaders li')).to_have_count(3)  # Paddington, the other finalist, Jo's trending pick
+
+        # Sam vetoes Paddington (it would have tied with the other finalist): struck
+        # through for everyone, one veto each, and only its owner can undo it.
+        def veto_button(page, action):
+            return page.locator('#next .leaders li', has_text=paddington).locator(f'[data-action="{action}"]')
+        veto_button(sam, 'veto').click()
+        expect(sam.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
+        expect(sam.locator('#next .vetoes s')).to_have_text(paddington)
+        expect(sam.locator('#next .leaders')).not_to_contain_text(paddington)
+        expect(sam.locator('#next [data-action="veto"]')).to_have_count(0)  # one veto each
+        expect(sam.locator('#next [data-action="unveto"]')).to_have_count(1)
+        expect(jo.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
+        expect(jo.locator('#next [data-action="veto"]')).to_have_count(2)  # Jo has not used a veto yet
+        expect(jo.locator('#next [data-action="unveto"]')).to_have_count(0)  # Sam's is Sam's to undo
+        expect(sam.locator('#next .night-card .hint').last).to_contain_text('One veto each')
+        shot(sam, '04c-guest-veto')
+        sam.click('#next [data-action="unveto"]')
+        expect(sam.locator('#next .vetoes')).to_have_count(0)
+        expect(sam.locator('#next [data-action="veto"]')).to_have_count(3)
+        veto_button(sam, 'veto').click()
+        expect(sam.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
+
+        # Locking honours the veto: the other finalist wins outright (no tie, so no
+        # reel) and the reveal flips the poster for each person, once.
+        loser = jaws if winner == alien else alien
+        lock = jo.locator('#next [data-action="lock-now"]')
+        lock.click()
+        lock.click()
+        expect(sam.locator('.reveal-overlay')).to_be_visible(timeout=15000)
+        expect(sam.locator('.reel-overlay')).to_have_count(0)
+        expect(sam.locator('.reveal-title')).to_have_text(loser, timeout=10000)
+        expect(sam.locator('.reveal-when')).to_contain_text("8 PM at Jo's")
+        shot(sam, '04d-reveal')
+        sam.keyboard.press('Tab')  # focus stays inside the dialog
+        expect(sam.locator('.reveal-overlay button')).to_be_focused()
+        sam.click('.reveal-overlay button')
+        expect(sam.locator('.reveal-overlay')).to_have_count(0)
+        expect(sam.locator('#next .ticket h3')).to_contain_text(loser, ignore_case=True)
+        expect(jo.locator('.reveal-overlay')).to_be_visible(timeout=15000)
+        expect(jo.locator('.reveal-title')).to_have_text(loser, timeout=10000)
+        jo.keyboard.press('Escape')
+        expect(jo.locator('.reveal-overlay')).to_have_count(0)
+        # Seen is remembered on the person: a reload doesn't flip the card again.
+        sam.reload()
+        expect(sam.locator('#board h1')).to_contain_text(loser, ignore_case=True, timeout=10000)
+        sam.wait_for_timeout(1500)
+        expect(sam.locator('.reveal-overlay')).to_have_count(0)
+        reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/sam'))['fields']['reels']['arrayValue']['values']]
+        assert any(r.startswith(f'r:{day2}.') for r in reels), reels
+        # Someone new gets the walkthrough first; the reveal waits for it to close.
+        fresh = browser.new_context(viewport=PHONE).new_page()
+        fresh.on('pageerror', lambda e: errors.append(f'fresh: {e}'))
+        fresh.goto(f'{SITE}/?emu')
+        expect(fresh.locator('.tour-overlay')).to_be_visible(timeout=10000)
+        expect(fresh.locator('#board h1')).to_contain_text(loser, ignore_case=True, timeout=10000)
+        fresh.wait_for_timeout(1500)
+        expect(fresh.locator('.reveal-overlay')).to_have_count(0)
+        fresh.click('[data-tour="skip"]')
+        expect(fresh.locator('.reveal-overlay')).to_be_visible(timeout=10000)
+        fresh.keyboard.press('Escape')
+        expect(fresh.locator('.reveal-overlay')).to_have_count(0)
+
+        # Unlock and re-pick with the theme back on: the theme beats thumbs, and the
+        # new movie gets its own reveal.
+        unlock = jo.locator('#next [data-action="unlock-night"]')
+        unlock.click()
+        unlock.click()
+        expect(jo.locator('#next [data-action="lock-now"]')).to_be_visible(timeout=10000)
+        expect(jo.locator('#next .vetoes')).to_contain_text(paddington)  # vetoes survive an unlock
+        jo.select_option('#next select[data-theme-day]', 'Foreign')
+        expect(jo.locator('#next .theme-chip')).to_have_text('Foreign')
+        lock = jo.locator('#next [data-action="lock-now"]')
+        lock.click()
+        lock.click()
+        expect(sam.locator('.reveal-title')).to_have_text(house_title, timeout=15000)
+        sam.click('.reveal-overlay button')
+        expect(sam.locator('#next .ticket h3')).to_contain_text(house_title, ignore_case=True)
+        expect(sam.locator('#next')).to_contain_text('Theme')
+        expect(jo.locator('.reveal-title')).to_have_text(house_title, timeout=15000)
+        jo.keyboard.press('Escape')
+
+        # That night is watched too.
+        emu('PATCH', f'{DOCS}/nights/{day2}?updateMask.fieldPaths=startsAt',
+            {'fields': {'startsAt': {'timestampValue': started}}}, owner=True)
+        finish = jo.locator('#next [data-action="finish-night"]')
+        expect(finish).to_be_visible(timeout=10000)
+        finish.click()
+        finish.click()
+        expect(sam.locator('#past')).to_contain_text(house_title, timeout=10000)
+        expect(sam.locator('#statTiles')).to_contain_text('Nights watched')
 
         # Name switching keeps working; the taste match belongs to a signed-in person.
         sam.click('[data-action=switch]')
