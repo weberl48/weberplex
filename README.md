@@ -21,6 +21,7 @@ shared shelf, and thumbs-up what they'd watch. The site picks the movie.
 | **Up next** | The nearest night: when, whose house, who's coming, what *those people* have thumbed up, snacks. The host can change the time, lock early, unlock (until a day before), mark it watched (once it's started), or cancel (until it starts). |
 | **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one". Thumbs-up ("I'd watch it") and **Seen it** are per person and carry over; every card shows who has seen it. Sort by most wanted, newest, fewest have seen, shortest; filter by tag, unseen by me, added by me. No cap. |
 | **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. |
+| **Stats** | The long view, worked out in your browser from what the page already has: nights and hours watched, movies added, thumbs-ups and who gives the most; the most wanted movies on the shelf; whose shelf picks made a night (house picks count as "House"); and, when you're signed in, who you agree with most (how alike your thumbs-ups are, once you and they have at least three). |
 
 **The pick.** A day before each night, the movie locks itself: the most
 thumbs from the people free that night; if none of them voted, the most
@@ -74,7 +75,7 @@ needs no key: locking a due night is something any guest may do.
 ```
 public/            static site (Vercel serves it; cleanUrls)
   img/og.png       the link-preview card (1200x630)
-  js/logic.js      pure helpers: shelf tally, the pick, calendar, news, .ics
+  js/logic.js      pure helpers: shelf tally, the pick, stats, calendar, news, .ics
   js/actions.js    every write (injected SDK, shared with the tests)
   js/store.js      live subscriptions
   js/app.js        guest page          js/host.js   owner console

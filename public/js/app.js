@@ -162,6 +162,7 @@ const out = (sel) => ({ set innerHTML(html) { paint($(sel), html); } });function
     renderCalendar();
     renderShelf(shelf);
     renderWatched();
+    renderStats(shelf);
     maybeRevealTie(upcoming[0]);
   });
 }
@@ -518,6 +519,44 @@ function renderWatched() {
         <span class="s">${r.count ? `★ ${r.avg}` : ''}</span>
       </div>`;
   }).join('');
+}
+
+// ---- stats --------------------------------------------------------------------------
+// All of it comes from what the page already holds: no reads of its own.
+function renderStats(shelf) {
+  $('#statsSec').hidden = !ready();
+  if (!ready()) return;
+  const r = L.recap(S.nights, S.votes, S.movies);
+  const tile = (n, one, many) => `<div class="stat-tile"><b>${n}</b><span>${n === 1 ? one : many}</span></div>`;
+  out('#statTiles').innerHTML = [
+    tile(r.nights, 'Night watched', 'Nights watched'), tile(r.hours, 'Hour of movies', 'Hours of movies'),
+    tile(r.shelf, 'Movie added', 'Movies added'), tile(r.thumbs, 'Thumbs-up', 'Thumbs-ups'),
+  ].join('');
+  $('#topVoter').hidden = !r.topVoter;
+  if (r.topVoter) $('#topVoter').textContent = `Most thumbs-ups: ${r.topVoter.name} (${r.topVoter.thumbs})`;
+
+  const wanted = L.mostWanted(shelf.movies);
+  out('#topWanted').innerHTML = wanted.length
+    ? `<ol class="leaders">${wanted.map((m) => `<li>${esc(m.title)} <span class="v">${m.votes} 👍</span></li>`).join('')}</ol>`
+    : '<p class="hint">No thumbs-ups yet. Tap the thumb on a movie you’d watch.</p>';
+
+  const leaders = L.pickLeaders(S.nights, S.movies);
+  out('#pickBoard').innerHTML = leaders.length
+    ? `<ol class="leaders">${leaders.map((x) => `<li>${esc(x.name)}${S.me && x.nameKey === S.me.nameKey ? ' (you)' : ''} <span class="v">${x.picks} ${x.picks === 1 ? 'pick' : 'picks'}</span></li>`).join('')}</ol>`
+    : '<p class="hint">No shelf pick has made a night yet. Whoever added the first winner tops this board.</p>';
+
+  // Who you agree with: only for someone signed in, and only once there are
+  // enough thumbs on both sides to compare.
+  $('#tasteCard').hidden = !S.me;
+  if (!S.me) return;
+  const mine = S.votes.filter((v) => v.nameKey === S.me.nameKey).length;
+  const match = L.tasteMatch(S.votes, S.me.nameKey).slice(0, 3);
+  out('#tasteBox').innerHTML = match.length
+    ? `<ul class="stat-list">${match.map((x) => `
+        <li class="taste"><span>You and <b>${esc(x.name)}</b> agree <span class="v">${x.pct}%</span></span>
+          <span class="meter" style="--p:${x.pct}%" aria-hidden="true"></span>
+          <span class="hint">${x.shared} ${x.shared === 1 ? 'movie' : 'movies'} in common</span></li>`).join('')}</ul>`
+    : `<p class="hint">${mine < L.MIN_TASTE_THUMBS ? 'Thumbs-up a few movies to see who you agree with.' : 'Nobody else has thumbed up enough movies to compare with yet.'}</p>`;
 }
 
 // ---- actions -------------------------------------------------------------

@@ -147,6 +147,75 @@ export function hostCounts(nights = []) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
+// ---- stats and history --------------------------------------------------------
+// What the Stats section shows, all derived from the shelf, thumbs and nights
+// the page already holds.
+
+// With fewer thumbs than this, "you agree 100%" just means two people liked
+// one movie.
+export const MIN_TASTE_THUMBS = 3;
+
+// Who agrees with `meKey`: the Jaccard similarity of two people's thumbs
+// (|A∩B| / |A∪B|) over every movie, watched ones included. Anyone with fewer
+// than `minThumbs` thumbs is left out (me too: then there is nobody to compare).
+// Most alike first, ties by name.
+export function tasteMatch(votes = [], meKey, { minThumbs = MIN_TASTE_THUMBS } = {}) {
+  const thumbs = new Map();
+  for (const v of votes) {
+    if (!thumbs.has(v.nameKey)) thumbs.set(v.nameKey, { name: v.name || v.nameKey, movies: new Set() });
+    thumbs.get(v.nameKey).movies.add(v.movie);
+  }
+  const mine = thumbs.get(meKey)?.movies;
+  if (!mine || mine.size < minThumbs) return [];
+  const rows = [];
+  for (const [key, p] of thumbs) {
+    if (key === meKey || p.movies.size < minThumbs) continue;
+    let shared = 0;
+    for (const id of p.movies) if (mine.has(id)) shared += 1;
+    const sim = shared / (mine.size + p.movies.size - shared);
+    rows.push({ sim, row: { nameKey: key, name: p.name, pct: Math.round(sim * 100), shared } });
+  }
+  return rows.sort((a, b) => b.sim - a.sim || a.row.name.localeCompare(b.row.name)).map((x) => x.row);
+}
+
+// Whose shelf additions became the movie of a locked or watched night, most
+// first. Every house pick counts toward one "House".
+export function pickLeaders(nights = [], movies = []) {
+  const byId = new Map(movies.map((m) => [m.imdbId, m]));
+  const tally = new Map();
+  for (const n of nights) {
+    if ((n.status !== 'locked' && n.status !== 'done') || !n.lockedMovieId) continue;
+    const m = byId.get(n.lockedMovieId);
+    if (!m || (!isHouse(m) && !m.by)) continue;
+    const key = isHouse(m) ? HOUSE : m.by;
+    if (!tally.has(key)) tally.set(key, { nameKey: key, name: isHouse(m) ? 'House' : m.byName || m.by, picks: 0 });
+    tally.get(key).picks += 1;
+  }
+  return [...tally.values()].sort((a, b) => b.picks - a.picks || a.name.localeCompare(b.name));
+}
+
+// The unwatched movies people want most. `shelfMovies` is tallyShelf().movies
+// (watched ones already left out, each with its `votes`); a movie nobody has
+// thumbed up doesn't make the list.
+export function mostWanted(shelfMovies = [], n = 5) {
+  return shelfMovies.filter((m) => m.votes > 0).sort((a, b) => b.votes - a.votes).slice(0, n);
+}
+
+// The long view: finished nights and their hours (from the movies' runtimes),
+// every movie ever added to the shelf (watched ones too), every thumbs-up, and
+// who has given the most.
+export function recap(nights = [], votes = [], movies = []) {
+  const done = nights.filter((n) => n.status === 'done');
+  const minutes = done.reduce((s, n) => s + (parseRuntime(n.lockedMovie?.runtime) || 0), 0);
+  const given = new Map();
+  for (const v of votes) {
+    if (!given.has(v.nameKey)) given.set(v.nameKey, { nameKey: v.nameKey, name: v.name || v.nameKey, thumbs: 0 });
+    given.get(v.nameKey).thumbs += 1;
+  }
+  const topVoter = [...given.values()].sort((a, b) => b.thumbs - a.thumbs || a.name.localeCompare(b.name))[0] || null;
+  return { nights: done.length, hours: Math.round(minutes / 60), shelf: movies.length, thumbs: votes.length, topVoter };
+}
+
 // ---- the calendar -------------------------------------------------------------
 export const CALENDAR_DAYS = 28;
 

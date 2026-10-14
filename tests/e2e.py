@@ -174,6 +174,12 @@ def main():
         card(jo, alien).locator('.vote').click()
         expect(card(sam, alien).locator('.vote .n')).to_have_text('2')
 
+        # Stats: most wanted leads with Alien; Sam has only two thumbs so far, so
+        # the taste match shows its empty state.
+        expect(sam.locator('#statsSec')).to_be_visible()
+        expect(sam.locator('#topWanted li').first).to_contain_text(alien)
+        expect(sam.locator('#tasteBox')).to_contain_text('Thumbs-up a few movies to see who you agree with')
+
         # Calendar: Jo marks a day free and volunteers to host it.
         cell = jo.locator('#calendar .day').nth(2)
         day = cell.get_attribute('data-day')
@@ -259,9 +265,20 @@ def main():
         expect(sam.locator('#hostsLine')).to_contain_text('Jo 1')
         shot(sam, '04-guest-watched')
 
-        # Name switching keeps working.
+        # Stats after the night: the recap counts it, the board credits whoever added
+        # the winner (Sam added both finalists), and a third thumb gives Sam a match
+        # with Jo: Sam {alien, jaws, paddington} against Jo's four, 3 of 4 movies.
+        expect(sam.locator('#statTiles')).to_contain_text('Night watched')
+        expect(sam.locator('#pickBoard li').first).to_contain_text('Sam (you)')
+        card(sam, paddington).locator('.vote').click()
+        expect(sam.locator('#tasteBox')).to_contain_text('You and Jo agree 75%')
+        shot(sam, '04b-guest-stats')
+
+        # Name switching keeps working; the taste match belongs to a signed-in person.
         sam.click('[data-action=switch]')
         expect(sam.locator('#whoami')).to_be_empty()
+        expect(sam.locator('#tasteCard')).to_be_hidden()
+        expect(sam.locator('#topWanted li').first).to_be_visible()
 
         # A first-time visitor gets the walkthrough once.
         newbie = browser.new_context(viewport=PHONE).new_page()

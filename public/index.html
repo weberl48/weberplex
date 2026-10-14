@@ -121,6 +121,17 @@
       <p class="hint" id="hostsLine"></p>
     </section>
 
+    <section class="section" id="statsSec" hidden>
+      <div class="section-head"><h2>Stats</h2><span class="aside">The long view</span></div>
+      <div class="stat-tiles" id="statTiles"></div>
+      <p class="hint" id="topVoter" hidden></p>
+      <div class="stat-grid">
+        <div class="stat-card"><h3 class="label">Most wanted</h3><div id="topWanted"></div></div>
+        <div class="stat-card" id="tasteCard" hidden><h3 class="label">Who you agree with</h3><div id="tasteBox"></div></div>
+        <div class="stat-card"><h3 class="label">Picks that made it</h3><div id="pickBoard"></div></div>
+      </div>
+    </section>
+
     <footer class="footer">
       <span>Movie data and posters from Stremio's public Cinemeta catalog.</span>
       <span class="row"><button class="linkish" type="button" data-action="tour">How it works</button><span id="ownerLink" hidden> · <a href="/host">Owner console</a></span></span>

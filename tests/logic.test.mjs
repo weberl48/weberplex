@@ -6,6 +6,7 @@ import {
   watchedIds, tallyShelf, pickMovie, lockFields, lockDue, doneDue, lockAt, upcomingNights, pastNights, hostCounts,
   dayKey, dayFromKey, calendarDays, tallyDays, sinceLastLook, shelfTags, excludedFor,
   icsEvent, icsCalendar, icsFold, icsEscape,
+  tasteMatch, pickLeaders, mostWanted, recap,
 } from '../public/js/logic.js';
 
 const at = (ms) => new Date(ms);
@@ -128,6 +129,78 @@ test('since you last looked: what changed, minus your own doing', () => {
   assert.equal(n.votes.get('tt1'), 1);
   assert.ok(n.days.has('2026-10-17') && n.days.has('2026-10-20'));
   assert.deepEqual(sinceLastLook({ since: null, movies }).items, []);
+});
+
+const thumbs = (key, name, ...ids) => ids.map((movie) => ({ movie, nameKey: key, name }));
+
+test('taste match: how alike two people\'s thumbs are, most alike first', () => {
+  const v = [
+    ...thumbs('me', 'Me', 'a', 'b', 'c', 'd'), // d is a watched movie: still counts
+    ...thumbs('jo', 'Jo', 'a', 'b', 'c', 'd'),
+    ...thumbs('sam', 'Sam', 'a', 'b', 'e'),
+    ...thumbs('al', 'Al', 'a', 'b', 'x'),
+    ...thumbs('bo', 'Bo', 'a', 'b'), // too few thumbs to say anything
+    ...thumbs('cy', 'Cy', 'x', 'y', 'z'),
+  ];
+  assert.deepEqual(tasteMatch(v, 'me'), [
+    { nameKey: 'jo', name: 'Jo', pct: 100, shared: 4 },
+    { nameKey: 'al', name: 'Al', pct: 40, shared: 2 }, // 2 of 5 movies; ties by name
+    { nameKey: 'sam', name: 'Sam', pct: 40, shared: 2 },
+    { nameKey: 'cy', name: 'Cy', pct: 0, shared: 0 },
+  ]);
+  // The threshold is adjustable, and it applies to me as well.
+  assert.deepEqual(tasteMatch(v, 'me', { minThumbs: 2 }).find((x) => x.nameKey === 'bo'), { nameKey: 'bo', name: 'Bo', pct: 50, shared: 2 });
+  assert.deepEqual(tasteMatch(v, 'bo'), []);
+  assert.deepEqual(tasteMatch(v, 'nobody'), []);
+  assert.deepEqual(tasteMatch([], 'me'), []);
+  assert.equal(tasteMatch(v, 'jo').find((x) => x.nameKey === 'me').pct, 100);
+  // Two of three thumbs in common is 2 of 4 movies between them.
+  const close = tasteMatch([...thumbs('me', 'Me', 'a', 'b', 'c'), ...thumbs('di', 'Di', 'a', 'b', 'q')], 'me');
+  assert.deepEqual(close, [{ nameKey: 'di', name: 'Di', pct: 50, shared: 2 }]);
+  const third = tasteMatch([...thumbs('me', 'Me', 'a', 'b', 'c', 'd'), ...thumbs('ed', 'Ed', 'a', 'b', 'c', 'x', 'y', 'z', 'w')], 'me');
+  assert.equal(third[0].pct, 38); // 3 of 8 movies, rounded
+});
+
+test('pick leaders: whose shelf additions became a night', () => {
+  const shelf = [
+    { imdbId: 'tt1', by: 'sam', byName: 'Sam' }, { imdbId: 'tt2', by: 'sam', byName: 'Sam' },
+    { imdbId: 'tt3', by: 'jo', byName: 'Jo' }, { imdbId: 'tt4', by: '', byName: 'The house' },
+    { imdbId: 'tt5', by: 'sam', byName: 'Sam' }, { imdbId: 'tt6', by: 'jo', byName: 'Jo' }, { imdbId: 'tt7', by: '', byName: 'The house' },
+  ];
+  const list = [
+    { day: '1', status: 'done', lockedMovieId: 'tt1' }, { day: '2', status: 'done', lockedMovieId: 'tt2' },
+    { day: '3', status: 'locked', lockedMovieId: 'tt3' }, { day: '4', status: 'done', lockedMovieId: 'tt4' },
+    { day: '5', status: 'cancelled', lockedMovieId: 'tt5' }, { day: '6', status: 'planned' },
+    { day: '7', status: 'done', lockedMovieId: 'gone' }, { day: '8', status: 'done', lockedMovieId: 'tt7' },
+  ];
+  assert.deepEqual(pickLeaders(list, shelf), [
+    { nameKey: '', name: 'House', picks: 2 }, // tied with Sam: ties by name
+    { nameKey: 'sam', name: 'Sam', picks: 2 },
+    { nameKey: 'jo', name: 'Jo', picks: 1 },
+  ]);
+  assert.deepEqual(pickLeaders([], shelf), []);
+  assert.deepEqual(pickLeaders(list), []);
+});
+
+test('most wanted: unwatched movies with a thumb, most first', () => {
+  const t = tallyShelf({ movies, votes, watched: watchedIds(nights) });
+  assert.deepEqual(mostWanted(t.movies).map((m) => m.imdbId), ['tt1', 'tt2']); // tt3 has none; tt4 is watched
+  assert.deepEqual(mostWanted(t.movies, 1).map((m) => m.imdbId), ['tt1']);
+  assert.deepEqual(mostWanted([]), []);
+  const many = Array.from({ length: 8 }, (_, i) => ({ imdbId: `m${i}`, title: `M${i}`, votes: 8 - i }));
+  assert.deepEqual(mostWanted(many).map((m) => m.imdbId), ['m0', 'm1', 'm2', 'm3', 'm4']);
+});
+
+test('recap: nights, hours, shelf, thumbs and the top voter', () => {
+  const list = [
+    { day: '1', status: 'done', lockedMovie: { runtime: '148 min' } }, { day: '2', status: 'done', lockedMovie: { runtime: '95 min' } },
+    { day: '3', status: 'done', lockedMovie: {} }, { day: '4', status: 'locked', lockedMovie: { runtime: '300 min' } },
+    { day: '5', status: 'cancelled' },
+  ];
+  const v = [...thumbs('sam', 'Sam', 'a', 'b', 'c'), ...thumbs('jo', 'Jo', 'a', 'b')];
+  assert.deepEqual(recap(list, v, movies), { nights: 3, hours: 4, shelf: 4, thumbs: 5, topVoter: { nameKey: 'sam', name: 'Sam', thumbs: 3 } });
+  assert.equal(recap(list, thumbs('sam', 'Sam', 'a', 'b').concat(thumbs('al', 'Al', 'a', 'b')), []).topVoter.name, 'Al'); // ties by name
+  assert.deepEqual(recap(), { nights: 0, hours: 0, shelf: 0, thumbs: 0, topVoter: null });
 });
 
 test('countdown, calendar file, helpers', () => {
