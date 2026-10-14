@@ -50,7 +50,14 @@ const S = {
 try { history.scrollRestoration = 'manual'; } catch { /* old browser */ }
 const busy = new Set();
 const ready = () => ['nights', 'movies', 'votes', 'seen', 'free'].every((k) => S.loaded.has(k));
-const got = (key) => (rows) => { S[key] = rows; S.loaded.add(key); render(); clock(); };
+// An empty list straight from the phone's own (empty) cache isn't news that
+// the house is empty: wait for the server's answer before calling it loaded.
+const got = (key) => (rows, fromCache) => {
+  if (fromCache && !rows.length && !S.loaded.has(key)) return;
+  S[key] = rows; S.loaded.add(key); render(); clock();
+};
+// Still nothing after a while: say the box office can't be reached yet.
+setTimeout(() => { if (!ready()) { S.unreachable = true; render(); } }, 8000);
 
 // ---- your settings (people/{nameKey}) ------------------------------------------
 const myDoc = () => (S.me ? S.people.find((p) => p.id === S.me.nameKey) : null);
@@ -75,7 +82,7 @@ function applyPrefs() {
 
 // ---- subscriptions ----------------------------------------------------------
 const onErr = (e) => { console.error(e); toast('Lost the connection to the box office. Reload to try again.', true); };
-watchNights(db, F, (rows) => { got('nights')(rows); clock(); syncNightSubs(); }, onErr);
+watchNights(db, F, (rows, fromCache) => { got('nights')(rows, fromCache); clock(); syncNightSubs(); }, onErr);
 watch(db, F, 'movies', got('movies'), onErr);
 watch(db, F, 'votes', got('votes'), onErr);
 watch(db, F, 'seen', got('seen'), onErr);
@@ -252,7 +259,8 @@ const knowsMe = () => !S.me || S.loaded.has('people');
 function renderBoard(n, shelf) {
   let kicker, title, sub, count = '';
   if (!ready() || !knowsMe()) {
-    kicker = 'Tonight'; title = 'Weberplex'; sub = 'Warming up the projector…';
+    kicker = 'Tonight'; title = 'Weberplex';
+    sub = S.unreachable ? 'Can’t reach the box office yet. Check your connection; this page catches up by itself.' : 'Warming up the projector…';
   } else if (!n) {
     kicker = S.season || 'The house is dark'; title = 'No night planned';
     sub = 'Pick an evening on the calendar and host one';
@@ -966,27 +974,38 @@ function focusPass() {
   pass.setAttribute('tabindex', '-1');
   pass.focus({ preventScroll: true });
 }
-async function once(key, fn) {
-  if (busy.has(key)) { toast('Still sending that one…'); return; }
+// Resolves true once the server has it, false if it failed.
+let lastRun = null;
+function once(key, fn) {
+  if (busy.has(key)) { toast('Still sending that one…'); return Promise.resolve(false); }
   busy.add(key);
-  try { const p = fn(); sending(); await p; } catch (e) { console.error(e); toast(writeError(e), true); } finally { busy.delete(key); }
+  const done = sending();
+  lastRun = (async () => {
+    try { await fn(); return true; } catch (e) { console.error(e); toast(writeError(e), true); return false; } finally { busy.delete(key); done(); }
+  })();
+  return lastRun;
 }
 // A tap counts once the server has it. A connection that's up but carrying
 // nothing fires no 'offline' event, so anything still unsent after a few
 // seconds says so, and says "Sent." when it lands. Leaving with something
 // unsent asks first: the browser keeps unsent taps only while the page is open.
 const NOT_SENT = 'Not sent yet. It goes through when your connection is back, as long as this page stays open.';
+// It watches the action, not the write queue: some actions read the night
+// first (dropping out, a veto), and nothing is queued until that read returns.
 let unsent = 0;
 let warned = false;
 function sending() {
   unsent += 1;
   const t = setTimeout(() => { if (!warned) { warned = true; toast(NOT_SENT, true, { stay: true }); } }, 4000);
-  sent().then(() => {
+  let over = false;
+  return () => {
+    if (over) return;
+    over = true;
     clearTimeout(t);
     unsent -= 1;
     // "Sent." only replaces the note; an action's own confirmation says more.
     if (!unsent && warned) { warned = false; if ($('#toast').textContent === NOT_SENT) toast('Sent.'); }
-  });
+  };
 }
 window.addEventListener('beforeunload', (e) => { if (unsent) { e.preventDefault(); e.returnValue = ''; } });
 async function join(name) {
@@ -1015,9 +1034,12 @@ async function join(name) {
       if (el) {
         el.focus({ preventScroll: true });
         if (el.disabled || el.getAttribute('aria-pressed') === 'true') return;
+        const before = lastRun;
         el.click();
         // Said once the server has it, not when the tap is sent.
-        if (p.done) sent().then(() => toast(`Welcome, ${who.name}. ${p.done}`));
+        const run = lastRun !== before ? lastRun : sent().then(() => true);
+        if (p.done) run.then((ok) => ok && toast(`Welcome, ${who.name}. ${p.done}`));
+        if (p.ticket) run.then((ok) => ok && setTimeout(() => landOnTicket(), 0));
         return;
       }
       const a = document.activeElement;

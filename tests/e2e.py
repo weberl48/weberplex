@@ -340,6 +340,32 @@ def honest_sending_checks(browser, errors):
     assert json.loads(emu('GET', f'{DOCS}/votes/{movie}__lia', owner=True)).get('fields'), 'the vote reached the server'
     page.context.close()
 
+    # Dropping out reads the night before it writes: the note still comes.
+    night = next(d for d in json.loads(emu('GET', f'{DOCS}/nights?pageSize=50', owner=True)).get('documents', [])
+                 if d['fields']['status']['stringValue'] == 'planned')
+    day = night['name'].rsplit('/', 1)[-1]
+    emu('PATCH', f'{DOCS}/free/{day}__lia', {'fields': fields({'day': day, 'nameKey': 'lia', 'name': 'Lia', 'at': now})}, owner=True)
+    page = as_person(browser, errors, 'lia2', 'Lia')
+    page.goto(f'{SITE}/?emu')
+    skip_cards(page)
+    rsvp = page.locator(f'#next [data-action="free"][data-day="{day}"]')
+    expect(rsvp).to_have_attribute('aria-pressed', 'true', timeout=10000)
+    page.context.route('**/google.firestore.v1.Firestore/Write/**', lambda r: r.abort())
+    rsvp.click()
+    rsvp.click()  # dropping out takes a second tap
+    expect(page.locator('#toast')).to_contain_text('Not sent yet', timeout=10000)
+    page.context.unroute('**/google.firestore.v1.Firestore/Write/**')
+    expect(page.locator('#toast')).to_contain_text('off the list', timeout=20000)
+    page.context.close()
+
+    # Opening with the box office unreachable says so, instead of an empty house.
+    page = as_person(browser, errors, 'lia3', 'Lia')
+    page.context.route('**/google.firestore.v1.Firestore/Listen/**', lambda r: r.abort())
+    page.goto(f'{SITE}/?emu')
+    expect(page.locator('#board')).to_contain_text('reach the box office', timeout=15000)
+    expect(page.locator('#next')).not_to_contain_text('Nobody is hosting yet')
+    page.context.close()
+
 
 def reveal_invite_checks(browser, errors):
     """Someone with a name who isn't coming yet: the reveal waits face down, then ends on

@@ -58,8 +58,10 @@ before it turns stays face down that visit, with **Reveal the movie** in Up
 next. Errors stay on screen until tapped away. A tap counts once the server
 has it: anything still unsent after a few seconds says **Not sent yet** (even
 when the phone thinks it's online), then **Sent.**, and leaving the page with
-something unsent asks first. Locking waits for a theme or veto tapped just
-before it, so the lock can't overtake it.
+something unsent asks first (dropping out and vetoes too, which read the night
+before they write). Locking waits for a theme or veto tapped just before it, so
+the lock can't overtake it. Opening the page with no connection says the box
+office can't be reached yet, rather than showing an empty house.
 
 **Names.** A name is all it takes. A tap before you've given one (a thumbs-up,
 Count me in, a veto) brings up the name form and goes through once you have.

@@ -1,19 +1,20 @@
-// Live subscriptions. Each callback gets plain objects ({ id, ...data }).
+// Live subscriptions. Each callback gets plain objects ({ id, ...data }), and
+// whether they came from the phone's own cache rather than the server.
 const rows = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }));
 
 export function watch(db, F, path, cb, onErr) {
-  return F.onSnapshot(F.collection(db, ...path.split('/')), (snap) => cb(rows(snap)), onErr);
+  return F.onSnapshot(F.collection(db, ...path.split('/')), (snap) => cb(rows(snap), snap.metadata.fromCache), onErr);
 }
 
 // Every night (one doc per day), newest first. No cap: the shelf and the stats
 // need all the watched ones, or an old movie would come back to the shelf.
 export function watchNights(db, F, cb, onErr) {
-  return F.onSnapshot(F.query(F.collection(db, 'nights'), F.orderBy('day', 'desc')), (snap) => cb(rows(snap)), onErr);
+  return F.onSnapshot(F.query(F.collection(db, 'nights'), F.orderBy('day', 'desc')), (snap) => cb(rows(snap), snap.metadata.fromCache), onErr);
 }
 
 // Free evenings from `fromDay` on (older marks don't matter).
 export function watchFree(db, F, fromDay, cb, onErr) {
-  return F.onSnapshot(F.query(F.collection(db, 'free'), F.where('day', '>=', fromDay)), (snap) => cb(rows(snap)), onErr);
+  return F.onSnapshot(F.query(F.collection(db, 'free'), F.where('day', '>=', fromDay)), (snap) => cb(rows(snap), snap.metadata.fromCache), onErr);
 }
 
 export function watchDoc(db, F, path, cb, onErr) {
