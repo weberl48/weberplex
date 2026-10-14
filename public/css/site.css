@@ -19,7 +19,6 @@
   --ticket: #f1dbc6;      /* admit-one paper */
   --ticket-ink: #2c1712;
   --ticket-label: #7a4a3e;  /* field names and small print on ticket stock */
-  --ticket-stamp: #2f7a4f;  /* "Seen" stamped on a lobby card's back */
   --admit-red: #8c2440;     /* ADMIT ONE and NOW BOOKING */
   --stripe-cream: #e8e0d6;  /* the cream in the concession stripe */
   --go: #93d9ad;
@@ -52,14 +51,15 @@ body {
   font-stretch: 100%;
   min-height: 100vh;
 }
-/* faint curtain pleats at the edges of wide screens */
+/* faint curtain pleats beside the column, only where there is room for them */
 body::before {
-  content: '';
+  content: none;
   position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
     repeating-linear-gradient(90deg, rgba(125, 27, 53, 0.10) 0 18px, rgba(0, 0, 0, 0.12) 18px 36px) left / 7vw 100% no-repeat,
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.12) 0 18px, rgba(125, 27, 53, 0.10) 18px 36px) right / 7vw 100% no-repeat;
 }
+@media (min-width: 900px) { body::before { content: ''; } }
 img { max-width: 100%; display: block; }
 a { color: var(--bulb); }
 button, input, select, textarea { font: inherit; color: inherit; accent-color: var(--bulb); }
@@ -238,6 +238,7 @@ h3.label, h4.label { margin: 0 0 6px; }
 .chip-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .chip-row > .label { flex: none; width: 3.2rem; margin: 0; }
 .chip-row .chips { min-width: 0; }
+.chip-row .sort-pick { width: auto; min-height: 40px; padding: 0 12px; font-size: var(--step--1); }
 
 .msg { min-height: 1.2em; margin: 0.5rem 0 0; font-size: var(--step--1); color: var(--dim); }
 .msg.bad { color: var(--bad); }
@@ -324,63 +325,17 @@ h3.label, h4.label { margin: 0 0 6px; }
   font: 700 11px/1 var(--f-body); letter-spacing: 0.16em; text-transform: uppercase;
 }
 
-/* A lobby card: the poster on the front, admit-one stock on the back. The
-   two faces share the poster's 2:3 frame and turn over on a vertical axis. */
-.lc { position: relative; aspect-ratio: 2 / 3; perspective: 900px; }
-.lc-face {
-  position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden;
-  transition: transform 420ms cubic-bezier(.3, .7, .2, 1);
-}
-.lc-front { background: var(--velvet-3); }
-/* the whole poster is the control that turns the card over */
-.lc-turn { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; }
-.lc-turn img { width: 100%; height: 100%; object-fit: cover; }
-.lc-front .noimg { position: absolute; inset: 0; display: grid; place-items: center; padding: 10px; text-align: center; font-family: var(--f-display); color: var(--faint); }
-.lc-turn:focus-visible { outline: 3px solid var(--bulb); outline-offset: -3px; }
-/* The dog-ear: the poster's top-right corner folded down, showing the
-   admit-one stock printed on the back. It says "there's another side". */
-.lc-ear {
-  position: absolute; top: 0; right: 0; width: 30px; height: 30px; pointer-events: none;
-  background:
-    linear-gradient(to bottom left, transparent 50%, rgba(44, 23, 18, 0.28) 50%, transparent 62%),
-    linear-gradient(to bottom left, var(--velvet-2) 50%, var(--ticket) 50%);
-  transform-origin: top right; transition: transform 160ms ease-out;
-}
-.lc-turn:hover .lc-ear, .lc-turn:focus-visible .lc-ear { transform: scale(1.27); }
-.lc-front .new-chip, .lc-front .ribbon { pointer-events: none; }
-.lc-back {
-  transform: rotateY(-180deg);
-  display: flex; flex-direction: column; gap: 8px; padding: 11px 11px 12px;
-  background: var(--ticket); color: var(--ticket-ink);
-  /* a printed border, like the card stock under a lobby still */
-  box-shadow: inset 0 0 0 4px var(--ticket), inset 0 0 0 5px rgba(44, 23, 18, 0.28);
-  overflow-y: auto; overscroll-behavior: contain;
-}
-.lobby.flipped .lc-front { transform: rotateY(180deg); }
-.lobby.flipped .lc-back { transform: rotateY(0deg); }
-/* the same corner on the back, folded the other way: the poster side shows,
-   and tapping it turns the card back */
-.lc-back-turn {
-  width: 40px; height: 40px; border: 0; padding: 0; cursor: pointer; pointer-events: auto;
-  background:
-    linear-gradient(to bottom left, transparent 50%, rgba(0, 0, 0, 0.35) 50%, transparent 62%),
-    linear-gradient(to bottom left, var(--velvet-2) 50%, var(--rule-strong) 50%);
-}
-.lc-back-turn:hover { transform: scale(1.15); }
-.lc-back-turn:focus-visible { outline: 3px solid var(--curtain); outline-offset: -3px; }
-.lc-actions { display: flex; flex-wrap: wrap; gap: 6px; padding-right: 30px; }
-.lc-plot { margin: 0; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
-.lc-back .mini { color: var(--ticket-ink); border-color: rgba(44, 23, 18, 0.45); font-weight: 600; }
-.lc-back .mini:hover { border-color: var(--ticket-ink); color: var(--ticket-ink); }
-.lc-back .mini.on { background: var(--ticket-stamp); border-color: var(--ticket-stamp); color: var(--board); }
-.lc-back .seen-line { color: var(--ticket-label); }
-.lc-back :focus-visible { outline-color: var(--curtain); }
-
-.card-body { display: grid; gap: 6px; align-content: start; padding: 10px; }
+/* Info first, then the row of actions pinned to the bottom, so thumbs line up
+   across a row of cards whatever the titles and pitches run to. */
+.card-body { display: flex; flex-direction: column; gap: 6px; padding: 10px; }
+.card-body .card-actions { margin-top: auto; }
 .card h3 { margin: 0; font-size: var(--step-0); line-height: 1.25; overflow-wrap: anywhere; }
 .meta { margin: 0; color: var(--dim); font-size: 12px; }
 .by { margin: 0; color: var(--faint); font-size: 12px; }
-.card-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.card-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 2px; }
+.plot { margin: 0; font-size: 12px; line-height: 1.45; color: var(--dim); overflow-wrap: anywhere; }
+.voters { display: flex; align-items: center; gap: 6px; min-height: 24px; }
+.voters .faces .face { border-color: var(--velvet-2); }
 .vote {
   display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px;
   border-radius: 999px; cursor: pointer;
@@ -411,7 +366,6 @@ h3.label, h4.label { margin: 0 0 6px; }
    isn't yours, and amber stays for what is. */
 .chip.on { background: var(--ticket); border-color: var(--ticket); color: var(--ticket-ink); font-weight: 600; }
 .chip .n { font-family: var(--f-mono); font-size: 11px; opacity: 0.75; margin-left: 2px; }
-.card-actions .faces .face { border-color: var(--velvet-2); }
 
 /* ---- the ticket -------------------------------------------------------- */
 .ticket {
@@ -455,13 +409,16 @@ h3.label, h4.label { margin: 0 0 6px; }
 .star svg { width: 32px; height: 32px; }
 .star.on { color: var(--bulb); }
 .review-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; border-radius: var(--radius); background: var(--velvet-2); border: 1px solid var(--rule); }
-.reviews { display: grid; gap: 8px; margin-top: 12px; }
-.review { padding: 10px 12px; border-radius: var(--radius); background: var(--velvet-2); }
+/* reviews read as a list inside their box, not boxes in a box */
+.reviews { display: grid; gap: 0; }
+.reviews:empty { display: none; }
+.review { padding: 8px 0; border-top: 1px solid var(--rule); }
 .review .who { display: flex; justify-content: space-between; gap: 8px; font-size: var(--step--1); color: var(--dim); }
 .review .who .s { color: var(--bulb); letter-spacing: 0.1em; }
 .review p { margin: 4px 0 0; }
 
 .past { display: grid; gap: 8px; }
+.past-label { margin: 18px 0 8px; }
 .past-row { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; padding: 6px; border-radius: var(--radius); background: var(--velvet-2); }
 .past-row img, .past-row .noimg { width: 44px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 2px; background: var(--velvet-3); }
 .past-row .t { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
@@ -487,7 +444,7 @@ h3.label, h4.label { margin: 0 0 6px; }
 .tour-demo .noimg { display: grid; place-items: center; padding: 4px; text-align: center; font: 400 0.7rem/1.1 var(--f-display); color: var(--faint); overflow: hidden; }
 .tour-demo .vetoes { margin: 0; }
 .new-chip {
-  position: absolute; left: 6px; top: 6px; padding: 4px 7px; border-radius: 3px;
+  position: absolute; right: 6px; top: 6px; padding: 4px 7px; border-radius: 3px;
   background: var(--go); color: var(--board-ink); font: 700 11px/1 var(--f-body); letter-spacing: 0.14em; text-transform: uppercase;
 }
 /* the last news card's list of everything else, like a program's back page */
@@ -500,7 +457,8 @@ h3.label, h4.label { margin: 0 0 6px; }
 .vote.on .vote-new { color: var(--board-ink); }
 
 /* ---- the availability calendar --------------------------------------------- */
-.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; container: cal / inline-size; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal-wrap { container: cal / inline-size; }
 .cal-head { text-align: center; font: 700 11px/1.6 var(--f-body); letter-spacing: 0.14em; color: var(--faint); }
 .day {
   position: relative; min-width: 0; aspect-ratio: 1 / 1.08; max-width: 100%;
@@ -516,8 +474,16 @@ h3.label, h4.label { margin: 0 0 6px; }
 .d-host { display: inline-flex; color: var(--bulb); font-size: 13px; }
 .day.on { background: rgba(147, 217, 173, 0.16); border-color: var(--go); }
 .day.on .d-meta { color: var(--go); }
-/* too narrow for the house mark (big text on a phone): the gold ring says it */
-@container cal (max-width: 280px) { .d-host { display: none; } .d-dow { letter-spacing: 0; } }
+/* Too narrow for every mark (big text on a phone): each day keeps its date,
+   a night keeps its house as well as its gold ring (more than color tells
+   them apart), and the key drops the count the cells no longer show. */
+@container cal (max-width: 280px) {
+  .day { aspect-ratio: auto; min-height: 44px; grid-template-rows: 1fr auto; padding: 4px 0; }
+  .d-dow, .d-count, .day:not(.lead) .d-meta { display: none; }
+  .d-meta { min-height: 0; }
+  .d-num { font-size: clamp(0.75rem, 4.6vw, 1rem); }
+  .cal-key .k-count-row { display: none; }
+}
 .day.lead { box-shadow: 0 0 0 2px var(--bulb); }
 /* the day showing in the window below: lifted onto the projector light */
 .day.sel { outline: 2px solid var(--screen); outline-offset: 1px; }
@@ -525,9 +491,18 @@ h3.label, h4.label { margin: 0 0 6px; }
 /* the box office window for the day you picked: edged like the day itself */
 .day-detail {
   margin-top: 12px; padding: 14px; border-radius: var(--radius); background: var(--velvet-2);
-  border: 1px solid var(--rule-strong); display: grid; gap: 10px;
+  border: 1px solid var(--rule-strong); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px;
 }
-.dd-head h3 { margin: 0; font: 400 var(--step-1)/1.2 var(--f-display); color: var(--screen); text-wrap: balance; }
+/* the arrows drop under the date when there isn't room beside it (big text) */
+.dd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dd-head h3 { flex: 1 1 8rem; min-width: 0; margin: 0; font: 400 var(--step-1)/1.2 var(--f-display); color: var(--screen); text-wrap: balance; overflow-wrap: anywhere; }
+.dd-steps { flex: none; display: flex; gap: 6px; }
+.dd-step {
+  width: 44px; height: 44px; display: grid; place-items: center; border-radius: var(--radius); cursor: pointer;
+  background: transparent; border: 1px solid var(--rule-strong); color: var(--screen); font: 700 1.25rem/1 var(--f-mono);
+}
+.dd-step:hover { border-color: var(--screen); }
+.dd-step:disabled { opacity: 0.35; cursor: default; border-color: var(--rule); }
 .dd-line { margin: 0; font-size: var(--step--1); color: var(--dim); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .dd-line b { color: var(--screen); }
 .dd-host { padding-top: 12px; border-top: 1px dashed var(--rule); display: grid; gap: 8px; }
@@ -550,15 +525,24 @@ h3.label, h4.label { margin: 0 0 6px; }
 @media (min-width: 640px) { .tour-overlay { place-items: center; padding: 16px; } }
 .tour-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
 .tour-top .label { min-width: 0; letter-spacing: 0.1em; }
+.tour-top .btn { flex: none; white-space: nowrap; }
 .tour-card h2 { margin: 14px 0 6px; font: 400 var(--step-2)/1.15 var(--f-display); color: var(--bulb); text-wrap: balance; }
+/* news headlines are sentences: the body face, with a movie's name in marquee letters */
+.tour-card.news h2 { font: 600 var(--step-1)/1.3 var(--f-body); color: var(--screen); }
+.news-name { font: 400 1.05em/1 var(--f-display); color: var(--bulb); }
 .tour-card > p { margin: 0; color: var(--dim); }
-.tour-foot { margin-top: auto; padding-top: 14px; }
+.tour-foot {
+  position: sticky; bottom: 0; margin: auto -18px -18px; padding: 12px 18px 18px;
+  background: var(--velvet-2); border-top: 1px dashed var(--rule);
+}
 .tour-demo { padding: 12px; border-radius: var(--radius); background: var(--velvet); border: 1px dashed var(--rule); display: grid; gap: 8px; pointer-events: none; }
 .tour-dots { display: flex; gap: 6px; justify-content: center; margin: 0 0 12px; }
 .tour-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--rule-strong); }
 .tour-dots span.on { background: var(--bulb); }
 .tour-nav { justify-content: flex-end; }
 .tour-mini { padding: 10px; }
+.tour-mini::before, .tour-mini::after { animation: none; }
+.tour-mini::after { opacity: 0.4; }
 .tour-mini .board { padding: 12px 10px; }
 .tour-mini .board h1 { font-size: var(--step-2); }
 .tour-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -566,14 +550,11 @@ h3.label, h4.label { margin: 0 0 6px; }
 .tour-cal { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .tour-window { margin-top: 0; padding: 10px 12px; gap: 6px; }
 .tour-window .btn { justify-self: start; }
-.tour-lobby {
-  position: relative; display: inline-grid; place-items: end center; width: 52px; aspect-ratio: 2 / 3; padding: 4px;
-  overflow: hidden; border-radius: 2px; background: var(--velvet-3); color: var(--faint); font: 400 0.6rem/1.1 var(--f-display); text-align: center;
-}
-.tour-lobby .lc-ear { width: 16px; height: 16px; }
 .tour-window .dd-head h3 { font-size: var(--step-0); }
 .tour-ticket { grid-template-columns: 1fr 52px; }
 .tour-ticket h3 { font-size: var(--step-1); }
+/* big text on a phone: the words carry the card; the example would crowd them */
+@media (max-width: 300px) { .tour-demo { display: none; } }
 
 /* ---- up next ------------------------------------------------------------ */
 .night-card { gap: 14px; }
@@ -581,9 +562,18 @@ h3.label, h4.label { margin: 0 0 6px; }
 .nc-head .hint { margin: 4px 0 0; }
 .rsvp-row { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
 .night-card > .hint { margin: 0; }
-/* If it locked now: the answer to "what are we watching?", printed plainly */
-.pick-now { display: grid; gap: 4px; padding: 10px 12px; border-radius: var(--radius); background: var(--velvet-3); }
+/* If it locked now: a mini lobby card, the same ribbon as on the shelf */
+.pick-now { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px; border-radius: var(--radius); background: var(--velvet-3); }
+.pick-poster { position: relative; aspect-ratio: 2 / 3; overflow: hidden; border-radius: 2px; background: var(--velvet); }
+.pick-poster img { width: 100%; height: 100%; object-fit: cover; }
+.pick-poster .noimg { position: absolute; inset: 0; display: grid; place-items: center; padding: 4px; text-align: center; font: 400 0.7rem/1.1 var(--f-display); color: var(--faint); }
+.pick-poster .ribbon { padding: 4px 2px; letter-spacing: 0.06em; }
+.pick-body { display: grid; gap: 4px; min-width: 0; }
 .pick-now .label, .pick-now .hint { margin: 0; }
+.pick-veto { margin: 4px 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.veto-note { font: 400 var(--step--1)/1.3 var(--f-body); letter-spacing: 0; text-transform: none; color: var(--dim); }
+h4 .veto-note { margin-left: 6px; }
+.reveal-again { margin-top: 12px; }
 .pick-line { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; font-size: var(--step-1); overflow-wrap: anywhere; }
 .pick-line b { font-weight: 700; }
 .pick-line .mini.veto { margin-left: 0; }
@@ -595,9 +585,10 @@ h3.label, h4.label { margin: 0 0 6px; }
 .host-slip .admit { text-transform: uppercase; letter-spacing: 0.3em; }
 .host-slip h4 { margin: 0; font: 400 var(--step-1)/1.2 var(--f-display); text-transform: uppercase; letter-spacing: 0.03em; overflow-wrap: anywhere; }
 .host-slip .slip-when { margin: 0; font-weight: 600; }
+.host-slip .slip-crowd { margin: 0; font-size: var(--step--1); }
 .host-slip .slip-note { margin: 0; font-size: var(--step--1); color: var(--ticket-label); }
 .host-slip .row { margin-top: 4px; }
-.host-slip .btn-ghost { color: var(--ticket-ink); border-color: rgba(44, 23, 18, 0.45); }
+.host-slip .btn-ghost { color: var(--ticket-ink); border-color: var(--ticket-label); }
 .host-slip .btn-ghost:hover { background: rgba(44, 23, 18, 0.06); border-color: var(--ticket-ink); }
 .host-slip :focus-visible { outline-color: var(--curtain); }
 .also-rate { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; }
@@ -750,6 +741,25 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 .pick-opt .v { font-family: var(--f-mono); color: var(--bulb); }
 .share { display: flex; gap: 8px; flex-wrap: wrap; }
 .share .field { flex: 1 1 14rem; font-family: var(--f-mono); font-size: var(--step--1); }
+/* the calendar's key, printed under the grid */
+.cal-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; font-size: 12px; color: var(--dim); }
+.cal-key span { display: inline-flex; align-items: center; gap: 6px; }
+.cal-key i { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; font-style: normal; }
+.cal-key .k-free { background: rgba(147, 217, 173, 0.16); border: 1px solid var(--go); }
+.cal-key .k-count { width: auto; font: 700 11px/1 var(--f-mono); color: var(--dim); }
+.cal-key .k-night { border: 1px solid var(--rule-strong); box-shadow: 0 0 0 2px var(--bulb); }
+
+/* Big text on a phone (or 200% zoom) leaves ~200px: the top bar keeps the
+   name (How it works is in the footer too), and the marquee tightens up. */
+@media (max-width: 300px) {
+  .topbar-right > [data-action="tour"], .whoami .face { display: none; }
+  .marquee { padding: 10px; }
+  .board { padding: 12px 8px 10px; }
+  .board .kicker { letter-spacing: 0.16em; }
+  .board .sub { font-size: var(--step--1); letter-spacing: 0.04em; }
+  .program { gap: 0 12px; }
+}
+
 @media (min-width: 640px) {
   .ballot { grid-template-columns: repeat(auto-fill, minmax(min(10.5rem, 100%), 1fr)); }
   .marquee { padding: 20px; }

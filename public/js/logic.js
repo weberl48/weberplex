@@ -337,7 +337,7 @@ const starsOf = (n) => plural(Math.max(0, Math.min(5, n)), 'star');
 export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [], free = [], people = [], subs = new Map(), since, meKey = '' }) {
   const watched = watchedIds(nights);
   const movies = allMovies.filter((m) => !watched.has(m.imdbId));
-  const out = { items: [], cards: [], movies: new Set(), votes: new Map(), days: new Set() };
+  const out = { items: [], cards: [], count: 0, movies: new Set(), votes: new Map(), days: new Set() };
   if (!since) return out;
   const fresh = (t) => toMs(t) > since;
   const theirs = (k) => k !== meKey;
@@ -427,20 +427,53 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
   // Most useful first: what happened to a night you're coming to or hosting,
   // then other nights, new movies and thumbs-ups, free evenings, and last the
   // after-party (snacks, reviews, nights filed as watched). Ties keep their order.
+  // What needs your tap comes right after your own night: new movies to
+  // thumbs-up, and a night you were at to rate.
   const mine = new Set([...free.filter((f) => f.nameKey === meKey).map((f) => f.day), ...nights.filter((n) => n.hostKey === meKey).map((n) => n.day)]);
-  const LATER = { movies: 2, votes: 2, free: 3, snack: 4, review: 4, watched: 4 };
-  const tier = (it) => (LATER[it.kind] ?? (it.day && mine.has(it.day) ? 0 : 1));
+  const LATER = { votes: 2, free: 3, snack: 4, review: 4 };
+  const tier = (it) => {
+    if (it.kind === 'movies') return 0.5;
+    if (it.kind === 'watched') return it.day && mine.has(it.day) ? 0.5 : 4;
+    return LATER[it.kind] ?? (it.day && mine.has(it.day) ? 0 : 1);
+  };
   out.items = out.items.map((it, i) => [it, i]).sort((a, b) => tier(a[0]) - tier(b[0]) || a[1] - b[1]).map(([it]) => it);
+  // A night you're not coming to gets one card for all its changes ("Hal's
+  // Tuesday: now 9:00 PM · a Drama night · Cards Movie vetoed"), not one each.
+  const FOLD = ['night', 'moved', 'theme', 'veto'];
+  const folded = new Map();
+  for (const it of out.items) {
+    if (!FOLD.includes(it.kind) || !it.day || mine.has(it.day)) continue;
+    folded.set(it.day, [...(folded.get(it.day) || []), it]);
+  }
+  const part = (it) => (it.kind === 'night' ? 'a new night'
+    : it.kind === 'moved' ? `now ${it.text.replace(/^.* starts at /, '')}`
+    : it.kind === 'theme' ? (it.theme ? `${/^[aeiou]/i.test(it.theme) ? 'an' : 'a'} ${it.theme} night` : 'theme cleared')
+    : it.struck ? `${it.struck} vetoed` : it.text.replace(/ for \w+$/, ''));
+  const cards = [];
+  for (const it of out.items) {
+    const group = folded.get(it.day);
+    if (!group || group.length < 2 || !FOLD.includes(it.kind) || mine.has(it.day)) { cards.push(it); continue; }
+    if (group[0] !== it) continue; // the group's card goes where its first item was
+    const n = nights.find((x) => x.day === it.day);
+    cards.push({
+      kind: 'changes', target: '#nextSec', day: it.day, struck: group.find((x) => x.struck)?.struck, theme: group.find((x) => x.theme)?.theme,
+      text: `${placeLabel(n?.host)} ${n?.startsAt ? dayName(n.startsAt) : ''}: ${group.map(part).join(' · ')}`,
+      detail: 'Changes to a night you’re not on the list for.',
+    });
+  }
   // At most MAX_NEWS_CARDS cards; the rest are counted on the last one, which
   // also lists them (`rest`), so nothing is left out.
-  out.cards = out.items.slice(0, MAX_NEWS_CARDS);
-  const extra = out.items.length - out.cards.length;
+  // `count`: one headline per card, the cut ones included: the bar, the
+  // playbill and the cards all count the same things.
+  out.count = cards.length;
+  out.cards = cards.slice(0, MAX_NEWS_CARDS);
+  const extra = cards.length - out.cards.length;
   if (extra > 0) {
     const last = out.cards[out.cards.length - 1];
     out.cards[out.cards.length - 1] = {
       ...last,
       detail: [last.detail, `…and ${plural(extra, 'more thing')}.`].filter(Boolean).join(' '),
-      rest: out.items.slice(MAX_NEWS_CARDS).map((x) => x.text),
+      rest: cards.slice(MAX_NEWS_CARDS).map((x) => x.text),
     };
   }
   return out;
@@ -475,6 +508,19 @@ export function whenWords(target, now = new Date()) {
   if (mins < 60) return `in ${mins} min`;
   const h = Math.floor(mins / 60);
   return mins % 60 ? `in ${h} hr ${mins % 60} min` : `in ${h} hr`;
+}
+
+// When you last looked, the way a person says it: "12:28 PM today",
+// "yesterday at 9:05 PM", "Mon 9:05 PM", then just the date ("Oct 3") past a week.
+export function sinceWords(when, now = new Date()) {
+  const t = toDate(when);
+  const n = toDate(now);
+  const days = Math.round((dayFromKey(dayKey(n)) - dayFromKey(dayKey(t))) / 86400000);
+  const time = t.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }).replace(' ', ' ');
+  if (days <= 0) return `${time} today`;
+  if (days === 1) return `yesterday at ${time}`;
+  if (days < 7) return `${t.toLocaleDateString(undefined, { weekday: 'short' })} ${time}`;
+  return t.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 // "Add to Google Calendar" for one night: everyone is on Android, where a

@@ -14,7 +14,6 @@ colors:
   ticket: "#f1dbc6"
   ticket-ink: "#2c1712"
   ticket-label: "#7a4a3e"
-  ticket-stamp: "#2f7a4f"
   admit-red: "#8c2440"
   stripe-cream: "#e8e0d6"
   marquee-body: "#3a0f1d"
@@ -182,10 +181,11 @@ components:
     textColor: "{colors.screen}"
     rounded: "{rounded.md}"
     padding: "10px"
-  lobby-card-back:
-    backgroundColor: "{colors.ticket}"
-    textColor: "{colors.ticket-ink}"
-    padding: "11px"
+  pick-card:
+    backgroundColor: "{colors.velvet-3}"
+    textColor: "{colors.screen}"
+    rounded: "{rounded.md}"
+    padding: "10px"
   stat-board:
     backgroundColor: "{colors.board}"
     textColor: "{colors.board-ink}"
@@ -238,14 +238,14 @@ Weberplex is a neighborhood picture house on a phone. At the top, one lit marque
 
 The page is a single program column built for an Android phone at 360 to 412 px, and desktop is the same column, centered. Posters carry the real color. The chrome stays velvet, oxblood and amber, so after the marquee the brightest things on screen are the movies.
 
-The theme reaches everywhere, but the light stays in one place. Every component borrows a cinema material: letter-board paper, admit-one stock, stamp lettering, perforated stubs, concession stripes, the guest list, the box-office window. Brightness, glow and motion belong to the marquee and the two event moments (the reel and the reveal). As of 2026-10-14 the confirmed direction is to keep pushing that material into everyday components without adding light. The shelf's lobby cards, the letter-board stats, the guest-list name tags and the box-office day panel are the first of it. Buttons, fields and filter chips are still plain. The rejected look is generic dark-mode SaaS: gray cards, blue links, a dashboard that could be any product.
+The theme reaches everywhere, but the light stays in one place. Every component borrows a cinema material: letter-board paper, admit-one stock, stamp lettering, perforated stubs, concession stripes, the guest list, the box-office window. Brightness, glow and motion belong to the marquee and the two event moments (the reel and the reveal). As of 2026-10-14 the confirmed direction is to keep pushing that material into everyday components without adding light. The letter-board stats, the guest-list name tags, the hosting slip, the "If it locked now" card and the box-office day panel are the first of it. Shelf cards stay plain velvet by the user's choice (2026-10-14): poster on top, everything about the movie right under it. Buttons, fields and filter chips are still plain. The rejected look is generic dark-mode SaaS: gray cards, blue links, a dashboard that could be any product.
 
 **Key Characteristics:**
 - One lit, animated marquee per page; everything else is lit only by state.
 - Every dark is velvet-tinted and every light is warm paper. There are no neutral grays.
 - Amber marks what's yours, what's leading, or the main call in each block.
 - Art-deco marquee letters name things, a condensed grotesk does the labels, and typewriter numerals count.
-- Printed props (letter board, ticket, lobby cards) for the moments that matter.
+- Printed props (letter board, ticket, hosting slip) for the moments that matter.
 - 2:3 posters everywhere, always the most colorful thing below the marquee.
 - A movie stays face down until its reveal has played for you.
 
@@ -266,13 +266,13 @@ A warm three-light theater: velvet dark, an oxblood curtain, amber bulbs, and pa
 
 ### Tertiary
 - **Letter Board** (board) with **Board Ink** (board-ink): the marquee's lit sign face and the toast. Board ink is also the text color on every amber fill.
-- **Admit-One Paper** (ticket) with **Ticket Ink** (ticket-ink): the ticket and the back of every lobby card. **Ticket Label** (ticket-label) is the brown of field names and small print on that stock; **Ticket Stamp** (ticket-stamp) is the green "Seen" stamp on a lobby card's back. **Admit Red** (admit-red) is the stamp ink for "ADMIT ONE" and "NOW BOOKING", on paper only.
+- **Admit-One Paper** (ticket) with **Ticket Ink** (ticket-ink): the ticket, the hosting slip, and a chosen filter or tab. **Ticket Label** (ticket-label) is the brown of field names, small print and button edges on that stock. **Admit Red** (admit-red) is the stamp ink for "ADMIT ONE" and "NOW BOOKING", on paper only.
 - **Concession Green** (go): good news only. Evenings you're free, You're in ✓, Seen ✓, the "new" chip and dot, and success messages.
 - **Spilled Soda** (bad): failures and the strike-through on a vetoed movie. It never marks time, absence or anything a person "should" do.
 - **Projection Black** (projection-black): the reel window and the back of the reveal card, the only place darker than the house.
 
 ### Neutral
-- **House Velvet** (velvet): the page itself. The faint oxblood curtain pleats at the edges of wide screens are drawn from it.
+- **House Velvet** (velvet): the page itself. The faint oxblood curtain pleats at the edges of desktop screens (900px and up) are drawn from it; phones get plain velvet.
 - **Raised Velvet** (velvet-2): panels, cards, chips, the news bar, overlay cards.
 - **Plush Velvet** (velvet-3): fields, vote pills, poster placeholders, hover fills.
 - **Aisle Rule** (rule): dividers, panel and card edges, and the dashed edges of empty states.
@@ -319,7 +319,7 @@ The page is one centered program column, 46rem at most, with 16px gutters and 4r
 
 Grids are built so a phone shows the right count without breakpoints, and every column minimum is capped at the container (`min(9.5rem, 100%)`), so 200% text never pushes the page sideways. The shelf fills columns of at least 9.5rem (10.5rem from 640px), which gives two cards across at 360–412px. Browse tiles use 8.5rem. The calendar is seven equal columns with 5px gaps, and each day is slightly taller than wide. The letter-board stats are one column, then two from 640px, and stat cards auto-fit at 13rem. Spacing runs on a loose 4px rhythm: 4, 6 and 8px inside controls, 10–14px inside panels, 16px gutters.
 
-Rows of controls wrap; they never shrink or scroll sideways. Every text container takes `overflow-wrap: anywhere` and `min-width: 0`, so a 24-character name can't widen a card or the page. On a phone, the tour and news cards rise from the bottom like a sheet, each only as tall as it needs, so their buttons sit at the same spot under the thumb and the marquee stays in view above; from 640px they center. The reel and reveal center in a fixed scrim with 16px padding. Android's back gesture closes whichever overlay is on top. The calendar is a size container: when it's narrower than 280px (big text), dates shrink with the cell and the house mark drops (the gold ring still marks a night). A landscape phone (max-height 520px) gets smaller posters and tighter heads so the OK button stays on screen. The toast respects the bottom safe-area inset.
+Rows of controls wrap; they never shrink or scroll sideways. Every text container takes `overflow-wrap: anywhere` and `min-width: 0`, so a 24-character name can't widen a card or the page. On a phone, the tour and news cards rise from the bottom like a sheet, each only as tall as it needs, so their buttons sit at the same spot under the thumb and the marquee stays in view above; from 640px they center. When a card runs longer than the screen, its foot (the dots and Next) sticks to the bottom behind a perforated edge, and Skip never breaks across lines; below 300px (big text) the card drops its example and keeps the words. News headlines are sentences, so they're set in the body face at 600, with a movie's name in marquee letters; the tour's short titles stay Limelight. The reel and reveal center in a fixed scrim with 16px padding. Android's back gesture closes whichever overlay is on top. The calendar and its key share a size container (the tour's small calendar isn't in it): when it's narrower than 280px (big text), each day gives up its square and becomes a 44px-tall cell holding the date; the day-of-week and count hide (the day panel spells them out), and a night keeps its house mark as well as its gold ring, so more than color tells it from a free evening. A landscape phone (max-height 520px) gets smaller posters and tighter heads so the OK button stays on screen. The toast respects the bottom safe-area inset.
 
 **The Wrap, Don't Shrink Rule.** At 360px, controls wrap to a new line and text breaks anywhere. Nothing scrolls sideways, and nothing drops below its touch size to fit.
 
@@ -343,7 +343,7 @@ Depth comes from tonal layers, not from lifting things up. The page is house vel
 
 Corners are gently squared. Panels, buttons, fields and cards use 6px, and printed things are tighter: posters 2px, the letter board 4px. Stamps are 3px: tags, the countdown and rank badges, the "new" chip, the agreement meter. Projection surfaces are 8px: the reel window, the reveal card, and the bulb layer inside the marquee. Only the marquee frame and overlay cards round to 10px. Anything you toggle or tap in a row is a full pill: chips, votes, mini actions, guest tags, the theme chip. Faces are circles that overlap by 6px.
 
-The theater shows up in the silhouettes. The marquee frame is two layers of radial-gradient bulbs on an 18px pitch that chase each other. The letter board (the marquee and the stats) has a faint groove every 34px. The ticket has two 11px punched notches on the stub line and a dashed perforation. A lobby card's back has a printed hairline border 4px in from the edge. Snacks have a concession-stripe left edge in oxblood and **Stripe Cream** (stripe-cream). Dashed aisle-rule borders mark the empty and the provisional: empty states, tour demos, the host-tools divider, the hosting block in the day panel, the last news card's list. Posters are always 2:3.
+The theater shows up in the silhouettes. The marquee frame is two layers of radial-gradient bulbs on an 18px pitch that chase each other. The letter board (the marquee and the stats) has a faint groove every 34px. The ticket has two 11px punched notches on the stub line and a dashed perforation. Snacks have a concession-stripe left edge in oxblood and **Stripe Cream** (stripe-cream). Dashed aisle-rule borders mark the empty and the provisional: empty states, tour demos, the host-tools divider, the hosting block in the day panel, the last news card's list. Posters are always 2:3.
 
 ## Components
 
@@ -359,7 +359,8 @@ Solid and theater-plain. The direction is to give them cinema material, not more
 - **Linkish:** an underlined amber text button with a 3px offset, for "How it works" and "Not you?" ("Not you?" asks twice). In the top bar and footer its tap area is padded out to 44px without moving the layout.
 
 ### Chips
-- **Filter/sort chip:** a raised-velvet pill with an aisle-edge border, 40px tall, body-small. Hover shows an amber border. Chosen, it's printed on admit-one paper with ticket ink at weight 600, and its count sits in Courier at 11px. Each row carries a short label to its left ("Sort", "Show"). Browse tabs work the same way.
+- **Filter chip:** a raised-velvet pill with an aisle-edge border, 40px tall, body-small. Hover shows an amber border. Chosen, it's printed on admit-one paper with ticket ink at weight 600, and its count sits in Courier at 11px. The row carries a short label to its left ("Show"). Browse tabs work the same way.
+- **Sort menu:** the shelf's order is a field-styled menu labeled "Sort" (Most wanted, Newest, Least seen, Shortest), not a chip row, so only the filters read as chips.
 - **Guest-list tag:** the names on the name form, 44px pills with the person's initial in a face circle. A name that looks like the one being typed gets an amber edge and haze.
 - **Vote pill:** plush velvet, 40px, bold, a 16px thumb icon and a tabular tally. Your vote is an amber fill. The tally bumps (scale 1.45 over 360ms) when it changes.
 - **Mini action:** a transparent pill, 36px, 12px dim text, for Seen it, Trailer, Stremio, Veto, Remove and the browse tiles' Add. A done state ("Seen ✓") fills concession green.
@@ -369,8 +370,9 @@ Solid and theater-plain. The direction is to give them cinema material, not more
 ### Cards / Containers
 - **Corner Style:** gently squared (6px), with overflow clipped so the poster bleeds to the edges.
 - **Background:** raised velvet with a 1px aisle rule.
-- **Shadow Strategy:** flat. Only the leading card gets the leader glow (every tied leader, when there's a tie), plus an amber "MOST WANTED" ribbon across the poster's foot.
+- **Shadow Strategy:** flat. Only the leading card gets the leader glow (every tied leader, when there's a tie), plus an amber ribbon across the poster's foot: "Leading Nov 3" on the next night's projected pick (a date, because a weekday alone is ambiguous weeks out), or "Most wanted".
 - **Internal Padding:** 10px on movie cards, 12–14px on panels (day panel, stat cards, subscribe panel), 1.1rem on the guest-list form.
+- **Reviews:** a plain list under a watched night, each review set off by an aisle rule above it, never a box inside the card.
 
 ### Inputs / Fields
 - **Style:** plush-velvet fill with an aisle-edge border, 6px corners, 46px tall, 14px padding, an amber caret. Placeholders are back-row light and are examples, never the label: a field that needs explaining gets a visible label above it ("Why this one?").
@@ -380,23 +382,26 @@ Solid and theater-plain. The direction is to give them cinema material, not more
 ### Navigation
 A top bar, not a nav bar. The "Weberplex" wordmark (Limelight, amber, 1rem, 0.04em) sits on the left; on the right are "How it works" and who's on this phone (their initial in an amber face, their name, "Not you?"). Under the marquee, a row of jump links in 12px condensed caps (Up next, Calendar, Shelf, Watched, Stats), each 44px tall, works as the page's program and as skip links. The page is one long scroll otherwise. There are no tabs, bottom bar or hamburger. The owner console (`/host`) is a separate page in the same column and materials.
 
-### The Lobby Card (signature)
-Every movie on the shelf. The front is the 2:3 poster, and the whole poster is the button that turns the card over. Its top-right corner is dog-eared: folded down to show the admit-one stock printed on the back (30px, growing to 38px on hover or focus). The "new" chip sits top left, and the ribbon at the foot reads "Leading Tue" on the next night's projected pick, or "Most wanted" when no night is planned. Below the poster on raised velvet: the title, meta line, tags, the pitch in italics, who added it, then the vote pill with the voters' faces beside it. Turning it rotates both faces 180° on the vertical axis over 420ms. The back is admit-one paper with a printed hairline border. The same corner, folded the other way to show the poster side, is the 40px button that turns it back; then come Seen it, Trailer, Stremio and Remove as paper-inked pills, who has seen it, and the plot. The back scrolls when it runs long. Focus follows the turn to the other side.
+### The Movie Card
+Every movie on the shelf, one side only (the user chose this over a two-sided lobby card on 2026-10-14). The 2:3 poster on top, with the "new" chip top right and, at its foot, the ribbon: "Leading Nov 3" on the next night's projected pick, or "Most wanted" when no night is planned. Under it on raised velvet: the title, meta line, tags, the pitch in italics, who added it, and who has seen it (only once someone has); then the action row pinned to the card's foot, so rows of cards line up: the vote pill, Seen it, Trailer, Stremio, Plot (which opens the plot in place and becomes "Hide plot") and Remove for your own; then the voters' faces. While a themed night is planned, the Show row gains a chip for its pool ("Fits Hal's Drama night"): the movies that night can actually pick.
+
+### If It Locked Now (signature)
+A mini lobby card at the top of a planned night's card, on plush velvet: a 76px 2:3 poster wearing the same ribbon as the shelf ("Leading Nov 3", or "Tied"), then a small label, the title at title size, and one line saying why, in people's names, naming the pool when a theme narrows it ("Hal only thumbed up vetoed or off-theme movies, so it goes to the group's favorite among Drama movies"). Its Veto sits there when the movie isn't already in the list below, with "one veto each" beside it. The marquee repeats the pick as "Leading:".
 
 ### The Hosting Slip (signature)
-"I can host" (a ghost button) prints a slip on admit-one paper inside the day panel's hosting block: a stamp-red "NOW BOOKING", "Movie night at Jo's" in uppercase Limelight, the date and time (and the theme), and a line saying it goes up on the marquee for everyone. Its curtain button, "Put it on the marquee", hosts the night; "Not yet" folds it away. It casts the held-paper shadow, like the ticket.
+"I can host" (a ghost button) prints a slip on admit-one paper inside the day panel's hosting block: a stamp-red "NOW BOOKING", "Movie night at Jo's" in uppercase Limelight, the date and time (and the theme), who else is already free that evening and so on the list, when anyone is ("Kim and Sam are free, so they're all on the list"), and a line saying it goes up on the marquee for everyone. Its curtain button, "Put it on the marquee", hosts the night; "Not yet" folds it away. It casts the held-paper shadow, like the ticket.
 
-### If It Locked Now
-At the top of a planned night's card, on plush velvet: a small label, the movie that would win right now (or "Alien or Jaws", a tie for the reel) at title size, its Veto when it isn't already in the list below, and one line saying why ("The most thumbs from the people coming", or the fallback that applies). The marquee repeats it as "Leading:".
+### The Calendar Key
+One line under the grid, 12px dim: a green-tinted swatch "you're free", a Courier digit "free that evening", and an amber-ringed swatch "movie night". The marks need no memorizing. At big text the key drops the digit along with the cells.
 
 ### The Letter-Board Stats (signature)
 The long view, spelled out like a marquee board: one centered line per number on letter-board paper with a groove every 34px, the number in oxblood and the words in board ink, in uppercase Limelight. Unlit (no glow), because the marquee is the only lit board. Two columns from 640px.
 
 ### The Box-Office Window (signature)
-The panel under the calendar for the day you tapped, with an aisle-edge border. It shows the date in Limelight, who's free, the night if there is one, and the RSVP control. On an evening without a night it shows "I'm free that evening" and a hosting block (start time, theme, I can host) behind a dashed divider.
+The panel under the calendar for the day you tapped, with an aisle-edge border. It shows the date in Limelight with ‹ › beside it (44px, Courier arrows) to step to the evening before or after without going back to the grid, who's free, the night if there is one, and the RSVP control. On an evening without a night it shows "I'm free that evening" and a hosting block (start time, theme, I can host) behind a dashed divider.
 
 ### The Marquee (signature)
-A plush oxblood frame (10px corners) ringed with chasing bulbs around a lit letter board (4px corners, faint grooves, inner glow). The board stacks a spaced oxblood kicker (the season title and status), the display line (the movie or night), an uppercase condensed subline (when and whose house, its lines balanced, the time never split from AM/PM), and a board-ink tag with the countdown in amber Courier. It's the only element that glows and animates at rest. With reduced motion the chase stops and the bulbs hold at 40%. While your reveal for a locked night hasn't played, the display line reads "The movie is…".
+A plush oxblood frame (10px corners) ringed with chasing bulbs around a lit letter board (4px corners, faint grooves, inner glow). The board stacks a spaced oxblood kicker (the season title and status), the display line (the movie or night), an uppercase condensed subline (when and whose house, its lines balanced, the time never split from AM/PM), and a board-ink tag with the countdown in amber Courier. It's the only element that glows and animates at rest. With reduced motion the chase stops and the bulbs hold at 40%. While your reveal for a locked night hasn't played, the display line reads "The movie is…". The tour's small copy of it is still: no chase.
 
 ### The Ticket (signature)
 Admit-one paper with two 11px punched notches and a dashed stub perforation. On the left: "ADMIT ONE" in spaced stamp red, the movie in Limelight, and a definition list (When, Where, Guest, Running) with condensed uppercase labels in ticket label brown. On the right, a 74px stub carries a vertical Courier serial number. It shows on a locked night you're coming to, with Add to calendar and the RSVP control underneath, then the trailer and Stremio. Face down ("The movie is…", no running time) until your reveal has played.
@@ -413,8 +418,8 @@ Letter-board paper with board ink, 6px corners, rising 20px into place over 180m
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep the marquee the only thing that glows or animates at rest. Reduced motion stops the chase and holds the bulbs at 40% opacity.
-- **Do** give everyday components a cinema material (paper stock, stamp lettering, perforation, lobby cards, letter boards, concession stripes) instead of more light. That's the confirmed direction as of 2026-10-14.
+- **Do** keep the marquee the only thing that animates at rest, and the only thing that glows apart from the leader glow on the movie currently winning. Reduced motion stops the chase and holds the bulbs at 40% opacity.
+- **Do** give everyday components a cinema material (paper stock, stamp lettering, perforation, slips, letter boards, concession stripes) instead of more light. That's the confirmed direction as of 2026-10-14.
 - **Do** reserve amber fills for what's yours, what's leading, and the main call in each block.
 - **Do** keep main buttons at least 44px tall, chips and votes 40px, and in-card pills at least 36px, and judge everything at 360 and 412px first, then at 200% text.
 - **Do** keep a locked movie face down everywhere on the page until that person's reveal has played.
@@ -425,7 +430,7 @@ Letter-board paper with board ink, 6px corners, rising 20px into place over 180m
 
 ### Don't:
 - **Don't** let it look like generic dark-mode SaaS: gray cards, blue links, a dashboard that could be any product.
-- **Don't** add a second glowing or animated element at rest outside the marquee. The reel and reveal glow only while they play.
+- **Don't** add a glowing or animated element at rest beyond the marquee and the leader glow. The reel and reveal glow only while they play.
 - **Don't** use neutral gray, pure black or pure white. Every dark is velvet-tinted and every light is warm paper.
 - **Don't** set body copy, buttons or labels in Limelight.
 - **Don't** use green for actions, or spilled soda for anything but failures and the veto strike-through.

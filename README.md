@@ -17,10 +17,10 @@ shared shelf, and thumbs-up what they'd watch. The site picks the movie.
 
 | Part | What people do |
 | --- | --- |
-| **Calendar** | Four weeks of evenings. Tapping a day only shows it in the panel below (the arrow keys move between days too); nothing is marked until you tap **I'm free that evening** there. Being free on an evening and coming to a night held on it are the same thing: if someone hosts it later, you're on its list. Anyone can pick a start time and tap **I can host**, which prints a hosting slip; **Put it on the marquee** confirms it, puts a movie night on the day and counts you in (one per day; first volunteer hosts; the start has to be in the future, and hosting less than a day out locks the movie right away). |
-| **Up next** | The nearest night: when, whose house, who's coming, its theme, snacks, and **If it locked now**: the movie that would win right now and why (the same rule as the lock), with a Veto on it. The marquee always shows it as "Leading:". **Count me in** says you're coming, the same button wherever a night shows; it turns into **You're in ✓**, and dropping out takes a second tap. Everyone coming (and the host) gets one **veto** on a movie for this night and can call snacks. The host can change the time or theme, lock early, unlock (until a day before), mark it watched (once it's started), or cancel (until it starts). |
-| **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one" (written before you pick). Each movie is a lobby card: the poster and the thumbs-up ("I'd watch it") on the front; tap the poster (it has a folded corner) to turn it over for **Seen it**, the trailer, Stremio, the plot and who has seen it. While a night is planned, its projected pick wears a **Leading** ribbon; otherwise the overall favorites wear **Most wanted**. Thumbs-ups and seen marks are per person and carry over. Sort by most wanted, newest, least seen, shortest; show by tag, unseen by me, added by me. No cap. |
-| **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. The people who were there rate a night, one at a time: the newest unrated night, with the week's others a tap away. Everyone can read the reviews. |
+| **Calendar** | Four weeks of evenings, with a printed key under the grid (you're free, how many are free, a movie night). Tapping a day only shows it in the panel below, which scrolls into reach if needed (the arrow keys move between days too); nothing is marked until you tap **I'm free that evening** there, and a toast says so. **‹ ›** beside the panel's date step to the evening before or after, so marking a run of evenings never means going back to the grid. At big text the grid keeps each date, and a night keeps its house mark as well as its gold ring. Being free on an evening and coming to a night held on it are the same thing: if someone hosts it later, you're on its list. Anyone can pick a start time and tap **I can host**, which prints a hosting slip saying who's already free that evening (and so on the list); **Put it on the marquee** confirms it, puts a movie night on the day and counts you in (one per day; first volunteer hosts; the start has to be in the future, and hosting less than a day out locks the movie right away). |
+| **Up next** | The nearest night: when, whose house, who's coming, its theme, snacks, and **If it locked now**: a small card with the poster of the movie that would win right now and why, in people's names (the same rule as the lock; on a themed night it names the pool, "the group's favorite among Drama movies"), with a Veto on it. Its ribbon gives the night's date ("Leading Nov 3"). The marquee always shows it as "Leading:". **Count me in** says you're coming, the same button wherever a night shows; it turns into **You're in ✓**, and dropping out takes a second tap. Everyone coming (and the host) gets one **veto** on a movie for this night and can call snacks. The host can change the time or theme, lock early, unlock (until a day before), mark it watched (once it's started), or cancel (until it starts). |
+| **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one" (written before you pick). Each card has the poster, then right under it who has seen it (once someone has), the thumbs-up ("I'd watch it"), **Seen it**, the trailer, Stremio and **Plot** (which opens the plot in place and becomes **Hide plot**). While a night is planned, its projected pick wears a **Leading** ribbon; otherwise the overall favorites wear **Most wanted**. Thumbs-ups and seen marks are per person and carry over. Sort (one menu) by most wanted, newest, least seen, shortest; show by tag, unseen by me, added by me, or, while a themed night is planned, just the movies it can pick ("Fits Hal's Drama night"). No cap. |
+| **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. The people who were there rate a night, one at a time: the newest unrated night, with the week's others a tap away. Everyone can read the reviews. The stars are one Tab stop; the arrow keys choose. |
 | **Stats** | The long view, worked out in your browser from what the page already has, spelled out on a letter board: nights and hours watched, movies added, thumbs-ups and who gives the most; the most wanted movies on the shelf; whose shelf picks made a night (house picks count as "House"); and, when you're signed in, who you agree with most (how alike your thumbs-ups are, once you and they have at least three). |
 
 **The pick.** A day before each night, the movie locks itself: the most
@@ -45,9 +45,11 @@ files itself as watched the morning after.
 Also: a first-visit walkthrough (five cards; **How it works** replays it),
 tickets with **Add to calendar** (Google Calendar's add-event page, with the
 .ics download as a fallback), Stremio links on every card, a season title on
-the marquee, and jump links under it to each section. Android's back gesture
-closes whichever card or overlay is open instead of leaving the site. Errors
-stay on screen until tapped away.
+the marquee, and jump links under it to each section (they scroll without
+adding history). Android's back gesture closes whichever card, overlay or
+hosting slip is open instead of leaving the site. A reveal closed with back
+before it turns stays face down that visit, with **Reveal the movie** in Up
+next. Errors stay on screen until tapped away.
 
 **Names.** A name is all it takes. A tap before you've given one (a thumbs-up,
 Count me in, a veto) brings up the name form and goes through once you have.
@@ -59,14 +61,20 @@ asks twice.
 something, step-through cards open by themselves (same style as How it works):
 a night hosted, moved, themed, vetoed, cancelled, locked or filed as watched,
 new movies and thumbs-ups, free evenings, snacks and reviews. They come most
-useful first: your own night (one you're coming to or hosting), other nights,
-new movies and thumbs-ups, free evenings, then snacks and reviews. On a phone
-the cards rise from the bottom, so the marquee stays in view. With five or more
-updates the first card is a playbill listing all of them, with **Got it** right
-there. A new-movies card has a working thumbs-up for each movie. There are at
-most eight cards; the last one lists everything else. **Show me** jumps to the
-section; **Got it** (or Skip) marks it all seen. A slim bar keeps "Walk me
-through" to reopen them. The rule for developers: any new kind of
+useful first: your own night (one you're coming to or hosting), then what
+needs your tap (new movies, a night you were at to rate), other nights,
+thumbs-ups, free evenings, then snacks and reviews. A night you're not coming
+to gets one card for all its changes ("Hal's Tuesday: now 9:00 PM · a Drama
+night · Cards Movie vetoed"), and a **Count me in** if it's still ahead. On a
+phone the cards rise from the bottom, so the marquee stays in view, and Next
+stays in reach on a long card. Headlines are set as sentences, with a movie's
+name in marquee letters. The bar counts what the cards say, the way a person
+says when ("since 12:28 PM today"). With five or more updates the first card
+is a playbill listing them, with **Got it** right there. A new-movies card has a working
+thumbs-up for each movie. There are at most eight cards; the last one lists
+everything else. **Show me** jumps to the section; **Got it** (or Skip) marks
+it all seen. A slim bar keeps "Walk me through" to reopen them where Show me
+left off. The rule for developers: any new kind of
 change people can make must show up in these cards or be marked quiet, with a
 reason, in `tests/news.test.mjs`. That test fails on any action in
 `public/js/actions.js` (or server write in `lib/tick.js`) it hasn't been told

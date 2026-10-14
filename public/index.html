@@ -77,7 +77,7 @@
 
     <section class="section" id="calSec">
       <div class="section-head">
-        <h2>When are you free?</h2>
+        <h2>The calendar</h2>
         <div class="head-side">
           <span class="aside">Next four weeks</span>
           <button class="btn btn-ghost btn-small" type="button" data-action="subscribe" aria-expanded="false" aria-controls="subPanel">Subscribe</button>
@@ -100,8 +100,15 @@
           </div>
         </details>
       </div>
-      <p class="hint" style="margin-top:0">Tap a day to see who’s free, then say you’re free or host it.</p>
-      <div class="cal" id="calendar"></div>
+      <p class="hint" style="margin-top:0">When are you free? Tap a day to see who is, then say you are or host it.</p>
+      <div class="cal-wrap">
+      <div class="cal" id="calendar" role="radiogroup" aria-label="Pick a day"></div>
+      <p class="cal-key" aria-hidden="true">
+        <span><i class="k-free"></i>you’re free</span>
+        <span class="k-count-row"><i class="k-count">2</i>free that evening</span>
+        <span><i class="k-night"></i>movie night</span>
+      </p>
+      </div>
       <div class="day-detail" id="dayDetail"></div>
     </section>
 
@@ -126,7 +133,10 @@
           <p class="msg" id="pickMsg" role="status"></p>
         </div>
       </details>
-      <div class="chip-row"><span class="label" id="sortLabel">Sort</span><div class="chips" id="sortChips" role="group" aria-labelledby="sortLabel"></div></div>
+      <div class="chip-row"><label class="label" for="sortSel">Sort</label>
+        <select class="field sort-pick" id="sortSel">
+          <option value="wanted">Most wanted</option><option value="new">Newest</option><option value="unseen">Least seen</option><option value="short">Shortest</option>
+        </select></div>
       <div class="chip-row"><span class="label" id="showLabel">Show</span><div class="chips" id="shelfChips" role="group" aria-labelledby="showLabel"></div></div>
       <div class="ballot" id="shelf"></div>
     </section>
@@ -134,6 +144,7 @@
     <section class="section" id="watchedSec" hidden>
       <div class="section-head"><h2>Watched</h2><span class="aside" id="statsLine"></span></div>
       <div id="rateBox"></div>
+      <h3 class="label past-label">Every night so far</h3>
       <div class="past" id="past"></div>
       <p class="hint" id="hostsLine"></p>
     </section>

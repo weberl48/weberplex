@@ -7,7 +7,7 @@ import {
   dayKey, dayFromKey, calendarDays, tallyDays, sinceLastLook, shelfTags, excludedFor,
   icsEvent, icsCalendar, icsFold, icsEscape,
   tasteMatch, pickLeaders, mostWanted, recap,
-  vetoedFor, pickable, fitsTheme, themeOptions, cleanTheme, showtimeShort, showtimeLong, looksLike, whenWords, googleCalendarUrl,
+  vetoedFor, pickable, fitsTheme, themeOptions, cleanTheme, showtimeShort, showtimeLong, looksLike, whenWords, sinceWords, googleCalendarUrl,
 } from '../public/js/logic.js';
 
 const at = (ms) => new Date(ms);
@@ -47,6 +47,20 @@ test('how far off, in words', () => {
   assert.equal(whenWords(new Date(2026, 9, 14, 15, 20), now), 'in 5 hr 20 min');
   assert.equal(whenWords(new Date(2026, 9, 14, 10, 40), now), 'in 40 min');
   assert.equal(whenWords(new Date(2026, 9, 14, 9, 0), now), 'now');
+});
+
+test('since you last looked, in words', () => {
+  const now = new Date(2026, 9, 14, 15, 0); // a Wednesday
+  const time = (d) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }).replace(' ', '\u00a0');
+  const noon = new Date(2026, 9, 14, 12, 28);
+  assert.equal(sinceWords(noon, now), `${time(noon)} today`); // never "since Wed" on a Wednesday
+  const late = new Date(2026, 9, 13, 21, 5);
+  assert.equal(sinceWords(late, now), `yesterday at ${time(late)}`);
+  const mon = new Date(2026, 9, 12, 21, 5);
+  assert.equal(sinceWords(mon, now), `${mon.toLocaleDateString(undefined, { weekday: 'short' })} ${time(mon)}`);
+  const old = new Date(2026, 9, 3, 9, 0);
+  assert.equal(sinceWords(old, now), old.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+  assert.doesNotMatch(sinceWords(noon, now), / (AM|PM)/); // the time keeps its AM/PM on the same line
 });
 
 test('Add to Google Calendar link for a night', () => {
@@ -163,8 +177,9 @@ test('since you last looked: what changed, minus your own doing', () => {
   });
   const text = n.items.map((i) => i.text);
   assert.match(text[0], /^Locked for .*: Smile$/); // your own night comes first
-  assert.match(text[1], /^Jo is hosting /);
-  assert.deepEqual(text.slice(2), ['1 new movie on the shelf: New', '1 new thumbs-up on 1 movie', 'Al marked free evenings']);
+  assert.equal(text[1], '1 new movie on the shelf: New'); // then what needs your tap
+  assert.match(text[2], /^Jo is hosting /);
+  assert.deepEqual(text.slice(3), ['1 new thumbs-up on 1 movie', 'Al marked free evenings']);
   assert.deepEqual([...n.movies], ['tt2']);
   assert.equal(n.votes.get('tt1'), 1);
   assert.ok(n.days.has('2026-10-17') && n.days.has('2026-10-20'));

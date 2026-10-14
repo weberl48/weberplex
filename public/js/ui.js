@@ -119,6 +119,9 @@ export function writeError(e, ctx = '') {
       : 'That didn’t go through. Someone may have just changed it; try again.';
   }
   if (e?.code === 'unavailable') return 'You look offline. Try again in a moment.';
+  // Any other database error is library talk: say it plainly. The site's own
+  // errors (no code) are written for people and pass through.
+  if (e?.code) { console.warn(e); return 'That didn’t go through. Try again in a moment.'; }
   return e?.message || 'Something went wrong. Try again.';
 }
 

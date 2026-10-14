@@ -13,7 +13,7 @@ import { revealMovie } from './reveal.js';
 import { openTour } from './tour.js';
 import { newsSteps } from './news.js';
 import * as L from './logic.js';
-import { $, esc, THUMB, HOUSE, CHECK, STAR, faces, posterImg, saveLocal, loadLocal, dropLegacyLocal, toast, downloadFile, writeError, armed, paint, keyOf } from './ui.js';
+import { $, esc, THUMB, HOUSE, CHECK, STAR, faces, posterImg, saveLocal, loadLocal, dropLegacyLocal, toast, downloadFile, writeError, armed, paint, keyOf, backCloses } from './ui.js';
 
 const A = makeActions(db, F);
 // The browser keeps only who you are (ps.me). Everything else about you is on
@@ -33,7 +33,9 @@ const S = {
   reelsSeen: new Set(),              // tie reels and movie reveals played this visit, as `${nameKey}|${key}` ('' when signed out)
   sort: 'wanted', filter: 'All',
   tab: 'search', tabItems: [], tabNote: '', tabLoading: false,
-  flipped: new Set(), lastVotes: new Map(), // shelf cards turned over to their backs
+  openPlots: new Set(), lastVotes: new Map(),
+  newsAt: 0,                         // the news card "Show me" left from, so Walk me through picks up there
+  deferred: new Set(),               // reveals closed with back before they turned: face down, a tap away
   revealing: null,                   // the reel or reveal on screen right now (its key)
   nightSub: new Map(),               // day -> { snacks, reviews } for nights on screen
   subLoaded: new Set(),              // `${day}:${collection}` once its first snapshot is in
@@ -230,6 +232,8 @@ function pendingShow(n) {
   const tie = n.lockedTie?.length > 1;
   if (!tie && started(n)) return null;
   const key = tie ? `${n.day}.${n.lockedMovieId}` : `r:${n.day}.${n.lockedMovieId}`;
+  // Closed with back before it turned: still face down, but it waits for a tap.
+  if (S.deferred.has(key)) return { key, tie, deferred: true };
   if (S.reelsSeen.has(seenKey(key)) || myDoc()?.reels?.includes(key)) return null;
   if (!tie) return { key, tie };
   const pool = n.lockedTie.map((id) => S.movies.find((m) => m.imdbId === id)).filter(Boolean);
@@ -255,7 +259,8 @@ function renderBoard(n, shelf) {
     const p = projection(n);
     kicker = S.season || 'Coming up'; title = `Movie night at ${L.placeLabel(n.host)}`;
     sub = [L.showtimeLong(n.startsAt), n.theme && `Theme: ${n.theme}`].filter(Boolean).join(' · ');
-    count = [L.lockDue(n) ? 'Locking now…' : `Movie locks ${L.whenWords(L.lockAt(n))}`, p && `Leading: ${pickName(p)}`].filter(Boolean).join(' · ');
+    // "Leading:" never parts from the title it introduces.
+    count = [L.lockDue(n) ? 'Locking now…' : `Movie locks ${L.whenWords(L.lockAt(n))}`, p && `Leading: ${pickName(p)}`].filter(Boolean).join(' · ');
   } else {
     kicker = showing(n) ? 'Now showing' : (S.season ? `${S.season} · now booking` : 'Now booking');
     // Face down until your reveal has played: the letters wait for the card.
@@ -300,18 +305,28 @@ function renderNews() {
   // The bar is a live region: write only what changed, so a screen reader
   // doesn't repeat it on every 30-second repaint.
   const set = (sel, text) => { if ($(sel).textContent !== text) $(sel).textContent = text; };
-  set('#newsCount', `${items.length} ${items.length === 1 ? 'update' : 'updates'}`);
+  const k = S.news.count;
+  set('#newsCount', `${k} ${k === 1 ? 'update' : 'updates'}`);
   set('#newsWhen', `since ${sinceText()}`);
 }
-const sinceText = () => new Date(S.since).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+const sinceText = () => L.sinceWords(S.since);
+// A news card about a night you're not on the list for carries its Count me in.
+// The card isn't repainted, so `data-done` is what the button says once it's done.
+function newsRsvp(day) {
+  const n = L.upcomingNights(S.nights).find((x) => x.day === day);
+  if (!n || !S.me || imFree(day) || isMine(n) || showing(n)) return '';
+  return `<div class="row news-votes"><button class="btn btn-bulb btn-rsvp" type="button" data-action="free" data-day="${n.day}" data-night="1" aria-pressed="false" data-done="You’re in">Count me in</button></div>`;
+}
 const scrollToSection = (sel) => $(sel)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
 function walkNews() {
   const cards = S.news?.cards || [];
   const voted = new Set(S.votes.filter((v) => v.nameKey === S.me?.nameKey).map((v) => v.movie));
+  // Show me remembers the card it left from; Walk me through picks up there.
   openTour({
-    steps: newsSteps(cards, { voted, items: S.news?.items || [], since: sinceText() }), label: 'Since you last looked', doneText: 'Got it',
-    onDone: ({ how, target }) => {
-      if (how === 'show') { scrollToSection(target); render(); return; }
+    steps: newsSteps(cards, { voted, since: sinceText(), rsvp: newsRsvp }), label: 'Since you last looked', doneText: 'Got it', start: S.newsAt, cls: 'news',
+    onDone: ({ how, target, at }) => {
+      if (how === 'show') { S.newsAt = at; scrollToSection(target); render(); return; }
+      S.newsAt = 0;
       markSeen();
       // Got it hides the bar, and with it the Walk me through button that had
       // focus: keep the place in the page instead of dropping to <body>. Done
@@ -336,7 +351,8 @@ function maybeWalk() {
   if (S.walked || !ready() || !S.me || !myDoc() || !subsLoaded()) return;
   if (!myDoc().toured && !S.toured) return; // How it works comes first
   if (document.querySelector('.tour-overlay')) return;
-  if (S.revealing || pendingShow(L.upcomingNights(S.nights)[0])) return; // then the movie
+  const owed = pendingShow(L.upcomingNights(S.nights)[0]);
+  if (S.revealing || (owed && !owed.deferred)) return; // then the movie
   if (!S.news?.cards.length) { S.walked = true; return; }
   if (document.querySelector('.reel-overlay, .reveal-overlay')) {
     if (!walkRetry) { walkRetry = true; setTimeout(() => { walkRetry = false; render(); }, 1500); }
@@ -367,8 +383,26 @@ const rsvp = (n, extra = '') => {
   const going = imFree(n.day);
   return `<button class="btn btn-rsvp ${going ? 'btn-ghost on' : 'btn-bulb'}${extra}" type="button" data-action="free" data-day="${n.day}" data-night="1" aria-pressed="${going}">${going ? `You’re in ${CHECK}` : 'Count me in'}</button>`;
 };
+// Who's coming, the way a person says it: "Hal", "you and Hal", "the 4
+// people coming". Empty when nobody is.
+function whoComing(list) {
+  const names = list.map((c) => (c.nameKey === S.me?.nameKey ? 'you' : c.name)).sort((a, b) => (a === 'you' ? -1 : b === 'you' ? 1 : 0));
+  return names.length > 2 ? `the ${names.length} people coming` : names.join(' and ');
+}
 // A thumbs-up count in a list: the number and the house thumb.
 const thumbs = (k) => `<span class="v">${k}<span class="sr-only"> thumbs-up</span>${THUMB}</span>`;
+// The ribbon on the movie a night would lock to: "Leading Nov 3" (a weekday
+// alone is ambiguous when the night is weeks out).
+function leadingFor(n) {
+  const t = L.showtimeParts(n.startsAt);
+  return `Leading ${t.mon.charAt(0)}${t.mon.slice(1).toLowerCase()} ${t.day}`;
+}
+// "Kim", "Kim and Sam", "Kim, Sam and Fran", "Kim, Sam and 3 others".
+function namesList(names) {
+  if (names.length <= 2) return names.join(' and ');
+  if (names.length === 3) return `${names[0]}, ${names[1]} and ${names[2]}`;
+  return `${names[0]}, ${names[1]} and ${names.length - 2} others`;
+}
 
 function renderNext(upcoming, shelf) {
   const n = upcoming[0];
@@ -398,17 +432,30 @@ function renderNext(upcoming, shelf) {
     // unless it's already in the list of what the people coming want.
     const p = projection(n);
     const tie = !!p && p.tie.length > 1;
-    const outThumbs = 'Their thumbs are all on vetoed or off-theme movies';
+    // The reason in people's names: "Hal", "you and Hal", "the 4 people coming".
+    const who = whoComing(coming);
+    const Who = who.charAt(0).toUpperCase() + who.slice(1);
+    // A theme narrows the pick before anything is counted, so the reason names
+    // the pool: "the group's favorite among Drama movies", not the shelf's.
+    const themed = n.theme && !noFit;
+    const pool = themed ? ` among ${n.theme} movies` : '';
     const why = !p ? 'The shelf is empty. Add a movie to give it something to pick.'
-      : p.basis === 'coming' ? 'The most thumbs from the people coming.'
-      : p.basis === 'everyone' ? `${thumbsOut ? outThumbs : 'No thumbs from the people coming yet'}, so it’s the most thumbs from everyone.`
-      : `${thumbsOut ? outThumbs : 'Nobody has thumbed up anything that fits'}, so it’s anything on the shelf${n.theme && !noFit ? ' that fits the theme' : ''}.`;
+      : p.basis === 'coming' ? (tie ? `Tied on thumbs-ups from ${who}${pool}: the reel decides at the lock.` : `The most thumbs-ups from ${who}${pool}.`)
+      : p.basis === 'everyone' ? `${thumbsOut ? `${Who} only thumbed up vetoed or off-theme movies` : who ? `No thumbs-ups from ${who} yet` : 'Nobody has said they’re in yet'}, so it goes to the group’s favorite${pool}.`
+      : `${thumbsOut ? `${Who} only thumbed up vetoed or off-theme movies` : `Nobody has thumbed up anything${themed ? ' that fits' : ''} yet`}, so it’s any ${themed ? `${n.theme} movie` : 'movie on the shelf'}.`;
+    const vetoNote = canVeto && !myVeto ? ' <span class="veto-note">one veto each</span>' : '';
+    // A mini lobby card: what the night would lock to right now, wearing the
+    // same ribbon as on the shelf.
     const pickNow = p ? `
         <div class="pick-now">
-          <h4 class="label">If it locked now</h4>
-          <p class="pick-line"><b>${esc(pickName(p))}</b>${tie ? ' <span class="hint">a tie: the reel decides at the lock</span>' : ''}${canVeto && !myVeto && !tie && p.basis !== 'coming' ? ` ${vetoBtn('veto', 'Veto', p.movie.imdbId, p.movie.title)}` : ''}</p>
-          <p class="hint">${why}</p>
-        </div>` : `<p class="hint">${why}</p>`;
+          <div class="pick-poster">${posterImg(p.movie.poster, p.movie.title)}<span class="ribbon">${tie ? 'Tied' : leadingFor(n)}</span></div>
+          <div class="pick-body">
+            <h4 class="label">If it locked now</h4>
+            <p class="pick-line"><b>${esc(pickName(p))}</b></p>
+            <p class="hint">${esc(why)}</p>
+            ${canVeto && !myVeto && !tie && p.basis !== 'coming' ? `<p class="pick-veto">${vetoBtn('veto', 'Veto', p.movie.imdbId, p.movie.title)}${vetoNote}</p>` : ''}
+          </div>
+        </div>` : `<p class="hint">${esc(why)}</p>`;
     body = `
       <div class="host-card night-card">
         <div class="nc-head">
@@ -416,14 +463,13 @@ function renderNext(upcoming, shelf) {
           ${n.theme ? `<p class="theme-line"><span class="label">Theme</span> <span class="theme-chip">${esc(n.theme)}</span>${noFit ? ` <span class="hint">${allVetoed ? 'Everything that fits is vetoed, so the whole shelf is in play.' : 'Nothing on the shelf fits yet, so the whole shelf is in play.'}</span>` : ''}</p>` : ''}
         </div>
         <div class="rsvp-row">${rsvp(n)}
-          <p class="dd-line">${coming.length ? `${faces(coming, S.me?.nameKey, 8, { named: false })} ${esc(coming.map((c) => c.name).join(', '))}` : 'Nobody has said they’re in yet.'}</p></div>
+          <p class="dd-line">${coming.length ? `${coming.length} coming: ${faces(coming, S.me?.nameKey, 8, { named: false })} ${esc(coming.map((c) => c.name).join(', '))}` : 'Nobody has said they’re in yet.'}</p></div>
         ${canVeto ? '' : `<p class="hint">${S.me ? 'Count yourself in' : 'Put your name down and count yourself in'} to veto a movie and call a snack.</p>`}
         ${pickNow}
         <div>
-          ${leads.length ? `<h4 class="label">What the people coming want</h4>
+          ${leads.length ? `<h4 class="label">What the people coming want${vetoNote}</h4>
           <ol class="leaders">${leads.map((x) => `<li>${esc(x.m.title)} ${thumbs(x.n)}${canVeto && !myVeto ? ` ${vetoBtn('veto', 'Veto', x.m.imdbId, x.m.title)}` : ''}</li>`).join('')}</ol>` : ''}
           ${vetoes.length ? `<ul class="vetoes">${vetoes.map((x) => `<li><s>${esc(x.title)}</s> <span class="hint">vetoed by ${esc(x.names.join(', '))}</span>${canVeto && myVeto === x.id ? ` ${vetoBtn('unveto', 'Undo veto', x.id, x.title)}` : ''}</li>`).join('')}</ul>` : ''}
-          <p class="hint">One veto each. Vetoed movies can’t be picked this night.</p>
         </div>
         ${hostTools(n, 'next')}
       </div>`;
@@ -452,6 +498,7 @@ function renderNext(upcoming, shelf) {
       </div>`;
     body = `
       ${ticket}
+      ${pendingShow(n)?.deferred ? '<div class="row reveal-again"><button class="btn btn-bulb" type="button" data-action="reveal-now">Reveal the movie</button></div>' : ''}
       ${going && !showing(n) ? `<div class="row ticket-actions"><a class="btn btn-bulb" href="${esc(gcalUrl(n, m, hide))}" target="_blank" rel="noopener">Add to calendar</a>${rsvp(n)}</div>
       <p class="hint">Not on Google Calendar? <button class="linkish" type="button" data-action="ics">Download the invite</button></p>` : ''}
       ${hide || !(m.trailer || m.imdbId) ? '' : `<div class="row links-row">
@@ -529,7 +576,7 @@ function reviewBox(n, reviews, { form = true } = {}) {
   return `
     <div class="review-form" style="margin-top:14px">
       <h3 class="prompt">${canRate ? `How was ${title}?` : `Reviews of ${title}`}${sum.count ? ` <span class="hint">★ ${sum.avg} from ${sum.count}</span>` : ''}</h3>
-      ${canRate ? `<div class="stars" role="radiogroup" aria-label="Stars">${[1, 2, 3, 4, 5].map((k) => `<button class="star${k <= stars ? ' on' : ''}" type="button" data-action="star" data-day="${n.day}" data-star="${k}" role="radio" aria-checked="${k === stars}" aria-label="${k} star${k > 1 ? 's' : ''}">${STAR}</button>`).join('')}</div>
+      ${canRate ? `<div class="stars" role="radiogroup" aria-label="Stars">${[1, 2, 3, 4, 5].map((k) => `<button class="star${k <= stars ? ' on' : ''}" type="button" data-action="star" data-day="${n.day}" data-star="${k}" role="radio" aria-checked="${k === stars}" tabindex="${k === (stars || 1) ? 0 : -1}" aria-label="${k} star${k > 1 ? 's' : ''}">${STAR}</button>`).join('')}</div>
         <div class="row"><label class="sr-only" for="review-${n.day}">One-line review</label>
           <input class="field" id="review-${n.day}" maxlength="140" placeholder="One line, optional" value="${esc(mine?.line || '')}" style="flex:1 1 12rem">
           <button class="btn btn-primary" type="button" data-action="review" data-day="${n.day}">Post</button></div>` : ''}
@@ -550,6 +597,7 @@ function play(n, key, show) {
   S.revealing = { key, day: n.day };
   show().then(({ seen }) => {
     if (seen) savePrefs({ reels: [...(myDoc()?.reels || []), key] });
+    else S.deferred.add(key); // stays face down; Up next offers "Reveal the movie"
     S.revealing = null;
     render();
     if (!seen || !imFree(n.day)) return;
@@ -569,7 +617,7 @@ const blocked = () => !!document.querySelector('.tour-overlay, .reel-overlay, .r
 function maybeRevealTie(n) {
   if (S.me && !myDoc()) return; // wait until we know which reels you've seen
   const p = pendingShow(n);
-  if (!p?.tie || blocked()) return;
+  if (!p?.tie || p.deferred || blocked()) return;
   play(n, p.key, () => spinReel(p.pool, p.winner, { title: `${p.pool.length}-way tie. The reel decides…`, done: imFree(n.day) ? 'See my ticket' : 'Nice' }));
 }
 
@@ -579,7 +627,7 @@ function maybeRevealTie(n) {
 function maybeRevealMovie(n) {
   if (S.me && !myDoc()) return; // wait until we know which reveals you've seen
   const p = pendingShow(n);
-  if (!p || p.tie || blocked()) return;
+  if (!p || p.tie || p.deferred || blocked()) return;
   play(n, p.key, () => revealMovie(n.lockedMovie, { when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n) }));
 }
 
@@ -614,17 +662,23 @@ function renderCalendar() {
           type="button" role="radio" data-action="day" data-day="${d.day}" aria-checked="${sel}" aria-controls="dayDetail" tabindex="${sel ? 0 : -1}" aria-label="${esc(label)}">
           <span class="d-dow">${first ? esc(date.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()) : '&nbsp;'}</span>
           <span class="d-num">${date.getDate()}</span>
-          <span class="d-meta">${d.count || ''}${live ? `<span class="d-host" title="Movie night">${HOUSE}</span>` : ''}</span>
+          <span class="d-meta"><span class="d-count">${d.count || ''}</span>${live ? `<span class="d-host" title="Movie night">${HOUSE}</span>` : ''}</span>
         </button>`;
     }).join('');
-  const d = days.find((x) => x.day === S.day);
+  const at = days.findIndex((x) => x.day === S.day);
+  const d = days[at];
   const date = L.dayFromKey(d.day);
   const mine = imFree(d.day);
   const night = d.night && d.night.status !== 'done' ? d.night : null;
   const freeBtn = night ? rsvp(night)
     : `<button class="btn btn-rsvp ${mine ? 'btn-ghost on' : 'btn-bulb'}" type="button" data-action="free" data-day="${d.day}" aria-pressed="${mine}">${mine ? `You’re free ${CHECK}` : 'I’m free that evening'}</button>`;
+  // ‹ › step to the next evening right here, so marking a run of free
+  // evenings doesn't mean going back up to the grid for each one.
+  // (No data-day on them, so focus stays on the arrow from one evening to the next.)
+  const step = (k, label, glyph) => `<button class="dd-step" type="button" data-action="day-step" data-target="${k}" aria-label="${label}"${days[at + k] ? '' : ' disabled'}>${glyph}</button>`;
   out('#dayDetail').innerHTML = `
-    <div class="dd-head"><h3>${esc(date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }))}</h3></div>
+    <div class="dd-head"><h3>${esc(date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }))}</h3>
+      <div class="dd-steps">${step(-1, 'Previous evening', '‹')}${step(1, 'Next evening', '›')}</div></div>
     <p class="dd-line">${d.count ? `${faces(d.free, S.me?.nameKey, 8, { named: false })} ${esc(d.free.map((f) => f.name).join(', '))}` : 'Nobody has said they’re free yet.'}</p>
     ${d.night?.status === 'done'
       ? `<p class="dd-line">Watched ${esc(d.night.lockedMovie?.title || '')} at ${esc(L.placeLabel(d.night.host))}.</p>`
@@ -637,19 +691,35 @@ function renderCalendar() {
            <h4 class="label">Host this evening</h4>
            <div class="row">${timeSelect('hostTime', S.hostTime)}${themeSelect('hostTheme', S.hostTheme)}
              ${S.hostSlip === d.day ? '' : `<button class="btn btn-ghost" type="button" data-action="host-slip" data-day="${d.day}">I can host</button>`}</div>
-           ${S.hostSlip === d.day ? hostSlip(d.day) : '<p class="hint">You’ll be counted in. A theme is optional: the pick sticks to it when it can.</p>'}
+           ${S.hostSlip === d.day ? hostSlip(d.day, d.free) : '<p class="hint">You’ll be counted in. A theme is optional: the pick sticks to it when it can.</p>'}
          </div>`}`;
 }
 
 // Hosting puts a night on the marquee for everyone, so it's printed on a slip
 // first and takes a confirming tap.
-function hostSlip(day) {
+// An open slip has a history entry (back folds it away); closing it any other
+// way takes that entry back out.
+let slipRelease = null;
+function closeSlip() {
+  S.hostSlip = null;
+  const r = slipRelease;
+  slipRelease = null;
+  r?.();
+}
+
+// `free`: who's free that evening, already on the list if it goes up.
+function hostSlip(day, free = []) {
   const when = startsAtFor(day, S.hostTime);
+  const others = free.filter((f) => f.nameKey !== S.me?.nameKey).map((f) => f.name);
+  // (Nobody else free: the panel above already says so.)
+  const crowd = others.length
+    ? `${namesList(others)} ${others.length === 1 ? 'is' : 'are'} free, so ${others.length === 1 ? 'they’re' : 'they’re all'} on the list.` : '';
   return `
     <div class="host-slip" role="group" aria-labelledby="slip-${day}">
       <p class="admit">Now booking</p>
       <h4 id="slip-${day}">Movie night at ${esc(L.placeLabel(S.me?.name || 'your'))}</h4>
       <p class="slip-when">${esc(L.showtimeLong(when))}${S.hostTheme ? ` · ${esc(S.hostTheme)} night` : ''}</p>
+      ${crowd ? `<p class="slip-crowd">${esc(crowd)}</p>` : ''}
       <p class="slip-note">It goes up on the marquee for everyone, and you’re counted in. The movie locks a day before.</p>
       <div class="row">
         <button class="btn btn-primary" type="button" data-action="host" data-day="${day}">Put it on the marquee</button>
@@ -659,7 +729,6 @@ function hostSlip(day) {
 }
 
 // ---- the shelf ------------------------------------------------------------------
-const SORTS = [['wanted', 'Most wanted'], ['new', 'Newest'], ['unseen', 'Least seen'], ['short', 'Shortest']];
 function sorted(list) {
   const out = [...list];
   if (S.sort === 'new') out.sort((a, b) => (b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0));
@@ -667,10 +736,12 @@ function sorted(list) {
   if (S.sort === 'short') out.sort((a, b) => (L.parseRuntime(a.runtime) || 999) - (L.parseRuntime(b.runtime) || 999));
   return out;
 }
-const matches = (m) => S.filter === 'All'
+// `fit`: the "Fits Hal's Drama night" chip, with the movies that night can pick.
+const matches = (m, fit) => S.filter === 'All'
   || (S.filter === 'Unseen by me' ? !m.seenBy.some((x) => x.nameKey === S.me?.nameKey)
     : S.filter === 'Added by me' ? m.by === S.me?.nameKey
-      : (m.shelf || []).includes(S.filter));
+      : fit && S.filter === fit.label ? fit.ids.has(m.imdbId)
+        : (m.shelf || []).includes(S.filter));
 
 function renderShelf(shelf) {
   $('#shelfCount').textContent = `${shelf.movies.length} movies`;
@@ -685,71 +756,65 @@ function renderShelf(shelf) {
   $('#browseGrid').hidden = searching || S.tabLoading || !S.tabItems.length;
   if (!searching) paint($('#browseGrid'), tilesHtml(S.tabItems, { taken, watched: L.watchedIds(S.nights) }));
 
-  out('#sortChips').innerHTML = SORTS.map(([k, label]) => `<button class="chip${S.sort === k ? ' on' : ''}" type="button" data-action="sort" data-sort="${k}" aria-pressed="${S.sort === k}">${label}</button>`).join('');
-  const filters = ['All', ...(S.me ? ['Unseen by me', 'Added by me'] : []), ...L.shelfTags(shelf.movies)];
+  if ($('#sortSel').value !== S.sort) $('#sortSel').value = S.sort;
+  // The crown belongs to the next night: with one planned, its projected pick
+  // wears "Leading Nov 3" (themes and vetoes decide); otherwise the shelf's
+  // overall favorites wear "Most wanted". Overall popularity lives in Stats.
+  const next = L.upcomingNights(S.nights)[0];
+  const p = projection(next);
+  // A themed night picks only from the movies that fit it; a chip shows which.
+  const pool = next?.status === 'planned' && next.theme ? L.pickable(shelf.movies, { vetoed: L.vetoedFor(next), theme: next.theme }) : null;
+  const fit = pool && !pool.themeFallback
+    ? { label: `Fits ${L.placeLabel(next.host)} ${next.theme} night`, ids: new Set(pool.movies.map((m) => m.imdbId)) } : null;
+  const filters = ['All', ...(fit ? [fit.label] : []), ...(S.me ? ['Unseen by me', 'Added by me'] : []), ...L.shelfTags(shelf.movies)];
   if (!filters.includes(S.filter)) S.filter = 'All';
   out('#shelfChips').innerHTML = filters.map((f) => `<button class="chip${S.filter === f ? ' on' : ''}" type="button" data-action="filter" data-tag="${esc(f)}" aria-pressed="${S.filter === f}">${esc(f)}</button>`).join('');
 
-  const list = sorted(shelf.movies).filter(matches);
+  const list = sorted(shelf.movies).filter((m) => matches(m, fit));
   if (!ready()) { out('#shelf').innerHTML = ''; return; }
   if (!list.length) {
     out('#shelf').innerHTML = `<p class="empty">${shelf.movies.length ? 'Nothing matches that filter.' : 'The shelf is empty. Add the first movie.'}</p>`;
     return;
   }
-  // Each movie is a lobby card. The front is the poster and the one thing
-  // people do most, the thumbs-up; tap the poster to turn it over for the
-  // back, printed on admit-one stock: Seen it, the trailer, Stremio, the plot.
-  // The crown belongs to the next night: with one planned, its projected pick
-  // wears "Leading Tue" (themes and vetoes decide); otherwise the shelf's
-  // overall favorites wear "Most wanted". Overall popularity lives in Stats.
-  const next = L.upcomingNights(S.nights)[0];
-  const p = projection(next);
   const leadIds = new Set(p ? (p.tie.length > 1 ? p.tie : [p.movie.imdbId]) : shelf.leaders.map((m) => m.imdbId));
-  const crown = p ? `Leading ${L.showtimeParts(next.startsAt).dow.slice(0, 3)}` : 'Most wanted';
+  const crown = p ? leadingFor(next) : 'Most wanted';
   out('#shelf').innerHTML = list.map((m) => {
     const id = esc(m.imdbId);
     const mine = S.me && m.by === S.me.nameKey;
     const voted = S.me && m.voters.some((v) => v.nameKey === S.me.nameKey);
     const iSaw = S.me && m.seenBy.some((v) => v.nameKey === S.me.nameKey);
-    const back = S.flipped.has(m.imdbId);
+    const plotOpen = S.openPlots.has(m.imdbId);
     const prev = S.lastVotes.get(m.imdbId);
     const bump = prev != null && m.votes > prev;
     S.lastVotes.set(m.imdbId, m.votes);
     const fresh = S.news?.movies.has(m.imdbId);
     const newVotes = S.news?.votes.get(m.imdbId) || 0;
     const meta = [m.year, m.runtime, m.rating && `★ ${m.rating}`].filter(Boolean).join(' · ');
-    const hidden = ' aria-hidden="true" inert';
+    // The poster, then everything about the movie right under it: the
+    // thumbs-up, Seen it, the trailer, Stremio and the plot.
     return `
-      <article class="card lobby${leadIds.has(m.imdbId) ? ' lead' : ''}${back ? ' flipped' : ''}">
-        <div class="lc">
-          <div class="lc-face lc-front"${back ? hidden : ''}>
-            <button class="lc-turn" type="button" data-action="flip" data-id="${id}" aria-expanded="false" aria-controls="back-${id}" aria-label="Turn over ${esc(m.title)}: Seen it, trailer, plot">
-              ${posterImg(m.poster, m.title)}<span class="lc-ear" aria-hidden="true"></span></button>
-            ${fresh ? '<span class="new-chip">New</span>' : ''}
-            ${leadIds.has(m.imdbId) ? `<span class="ribbon">${crown}</span>` : ''}</div>
-          <div class="lc-face lc-back" id="back-${id}"${back ? '' : hidden}>
-            <button class="lc-ear lc-back-turn" type="button" data-action="unflip" data-id="${id}" aria-label="Turn ${esc(m.title)} back over"></button>
-            <div class="lc-actions">
-              <button class="mini${iSaw ? ' on' : ''}" type="button" data-action="seen" data-id="${id}" aria-pressed="${!!iSaw}">${iSaw ? `Seen ${CHECK}` : 'Seen it'}</button>
-              ${m.trailer ? `<a class="mini" href="https://www.youtube.com/watch?v=${esc(m.trailer)}" target="_blank" rel="noopener" aria-label="Trailer for ${esc(m.title)}">Trailer</a>` : ''}
-              <a class="mini" href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener" aria-label="Open ${esc(m.title)} in Stremio">Stremio</a>
-              ${mine ? `<button class="mini" type="button" data-action="remove-movie" data-id="${id}">Remove</button>` : ''}
-            </div>
-            <p class="seen-line">${m.seenBy.length ? `Seen by ${esc(m.seenBy.map((x) => x.name).join(', '))}` : 'Nobody has marked it seen'}</p>
-            <p class="lc-plot">${m.description ? esc(m.description) : 'No plot on file for this one.'}</p>
-          </div>
-        </div>
+      <article class="card${leadIds.has(m.imdbId) ? ' lead' : ''}">
+        <div class="poster">${posterImg(m.poster, m.title)}
+          ${fresh ? '<span class="new-chip">New</span>' : ''}
+          ${leadIds.has(m.imdbId) ? `<span class="ribbon">${crown}</span>` : ''}</div>
         <div class="card-body">
           <h3>${esc(m.title)}</h3>
           ${meta ? `<p class="meta">${esc(meta)}</p>` : ''}
           ${m.shelf?.length ? `<div class="tags">${m.shelf.map((x) => `<span class="tag-chip" data-tag="${esc(x)}">${esc(x)}</span>`).join('')}</div>` : ''}
           ${m.pitch ? `<p class="pitch">“${esc(m.pitch)}”</p>` : ''}
           <p class="by">${L.isHouse(m) ? 'House pick' : `Added by ${mine ? 'you' : esc(m.byName)}`}</p>
+          ${m.seenBy.length ? `<p class="seen-line">Seen by ${esc(m.seenBy.map((x) => x.name).join(', '))}</p>` : ''}
           <div class="card-actions">
             <button class="vote${voted ? ' on' : ''}${bump ? ' bump' : ''}" type="button" data-action="vote" data-id="${id}"
               aria-pressed="${!!voted}" aria-label="I'd watch ${esc(m.title)} (${m.votes})">${THUMB}<span class="n">${m.votes}</span>${newVotes ? `<span class="vote-new">+${newVotes}</span>` : ''}</button>
-            ${faces(m.voters, S.me?.nameKey, 4)}
+            <button class="mini${iSaw ? ' on' : ''}" type="button" data-action="seen" data-id="${id}" aria-pressed="${!!iSaw}" aria-label="Seen ${esc(m.title)}">${iSaw ? `Seen ${CHECK}` : 'Seen it'}</button>
+            ${m.trailer ? `<a class="mini" href="https://www.youtube.com/watch?v=${esc(m.trailer)}" target="_blank" rel="noopener" aria-label="Trailer for ${esc(m.title)}">Trailer</a>` : ''}
+            <a class="mini" href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener" aria-label="Open ${esc(m.title)} in Stremio">Stremio</a>
+            ${m.description ? `<button class="mini" type="button" data-action="plot" data-id="${id}" aria-expanded="${plotOpen}" aria-controls="plot-${id}">${plotOpen ? 'Hide plot' : 'Plot'}</button>` : ''}
+            ${mine ? `<button class="mini" type="button" data-action="remove-movie" data-id="${id}">Remove</button>` : ''}
           </div>
+          ${m.description ? `<p class="plot" id="plot-${id}"${plotOpen ? '' : ' hidden'}>${esc(m.description)}</p>` : ''}
+          <div class="voters">${faces(m.voters, S.me?.nameKey, 6)}</div>
         </div>
       </article>`;
   }).join('');
@@ -958,12 +1023,35 @@ $('#passForm').addEventListener('submit', (e) => {
   }
   join(name);
 });
+// Jump links scroll without adding a history entry: back then means close (an
+// overlay) or leave, never a dead step.
+$('.program').addEventListener('click', (e) => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a) return;
+  e.preventDefault();
+  const sec = $(a.getAttribute('href'));
+  if (!sec) return;
+  scrollToSection(a.getAttribute('href'));
+  sec.setAttribute('tabindex', '-1');
+  sec.focus({ preventScroll: true });
+});
 $('#addBox').addEventListener('toggle', () => {
   $('#addBox > summary').textContent = $('#addBox').open ? 'Done adding' : 'Add a movie';
 });
 // Offline, taps still show on this phone and send when the connection is back.
 window.addEventListener('offline', () => toast('You’re offline. What you tap now sends when you’re back online, if this page stays open.', true));
 window.addEventListener('online', () => toast('Back online.'));
+// The stars are one Tab stop: the arrow keys choose between them, like any radio group.
+document.addEventListener('keydown', (e) => {
+  const star = e.target.closest?.('.stars [role="radio"]');
+  const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
+  if (!star || !step) return;
+  e.preventDefault();
+  const all = [...star.parentElement.children];
+  const next = all[Math.max(0, Math.min(all.length - 1, all.indexOf(star) + step))];
+  next.focus();
+  next.click();
+});
 // Arrow keys move between days (Home and End to the ends); the panel follows.
 $('#calendar').addEventListener('keydown', (e) => {
   const cell = e.target.closest('.day');
@@ -984,6 +1072,7 @@ document.addEventListener('change', (e) => {
   // The hosting block's menus: the slip, if open, reprints with them.
   if (e.target.id === 'hostTime') { S.hostTime = e.target.value; savePrefs({ hostTime: S.hostTime }); render(); }
   if (e.target.id === 'hostTheme') { S.hostTheme = e.target.value; render(); }
+  if (e.target.id === 'sortSel') { S.sort = e.target.value; render(); }
   const day = e.target.dataset.themeDay; // the host's theme menu on a planned night
   if (!day) return;
   wantTheme.set(day, e.target.value);
@@ -1043,18 +1132,31 @@ document.addEventListener('click', (e) => {
     case 'join': join(el.dataset.name); break;
     case 'switch':
       if (!armed(el, 'Tap again to switch')) return;
-      S.me = null; saveLocal('ps.me', null); prefsFor = null; S.since = null; S.walked = false; S.hostTime = '20:00'; S.hostSlip = null; render();
+      S.me = null; saveLocal('ps.me', null); prefsFor = null; S.since = null; S.walked = false; S.hostTime = '20:00'; closeSlip(); render();
       setTimeout(focusPass, 0);
       break;
-    case 'day': S.day = day; render(); break;
-    // Turning a card hides the side you tapped on: focus goes to the other side.
-    case 'flip': case 'unflip': {
-      const over = el.dataset.action === 'flip';
-      if (over) S.flipped.add(id); else S.flipped.delete(id);
-      render();
-      setTimeout(() => document.querySelector(`[data-action="${over ? 'unflip' : 'flip'}"][data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true }), 0);
+    // A tap shows the day in the box office window; if the window's buttons
+    // are below the fold, bring them up so the next tap is in reach.
+    case 'day':
+      if (S.hostSlip && S.hostSlip !== day) closeSlip();
+      S.day = day; render();
+      setTimeout(() => {
+        const r = $('#dayDetail .dd-actions')?.getBoundingClientRect();
+        if (r && r.bottom > innerHeight) $('#dayDetail').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
+      }, 0);
+      break;
+    // ‹ › in the day panel: the next or previous evening, without the grid.
+    case 'day-step': {
+      const days = L.calendarDays();
+      const to = days[days.indexOf(S.day) + Number(el.dataset.target)];
+      if (!to) return;
+      if (S.hostSlip) closeSlip();
+      S.day = to; render();
       break;
     }
+    case 'plot': if (S.openPlots.has(id)) S.openPlots.delete(id); else S.openPlots.add(id); render(); break;
+    // A reveal closed early: play it now (it's face down until then).
+    case 'reveal-now': for (const k of S.deferred) S.reelsSeen.delete(seenKey(k)); S.deferred.clear(); render(); break;
     case 'tour': startTour(); break;
     case 'news-seen': markSeen(); break;
     case 'news-walk': walkNews(); break;
@@ -1072,18 +1174,26 @@ document.addEventListener('click', (e) => {
       const was = imFree(day);
       // Dropping out of a night (and its ticket) takes a second tap.
       if (was && el.dataset.night && !armed(el, 'Tap again: can’t make it')) return;
-      once(`free:${day}`, () => A.setFree(day, me, !was));
+      // Said back once it's saved: in, out, free, or not.
+      once(`free:${day}`, async () => {
+        await A.setFree(day, me, !was);
+        toast(el.dataset.night
+          ? (was ? `You’re off the list for ${when}.` : `You’re in for ${when}.`)
+          : (was ? `${when} is unmarked.` : `You’re free ${when}. If someone hosts, you’re on the list.`));
+      });
       render();
       break;
     }
     case 'host-slip': {
       const me = requireMe(el); if (!me) return;
-      S.hostSlip = day; render();
+      S.hostSlip = day;
+      slipRelease = backCloses(() => { slipRelease = null; S.hostSlip = null; render(); }); // back folds the slip away
+      render();
       setTimeout(() => document.querySelector(`#dayDetail [data-action="host"][data-day="${day}"]`)?.focus(), 0);
       break;
     }
     case 'host-cancel':
-      S.hostSlip = null; render();
+      closeSlip(); render();
       setTimeout(() => document.querySelector(`#dayDetail [data-action="host-slip"][data-day="${day}"]`)?.focus(), 0);
       break;
     case 'host': {
@@ -1093,7 +1203,7 @@ document.addEventListener('click', (e) => {
       const theme = S.hostTheme;
       once(`host:${day}`, async () => {
         await A.hostNight(me, day, startsAt, theme);
-        S.hostSlip = null; S.hostTheme = '';
+        closeSlip(); S.hostTheme = '';
         render();
         const soon = L.lockAt({ startsAt }) <= new Date();
         toast(`You're hosting ${L.showtimeLong(startsAt)}. It's on the marquee. ${soon ? 'It is less than a day away, so the movie locks now.' : 'The movie locks a day before.'}`);
@@ -1145,7 +1255,6 @@ document.addEventListener('click', (e) => {
       once(`rm:${id}`, async () => { await A.removeMovie(m, m.voters.map((v) => v.nameKey), m.seenBy.map((v) => v.nameKey)); toast(`Took ${m.title} off the shelf.`); });
       break;
     }
-    case 'sort': S.sort = el.dataset.sort; render(); break;
     case 'filter': S.filter = el.dataset.tag; render(); break;
     case 'pick': pick(id, el); break;
     case 'surprise': surprise(); break;
@@ -1273,12 +1382,13 @@ function downloadIcs() {
   const m = n?.lockedMovie;
   if (!n || !m) return;
   const runtime = L.parseRuntime(m.runtime);
+  const hide = faceDown(n); // face down, the invite names the night, not the movie
   downloadFile('movie-night.ics', L.buildIcs({
     uid: `${n.day}-${S.me?.nameKey || 'guest'}`,
-    title: `Movie night: ${m.title}`,
+    title: hide ? `Movie night at ${L.placeLabel(n.host)}` : `Movie night: ${m.title}`,
     start: n.startsAt.toDate(),
     minutes: runtime ? runtime + 30 : 150,
-    description: `Weberplex: ${m.title}${m.year ? ` (${m.year})` : ''} at ${L.placeLabel(n.host)}.${n.theme ? ` Theme: ${n.theme}.` : ''} ${SITE_URL}`,
+    description: `Weberplex${hide ? '' : `: ${m.title}${m.year ? ` (${m.year})` : ''}`} at ${L.placeLabel(n.host)}.${n.theme ? ` Theme: ${n.theme}.` : ''} ${SITE_URL}`,
     location: L.placeLabel(n.host),
     url: SITE_URL,
   }), 'text/calendar');

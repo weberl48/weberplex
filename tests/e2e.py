@@ -359,19 +359,20 @@ def news_cards_checks(browser, errors):
     wren.goto(f'{SITE}/?emu')
     walk = wren.locator('.tour-overlay')
     expect(walk).to_be_visible(timeout=10000)
-    expect(walk.locator('.tour-top .label')).to_have_text('Since you last looked · 1 of 4')
+    expect(walk.locator('.tour-top .label')).to_have_text('Since you last looked · 1 of 2')
     # Lingering past the 4 s "real look" doesn't count as seen while the cards are unread.
     wren.wait_for_timeout(5000)
     wren.reload()
     expect(walk).to_be_visible(timeout=10000)
-    expect(walk.locator('.tour-top .label')).to_have_text('Since you last looked · 1 of 4')
-    for i, text in enumerate([re.compile(r"starts at 9:00\sPM"), 'is a Drama night now', 'Hal vetoed Cards Movie', 'Hal is bringing Candy']):
-        expect(walk.locator('#tourTitle')).to_contain_text(text)
-        if i == 2:
-            expect(walk.locator('.tour-demo s')).to_have_text('Cards Movie')  # the struck title
-            shot(wren, '02b-guest-news-veto')
-        if i < 3:
-            wren.click('[data-tour="next"]')
+    expect(walk.locator('.tour-top .label')).to_have_text('Since you last looked · 1 of 2')
+    # Wren isn't coming to Hal's night, so its three changes share one card; the snack gets its own.
+    expect(walk.locator('#tourTitle')).to_contain_text(re.compile(r"Hal's \w+: now 9:00\sPM · a Drama night · Cards Movie vetoed"))
+    expect(walk.locator('.tour-demo s')).to_have_text('Cards Movie')  # the struck title
+    expect(walk.locator('.tour-demo .tag-chip')).to_have_text('Drama')
+    expect(walk.locator('.tour-card [data-action="free"]')).to_have_text('Count me in')  # Wren isn't on that night's list
+    shot(wren, '02b-guest-news-veto')
+    wren.click('[data-tour="next"]')
+    expect(walk.locator('#tourTitle')).to_contain_text('Hal is bringing Candy')
     wren.click('[data-tour="done"]')
     expect(walk).to_have_count(0)
     expect(wren.locator('#news')).to_be_hidden()
@@ -493,6 +494,12 @@ def main():
         expect(jo.locator('#calendar .day.sel')).to_have_attribute('data-day', jo.locator('#calendar .day').nth(3).get_attribute('data-day'))
         jo.keyboard.press('ArrowLeft')
         expect(jo.locator(f'#calendar .day.sel[data-day="{day}"]')).to_be_focused()
+        # The panel's own arrows step through the evenings too, and keep focus on themselves.
+        jo.click('#dayDetail [data-action="day-step"][data-target="1"]')
+        expect(jo.locator('#calendar .day.sel')).to_have_attribute('data-day', jo.locator('#calendar .day').nth(3).get_attribute('data-day'))
+        expect(jo.locator('#dayDetail [data-action="day-step"][data-target="1"]')).to_be_focused()
+        jo.click('#dayDetail [data-action="day-step"][data-target="-1"]')
+        expect(jo.locator(f'#calendar .day.sel[data-day="{day}"]')).to_have_count(1)
         jo.select_option('#hostTime', '20:00')
         # Hosting is printed on a slip first; "Not yet" backs out, and nothing is written.
         jo.click('#dayDetail [data-action="host-slip"]')
@@ -512,9 +519,7 @@ def main():
         expect(jo.locator('#next .host-tools')).to_have_count(1)
         shot(sam, '01-guest-planned')
 
-        # Seen marks (on the back of the lobby card) and the filter.
-        card(sam, jaws).locator('[data-action="flip"]').click()
-        expect(card(sam, jaws)).to_have_class(re.compile(r'\bflipped\b'))
+        # Seen marks (right under the poster) and the filter.
         card(sam, jaws).locator('[data-action="seen"]').click()
         expect(card(sam, jaws)).to_contain_text('Seen by Sam')
         sam.click('#shelfChips [data-tag="Unseen by me"]')
@@ -554,10 +559,11 @@ def main():
         expect(sam.locator('#newsCount')).to_have_text(f'{total} updates')
         expect(card(sam, paddington).locator('.new-chip')).to_have_count(1)
         expect(card(sam, jaws).locator('.vote-new')).to_have_text('+1')
-        # Walk me through reopens them; Got it on the last card marks everything seen.
+        # Walk me through reopens them where Show me left off; Got it on the last card marks everything seen.
         sam.click('#news [data-action="news-walk"]')
-        expect(label).to_have_text(f'Since you last looked · 1 of {total}')
-        for _ in range(total - 1):
+        pos = len(titles)
+        expect(label).to_have_text(f'Since you last looked · {pos} of {total}')
+        for _ in range(total - pos):
             sam.click('[data-tour="next"]')
         expect(walk.locator('[data-tour="done"]')).to_have_text('Got it')
         sam.click('[data-tour="done"]')
@@ -660,10 +666,19 @@ def main():
         expect(sam.locator('#next .dd-line').first).to_contain_text('Sam')
         # The theme narrows "what the people coming want" to movies that fit it; their
         # thumbs are all on other movies, and the page says so rather than "no thumbs".
-        expect(sam.locator('#next .night-card')).to_contain_text('Their thumbs are all on vetoed or off-theme movies')
+        # In their names: "You and Jo only thumbed up vetoed or off-theme movies…"
+        expect(sam.locator('#next .night-card')).to_contain_text('You and Jo only thumbed up vetoed or off-theme movies')
         # ...and it still says what would win: the only Foreign movie, on the board too.
         expect(sam.locator('#next .pick-now')).to_contain_text(house_title)
         expect(sam.locator('#board')).to_contain_text(f'Leading: {house_title}')
+        # The reason names the pool the theme leaves, and the shelf can show just that pool.
+        expect(sam.locator('#next .pick-now')).to_contain_text('Foreign movie')
+        fits = sam.locator('#shelfChips [data-tag^="Fits "]')
+        expect(fits).to_have_text("Fits Jo's Foreign night")
+        fits.click()
+        expect(sam.locator('#shelf .card')).to_have_count(1)
+        expect(sam.locator('#shelf .card h3')).to_have_text(house_title)
+        sam.click('#shelfChips [data-tag="All"]')
         # The host clears the theme from the host tools; it clears on Sam's phone too.
         # Arrowing through the menu quickly lands on the last choice, not an earlier one.
         jo.select_option('#next select[data-theme-day]', '')
@@ -694,7 +709,8 @@ def main():
         expect(jo.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
         expect(jo.locator('#next [data-action="veto"]')).to_have_count(2)  # Jo has not used a veto yet
         expect(jo.locator('#next [data-action="unveto"]')).to_have_count(0)  # Sam's is Sam's to undo
-        expect(sam.locator('#next .night-card .hint').last).to_contain_text('One veto each')
+        expect(jo.locator('#next .veto-note')).to_have_text('one veto each')  # said beside the Vetoes, while you still have yours
+        expect(sam.locator('#next .veto-note')).to_have_count(0)
         shot(sam, '04c-guest-veto')
         sam.click('#next [data-action="unveto"]')
         expect(sam.locator('#next .vetoes')).to_have_count(0)

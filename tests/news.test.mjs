@@ -162,8 +162,24 @@ test('news comes most useful first: your night, other nights, the shelf, free ev
     movies: [{ imdbId: 'tt2', title: 'New', by: 'jo', at: at(2000) }],
     free: [{ day: '2026-10-18', nameKey: 'me', name: 'Me', at: at(10) }, { day: '2026-10-20', nameKey: 'al', name: 'Al', at: at(2000) }],
   });
-  assert.deepEqual(n.items.map((i) => i.kind), ['moved', 'night', 'movies', 'free', 'snack']);
-  assert.deepEqual(n.items[2].ids, [{ id: 'tt2', title: 'New' }]); // the card's thumbs-up buttons
+  // your night, then what needs your tap (new movies), other nights, free evenings, the after-party
+  assert.deepEqual(n.items.map((i) => i.kind), ['moved', 'movies', 'night', 'free', 'snack']);
+  assert.deepEqual(n.items[1].ids, [{ id: 'tt2', title: 'New' }]); // the card's thumbs-up buttons
+});
+
+test('a night you are not coming to gets one card for all its changes', () => {
+  const n = sinceLastLook({
+    ...base,
+    nights: [night({ host: 'Hal', hostKey: 'hal', movedAt: at(2000), theme: 'Drama', themeAt: at(2000), vetoes: { sam: 'tt1' }, vetoAt: { sam: at(2000) } })],
+    movies: [{ imdbId: 'tt1', title: 'Jaws', by: 'jo', at: at(10) }], people: [{ id: 'sam', name: 'Sam' }],
+  });
+  assert.equal(n.items.length, 3); // still three things to count
+  assert.equal(n.cards.length, 1);
+  assert.match(n.cards[0].text, /^Hal's \w+: now \d+:00\s?PM · a Drama night · Jaws vetoed$/);
+  assert.equal(n.cards[0].struck, 'Jaws');
+  // On your own night each change keeps its own card.
+  const mineToo = sinceLastLook({ ...base, nights: [night({ host: 'Hal', hostKey: 'hal', movedAt: at(2000), theme: 'Drama', themeAt: at(2000) })], free: [{ day: '2026-10-17', nameKey: 'me', name: 'Me', at: at(10) }] });
+  assert.equal(mineToo.cards.length, 2);
 });
 
 test('a night hosted on an evening you said you were free puts you on its list, and says so', () => {
@@ -181,5 +197,6 @@ test('at most eight cards, with the rest counted on the last one', () => {
   assert.match(n.cards.at(-1).detail, /…and 3 more things\.$/);
   assert.equal(n.cards.at(-1).rest.length, 3); // and lists them, so none goes unseen
   assert.deepEqual(n.cards.at(-1).rest, n.items.slice(MAX_NEWS_CARDS).map((x) => x.text));
+  assert.equal(n.count, 11); // the bar's count: the cards plus what the last one lists
   assert.equal(sinceLastLook({ ...base, ...FIXTURES.movies }).cards.length, 1);
 });
