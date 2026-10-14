@@ -51,9 +51,9 @@ const STEPS = [
 
 let open = null;
 
-// onDone({ how, target, at }): how is 'done' (last card), 'skip' (Skip or Esc)
-// or 'show' (Show me); `at` is the card it closed on, so a deck can reopen
-// there (`start`). `cls` styles the cards for another deck ('news').
+// onDone({ how, target, at }): how is 'done' (last card), 'skip' (Skip),
+// 'back' (Android back or Esc) or 'show' (Show me); `at` is the card it closed
+// on, so a deck can reopen there (`start`). `cls` styles the cards for another deck ('news').
 export function openTour({ onDone, steps = STEPS, label = 'How it works', doneText = "Let's go", start = 0, cls = '' } = {}) {
   if (open || !steps.length) return;
   let i = Math.max(0, Math.min(steps.length - 1, start));
@@ -80,7 +80,7 @@ export function openTour({ onDone, steps = STEPS, label = 'How it works', doneTe
     prevFocus?.focus?.({ preventScroll: how === 'show' });
     onDone?.({ how, target, at: i });
   };
-  const release = backCloses(() => close('skip')); // back = Skip
+  const release = backCloses(() => close('back')); // back: 'later' for a deck that cares (the news)
   const paint = () => {
     const s = steps[i];
     const last = i === steps.length - 1;
@@ -133,7 +133,7 @@ export function openTour({ onDone, steps = STEPS, label = 'How it works', doneTe
     if (a === 'skip' || a === 'done') close(a);
   });
   function onKey(e) {
-    if (e.key === 'Escape') { e.preventDefault(); close('skip'); return; }
+    if (e.key === 'Escape') { e.preventDefault(); close('back'); return; }
     if (e.key === 'ArrowRight' && i < steps.length - 1) { i += 1; paint(); }
     if (e.key === 'ArrowLeft' && i > 0) { i -= 1; paint(); }
     if (e.key === 'Tab') {

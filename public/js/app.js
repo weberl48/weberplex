@@ -338,8 +338,23 @@ function unspoiled(c) {
   const titles = hidden.map((n) => [n.lockedMovie?.title || '', blank(n)]).filter(([t]) => t);
   const rest = c.rest?.map((t) => titles.find(([title]) => t.includes(title))?.[1] || t);
   const n = c.kind === 'locked' && hidden.find((x) => x.day === c.day);
-  if (!n) return rest ? { ...c, rest } : c;
-  return { ...c, rest, text: blank(n), detail: 'It’s face down until you turn it over: Reveal the movie, in Up next.', poster: undefined, title: '' };
+  if (n) return { ...c, rest, text: blank(n), detail: 'It’s face down until you turn it over: Reveal the movie, in Up next.', poster: undefined, title: '' };
+  // Elsewhere (a thumbs-up on it, a new-movie card) the title gives way too.
+  const scrub = (t) => titles.reduce((s, [title, b]) => s.split(title).join(b.replace(' is locked', '')), t || '');
+  const hit = titles.some(([title]) => (c.text || '').includes(title) || (c.detail || '').includes(title));
+  if (!hit) return rest ? { ...c, rest } : c;
+  return { ...c, rest, text: scrub(c.text), detail: scrub(c.detail), ...(titles.some(([title]) => c.title === title) ? { poster: undefined, title: '' } : {}) };
+}
+// Got it hides the bar, and with it the button that had focus: keep the
+// place in the page instead of dropping to <body>. Done now, not after the
+// repaint, so there's no moment with focus nowhere.
+function keepPlace() {
+  const a = document.activeElement;
+  if (!a || a === document.body || a.closest('#news')) {
+    const sec = $('#nextSec');
+    sec.setAttribute('tabindex', '-1');
+    sec.focus({ preventScroll: true });
+  }
 }
 function walkNews() {
   const cards = (S.news?.cards || []).map(unspoiled);
@@ -349,17 +364,12 @@ function walkNews() {
     steps: newsSteps(cards, { voted, since: sinceText(), rsvp: newsRsvp }), label: 'Since you last looked', doneText: 'Got it', start: S.newsAt, cls: 'news',
     onDone: ({ how, target, at }) => {
       if (how === 'show') { S.newsAt = at; scrollToSection(target); render(); return; }
+      // Android back (or Esc) means later: the bar keeps the count, and Walk
+      // me through picks up where you left off. Got it and Skip mark it read.
+      if (how === 'back') { S.newsAt = at; render(); return; }
       S.newsAt = 0;
       markSeen();
-      // Got it hides the bar, and with it the Walk me through button that had
-      // focus: keep the place in the page instead of dropping to <body>. Done
-      // now, not after the repaint, so there's no moment with focus nowhere.
-      const a = document.activeElement;
-      if (!a || a === document.body || a.closest('#news')) {
-        const sec = $('#nextSec');
-        sec.setAttribute('tabindex', '-1');
-        sec.focus({ preventScroll: true });
-      }
+      keepPlace();
     },
   });
 }
@@ -402,10 +412,17 @@ const timeSelect = (id, value) => `<label class="sr-only" for="${id}">Start time
 // Saying you're coming to a night, the same button everywhere a night shows
 // (Up next, Also planned, the day panel): "Count me in", then "You're in ✓".
 // Dropping out takes a second tap; a stray one shouldn't cost a ticket.
-const rsvp = (n, extra = '') => {
+// `quiet`: a ghost button, for a night further down the page than the one
+// that has the main call (one amber call per block).
+const rsvp = (n, extra = '', { quiet = false } = {}) => {
   const going = imFree(n.day);
-  return `<button class="btn btn-rsvp ${going ? 'btn-ghost on' : 'btn-bulb'}${extra}" type="button" data-action="free" data-day="${n.day}" data-night="1" aria-pressed="${going}">${going ? `You’re in ${CHECK}` : 'Count me in'}</button>`;
+  return `<button class="btn btn-rsvp ${going ? 'btn-ghost on' : quiet ? 'btn-ghost' : 'btn-bulb'}${extra}" type="button" data-action="free" data-day="${n.day}" data-night="1" aria-pressed="${going}">${going ? `You’re in ${CHECK}` : 'Count me in'}</button>`;
 };
+// " · Leading: Alien" for a planned night further out, so its pick is never invisible.
+function leadingLine(n) {
+  const p = projection(n);
+  return p ? ` · Leading: ${esc(pickName(p))}` : '';
+}
 // Who's coming, the way a person says it: "Hal", "you and Hal", "the 4
 // people coming". Empty when nobody is.
 function whoComing(list) {
@@ -538,8 +555,8 @@ function renderNext(upcoming, shelf) {
   out('#moreNights').innerHTML = more.length ? `
     <h3 class="label" style="margin:16px 0 6px">Also planned</h3>
     <ul class="date-list">${more.map((x) => `
-      <li class="date-item"><span>${esc(L.showtimeLong(x.startsAt))} · at ${esc(L.placeLabel(x.host))} · ${comingTo(x.day).length} in</span>
-        ${rsvp(x, ' btn-small')}</li>`).join('')}</ul>` : '';
+      <li class="date-item"><span>${esc(L.showtimeLong(x.startsAt))} · at ${esc(L.placeLabel(x.host))} · ${comingTo(x.day).length} coming${leadingLine(x)}</span>
+        ${rsvp(x, ' btn-small', { quiet: true })}</li>`).join('')}</ul>` : '';
 }
 
 // Concessions: everyone sees who's bringing what; the people coming (and the
@@ -726,7 +743,7 @@ function renderCalendar() {
     ${d.night?.status === 'done'
       ? `<p class="dd-line">Watched ${esc(d.night.lockedMovie?.title || '')} at ${esc(L.placeLabel(d.night.host))}.</p>`
       : night
-      ? `<p class="dd-line"><span><b>${esc(night.host)}</b> is hosting at ${esc(L.showtimeParts(night.startsAt).time)}${night.theme ? ` · ${esc(night.theme)} night` : ''}${night.status === 'locked' ? (faceDown(night) ? ' · the movie is locked' : ` · showing ${esc(night.lockedMovie?.title || '')}`) : ''}</span></p>
+      ? `<p class="dd-line"><span><b>${esc(night.host)}</b> is hosting at ${esc(L.showtimeParts(night.startsAt).time)}${night.theme ? ` · ${esc(night.theme)} night` : ''}${night.status === 'locked' ? (faceDown(night) ? ' · the movie is locked' : ` · showing ${esc(night.lockedMovie?.title || '')}`) : leadingLine(night)}</span></p>
          <div class="row dd-actions">${freeBtn}</div>${hostTools(night, 'dd')}`
       : `<div class="row dd-actions">${freeBtn}</div>
          <p class="hint">Free that evening puts you on the list if someone hosts it.</p>
@@ -803,7 +820,9 @@ function renderShelf(shelf) {
   // The crown belongs to the next night: with one planned, its projected pick
   // wears "Leading Nov 3" (themes and vetoes decide); otherwise the shelf's
   // overall favorites wear "Most wanted". Overall popularity lives in Stats.
-  const next = L.upcomingNights(S.nights)[0];
+  // The crown belongs to the next night still open to the pick: a locked
+  // night's movie can't win any other night, so it never wears it.
+  const next = L.upcomingNights(S.nights).find((n) => n.status === 'planned');
   const p = projection(next);
   // A themed night picks only from the movies that fit it; a chip shows which.
   const pool = next?.status === 'planned' && next.theme ? L.pickable(shelf.movies, { vetoed: L.vetoedFor(next), theme: next.theme }) : null;
@@ -819,7 +838,9 @@ function renderShelf(shelf) {
     out('#shelf').innerHTML = `<p class="empty">${shelf.movies.length ? 'Nothing matches that filter.' : 'The shelf is empty. Add the first movie.'}</p>`;
     return;
   }
-  const leadIds = new Set(p ? (p.tie.length > 1 ? p.tie : [p.movie.imdbId]) : shelf.leaders.map((m) => m.imdbId));
+  // ...and a movie still face down for you wears no crown at all.
+  const hidden = new Set(L.upcomingNights(S.nights).filter((n) => n.status === 'locked' && faceDown(n)).map((n) => n.lockedMovieId));
+  const leadIds = new Set((p ? (p.tie.length > 1 ? p.tie : [p.movie.imdbId]) : shelf.leaders.map((m) => m.imdbId)).filter((x) => !hidden.has(x)));
   const crown = p ? leadingFor(next) : 'Most wanted';
   out('#shelf').innerHTML = list.map((m) => {
     const id = esc(m.imdbId);
@@ -1029,9 +1050,14 @@ function sending() {
   };
 }
 window.addEventListener('beforeunload', (e) => { if (unsent) { e.preventDefault(); e.returnValue = ''; } });
+let joining = false;
 async function join(name) {
+  if (joining) { toast('Still sending that one…'); return; }
+  joining = true;
+  const done = sending();
   try {
     const who = await A.join(name);
+    done();
     S.me = who;
     saveLocal('ps.me', who);
     // What this phone showed before you gave a name is yours too: don't replay it.
@@ -1073,6 +1099,9 @@ async function join(name) {
     $('#passMsg').textContent = writeError(e);
     $('#passMsg').className = 'msg bad';
     $('#passMsg').hidden = false;
+  } finally {
+    joining = false;
+    done();
   }
 }
 function startTour() {
@@ -1116,7 +1145,7 @@ $('#addBox').addEventListener('toggle', () => {
 });
 // Offline, taps still show on this phone and send when the connection is back.
 window.addEventListener('offline', () => toast('You’re offline. What you tap now sends when you’re back online, if this page stays open.', true));
-window.addEventListener('online', () => toast('Back online.'));
+window.addEventListener('online', () => { if (!unsent) toast('Back online.'); });
 // The stars are one Tab stop: the arrow keys choose between them, like any radio group.
 document.addEventListener('keydown', (e) => {
   const star = e.target.closest?.('.stars [role="radio"]');
@@ -1234,7 +1263,7 @@ document.addEventListener('click', (e) => {
     // A reveal closed early: play it now (it's face down until then).
     case 'reveal-now': for (const k of S.deferred) S.reelsSeen.delete(seenKey(k)); S.deferred.clear(); render(); break;
     case 'tour': startTour(); break;
-    case 'news-seen': markSeen(); break;
+    case 'news-seen': keepPlace(); markSeen(); break;
     case 'news-walk': walkNews(); break;
     case 'goto': scrollToSection(el.dataset.target); break;
     case 'subscribe': {

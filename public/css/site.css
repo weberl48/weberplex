@@ -691,6 +691,10 @@ h4 .veto-note { margin-left: 6px; }
 .toast.show { opacity: 1; transform: translateY(0); }
 .toast.bad { background: var(--bad); }
 .toast.bad.show { pointer-events: auto; cursor: pointer; }
+/* over a walkthrough or news sheet, a toast sits at the top and lets taps
+   through, so it never covers the sheet's buttons */
+body:has(.tour-overlay) .toast { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; transform: translateY(-20px); pointer-events: none; }
+body:has(.tour-overlay) .toast.show { transform: translateY(0); }
 /* nothing talks over the reel or the reveal */
 body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 

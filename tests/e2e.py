@@ -335,6 +335,11 @@ def honest_sending_checks(browser, errors):
     vote.click()
     expect(page.locator('#toast')).to_contain_text('Not sent yet', timeout=8000)
     assert page.evaluate('navigator.onLine'), 'the browser still thinks it is online'
+    # With the note up, a walkthrough's buttons still take the tap (the note moves out of the way).
+    page.click('.topbar [data-action="tour"]')
+    page.click('[data-tour="next"]', timeout=3000)
+    expect(page.locator('.tour-top .label')).to_contain_text('2 of 5')
+    page.click('[data-tour="skip"]')
     page.context.unroute('**/google.firestore.v1.Firestore/Write/**')  # the SDK retries and resends
     expect(page.locator('#toast')).to_contain_text('Sent.', timeout=20000)
     assert json.loads(emu('GET', f'{DOCS}/votes/{movie}__lia', owner=True)).get('fields'), 'the vote reached the server'
@@ -357,6 +362,25 @@ def honest_sending_checks(browser, errors):
     page.context.unroute('**/google.firestore.v1.Firestore/Write/**')
     expect(page.locator('#toast')).to_contain_text('off the list', timeout=20000)
     page.context.close()
+
+    # The name step too: unsent, it says so, and a second tap doesn't send it twice.
+    ctx = browser.new_context(viewport=PHONE)
+    page = ctx.new_page()
+    page.goto(f'{SITE}/?emu')
+    skip_tour(page)
+    for _ in range(3):  # a reveal this phone hasn't seen may come first
+        if page.locator('.reveal-overlay').count():
+            page.keyboard.press('Escape')
+        page.wait_for_timeout(400)
+    ctx.route('**/google.firestore.v1.Firestore/Write/**', lambda r: r.abort())
+    page.fill('#passName', 'Ulrike')
+    page.click('#passForm button[type=submit]')
+    page.click('#passForm button[type=submit]')
+    expect(page.locator('#toast')).to_contain_text(re.compile('Still sending|Not sent yet'), timeout=8000)
+    expect(page.locator('#toast')).to_contain_text('Not sent yet', timeout=8000)
+    ctx.unroute('**/google.firestore.v1.Firestore/Write/**')
+    expect(page.locator('#whoami')).to_contain_text('Ulrike', timeout=20000)
+    ctx.close()
 
     # Opening with the box office unreachable says so, instead of an empty house.
     page = as_person(browser, errors, 'lia3', 'Lia')
@@ -441,6 +465,10 @@ def reveal_ending_checks(browser, errors):
     # (Jaws is also new on the shelf, which is fine: the lock is what must stay face down.)
     assert not any(re.search(r'Locked for .*Jaws', t) for t in texts), 'no news card names a face-down movie'
     assert any('movie is locked' in t for t in texts), texts
+    # The shelf's crown follows the next night still open to the pick, never the face-down movie.
+    skip_cards(page)
+    expect(page.locator('#shelf .card.lead', has=page.locator('h3', has_text='Jaws'))).to_have_count(0)
+    expect(page.locator('#shelf .ribbon').first).to_contain_text('Leading')
     page.context.close()
     emu('PATCH', f'{DOCS}/nights/{day}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
 
@@ -518,7 +546,10 @@ def news_cards_checks(browser, errors):
     wren.wait_for_timeout(4500)
     wren.reload()
     expect(wren.locator('.tour-overlay #tourTitle')).to_contain_text('starts at', timeout=10000)
-    wren.keyboard.press('Escape')
+    wren.keyboard.press('Escape')  # (Android back does the same) means later: the bar keeps it
+    expect(wren.locator('.tour-overlay')).to_have_count(0)
+    expect(wren.locator('#newsCount')).to_have_text('1 update')
+    wren.click('#news [data-action="news-seen"]')  # Got it marks it read
     expect(wren.locator('#news')).to_be_hidden()
     assert wren.evaluate('document.activeElement && document.activeElement !== document.body'), 'focus kept after the bar hides'
     wren.context.close()
