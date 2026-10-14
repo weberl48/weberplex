@@ -333,7 +333,7 @@ Depth comes from tonal layers, not from lifting things up. The page is house vel
 - **Leader glow** (`box-shadow: 0 0 0 1px var(--bulb), 0 10px 30px -12px rgba(255, 199, 110, 0.45)`): the movie currently winning.
 - **Reel glow** (`box-shadow: 0 0 40px rgba(255, 199, 110, 0.35)`): the tie-breaker window.
 - **Held paper** (`box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.8)`): the ticket.
-- **Overlay card** (`box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6)`): tour cards. Reveal faces use `0 18px 40px rgba(0, 0, 0, 0.6)`. The reel and reveal scrims are 97% house dark, so nothing behind them gives the movie away.
+- **Overlay card** (`box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6)`): tour cards. Reveal faces use `0 18px 40px rgba(0, 0, 0, 0.6)`. The reel's scrim is 97% house dark and the reveal's fully dark, so nothing behind them gives the movie away.
 - **Toast** (`box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5)`).
 - **Focus haze** (`box-shadow: 0 0 0 3px var(--bulb-soft)`): fields on focus.
 
@@ -410,7 +410,7 @@ Admit-one paper with two 11px punched notches and a dashed stub perforation. On 
 A raised-velvet square on a seven-column grid. A tap shows the day in the box-office window below and marks nothing; the arrow keys move between days, and the grid is a single Tab stop. From the top: an 11px day-of-week (or month marker), the date in Limelight, and a Courier meta line with the count and a house icon when someone hosts. Free is a concession-green tint and border. The leading day gets a 2px amber ring, the selected day a projector-light outline, and fresh activity a small green dot.
 
 ### The Reel and The Reveal (event moments)
-Both are full-screen scrims, 97% house dark. The reel is a projection-black window in a 3px amber frame with the reel glow, posters scrolling past under a fade, and the winner named in Archivo. The reveal is a 2:3 card in a 3px amber frame that flips over 1s (`cubic-bezier(.3, .7, .2, 1)`) from an oxblood cover with an amber Limelight question mark to the poster, with the title in Limelight underneath. Each plays once per person: after How it works, before the news cards. Their posters load eagerly so the reel never spins past blanks.
+The reel is a full-screen scrim, 97% house dark: a projection-black window in a 3px amber frame with the reel glow, posters scrolling past under a fade, and the winner named in Archivo. The reveal is the house going fully dark. A 2:3 card, oxblood with an amber Limelight question mark, waits face down in a ring of bulbs that chase like the marquee's, over "Tap to turn it over" in amber condensed caps; nothing turns by itself. A tap (or Enter or Space) turns it over 1s (`cubic-bezier(.3, .7, .2, 1)`) to the poster, then the title in Limelight and when and where. It ends on See my ticket for someone coming, on Count me in / Not this time for someone with a name who isn't, and on OK otherwise. It waits until every list has loaded (so it knows whether you're coming), plays once per person after How it works, and the news cards don't open over the ticket that follows it. Their posters load eagerly so the reel never spins past blanks. With reduced motion the bulbs hold still and the card turns without the spin.
 
 ### Toast
 Letter-board paper with board ink, 6px corners, rising 20px into place over 180ms above the bottom safe area. Errors switch it to spilled soda.

@@ -1,13 +1,18 @@
-// The reveal: a card flips over to the poster when the movie has been locked.
-// Shown once per person (app.js decides when). Same manners as the reel:
+// The reveal: the movie, face down on a card, once it has been locked. The
+// house goes dark and the card waits in a ring of chasing bulbs until you turn
+// it over (a tap, Enter or Space); then the poster, the title and where you go
+// next. Shown once per person (app.js decides when). Same manners as the reel:
 // focus moves in, Tab stays inside, Esc closes, focus goes back, and
-// reduced-motion skips the flip.
+// reduced-motion turns it without the spin.
 import { esc, posterImg, keyOf, backCloses } from './ui.js';
 
 const bigPoster = (url) => (url || '').replace('/poster/small/', '/poster/medium/');
 
-// `doneText` names where the last button goes ("See my ticket" for someone coming).
-export function revealMovie(movie, { when = '', place = '', doneText = 'OK' } = {}) {
+// `doneText` names where the last button goes ("See my ticket" for someone
+// coming). `invite`: someone not coming yet gets Count me in / Not this time.
+// Resolves { movie, seen, rsvp }: `seen` is false when back closed it before
+// the card turned (it plays again next visit); `rsvp` is true for Count me in.
+export function revealMovie(movie, { when = '', place = '', doneText = 'OK', invite = false } = {}) {
   return new Promise((resolve) => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const overlay = document.createElement('div');
@@ -18,52 +23,70 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK' } = 
     overlay.innerHTML = `
       <div class="reveal-box">
         <h2>The movie is…</h2>
-        <div class="reveal-stage">
-          <div class="reveal-card">
-            <div class="reveal-face reveal-cover" aria-hidden="true"><span>?</span></div>
-            <div class="reveal-face reveal-poster">${posterImg(bigPoster(movie.poster), movie.title, '', true)}</div>
-          </div>
+        <div class="reveal-stage waiting">
+          <button class="reveal-card" type="button" aria-label="Turn the card over">
+            <span class="reveal-face reveal-cover" aria-hidden="true"><span>?</span></span>
+            <span class="reveal-face reveal-poster">${posterImg(bigPoster(movie.poster), movie.title, '', true)}</span>
+          </button>
         </div>
+        <p class="reveal-hint" aria-hidden="true">Tap to turn it over</p>
         <p class="reveal-title" aria-live="polite"></p>
         <p class="reveal-when"></p>
-        <div class="row" style="justify-content:center"><button class="btn btn-bulb" type="button" hidden>${esc(doneText)}</button></div>
+        <div class="row reveal-actions" hidden>${invite
+          ? '<button class="btn btn-bulb" type="button" data-r="in">Count me in</button><button class="btn btn-ghost" type="button" data-r="ok">Not this time</button>'
+          : `<button class="btn btn-bulb" type="button" data-r="ok">${esc(doneText)}</button>`}</div>
       </div>`;
     const prev = document.activeElement;
     const prevKey = prev ? keyOf(prev) : null; // a repaint under the overlay can replace prev
-    overlay.tabIndex = -1;
     document.body.append(overlay);
-    overlay.focus();
+    const stage = overlay.querySelector('.reveal-stage');
     const card = overlay.querySelector('.reveal-card');
-    const okBtn = overlay.querySelector('button');
+    const actions = overlay.querySelector('.reveal-actions');
+    const buttons = [...actions.querySelectorAll('button')];
+    card.focus();
+    let turned = false;
     const finish = () => {
-      if (!okBtn.hidden) return;
+      if (!actions.hidden) return;
       card.classList.add('flipped');
       overlay.querySelector('.reveal-title').textContent = movie.title;
       overlay.querySelector('.reveal-when').textContent = [when, place && `at ${place}`].filter(Boolean).join(' ');
-      okBtn.hidden = false;
-      okBtn.focus();
+      actions.hidden = false;
+      buttons[0].focus();
     };
-    // Resolves { movie, seen }: `seen` is false when back closed it before the
-    // card turned, so the reveal plays again next visit.
-    const close = (seen = true) => {
+    const turn = () => {
+      if (turned) return;
+      turned = true;
+      stage.classList.remove('waiting');
+      overlay.querySelector('.reveal-hint').hidden = true;
+      card.setAttribute('tabindex', '-1');
+      if (reduce) { finish(); return; }
+      card.classList.add('flipped');
+      card.addEventListener('transitionend', finish, { once: true });
+      setTimeout(finish, 1400); // a hidden tab never fires transitionend
+    };
+    const close = (seen = true, rsvp = false) => {
       if (!overlay.isConnected) return;
       release();
       overlay.remove();
       document.removeEventListener('keydown', onKey, true);
       (prev?.isConnected ? prev : prevKey && document.querySelector(prevKey))?.focus?.();
-      resolve({ movie, seen });
+      resolve({ movie, seen, rsvp });
     };
-    const release = backCloses(() => close(!okBtn.hidden));
+    const release = backCloses(() => close(!actions.hidden));
     function onKey(e) {
-      if (e.key === 'Escape') { e.preventDefault(); finish(); close(); }
-      if (e.key === 'Tab') { e.preventDefault(); (okBtn.hidden ? overlay : okBtn).focus(); }
+      if (e.key === 'Escape') { e.preventDefault(); turned = true; finish(); close(); }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (actions.hidden) { card.focus(); return; }
+        const at = buttons.indexOf(document.activeElement);
+        buttons[(at + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+      }
     }
     document.addEventListener('keydown', onKey, true);
-    okBtn.addEventListener('click', () => close());
-    if (reduce) { finish(); return; }
-    // Let the face-down card paint first, then turn it over.
-    requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('flipped')));
-    card.addEventListener('transitionend', finish, { once: true });
-    setTimeout(finish, 2500); // a hidden tab never fires transitionend
+    card.addEventListener('click', turn);
+    actions.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-r]');
+      if (b) close(true, b.dataset.r === 'in');
+    });
   });
 }

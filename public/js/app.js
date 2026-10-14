@@ -213,9 +213,12 @@ const out = (sel) => ({ set innerHTML(html) { paint($(sel), html); } });function
     renderPass();
     renderNews();
     // The movie comes first: the reel or reveal plays before the news cards,
-    // which then wait for it (a lock card would give the movie away).
-    maybeRevealTie(upcoming[0]);
-    maybeRevealMovie(upcoming[0]);
+    // which then wait for it (a lock card would give the movie away). It waits
+    // for every list too, or it can't tell whether you're coming.
+    if (ready()) {
+      maybeRevealTie(upcoming[0]);
+      maybeRevealMovie(upcoming[0]);
+    }
     maybeWalk();
     renderNext(upcoming, shelf);
     renderCalendar();
@@ -595,22 +598,33 @@ const seenKey = (key) => `${S.me?.nameKey || ''}|${key}`;
 function play(n, key, show) {
   S.reelsSeen.add(seenKey(key));
   S.revealing = { key, day: n.day };
-  show().then(({ seen }) => {
+  show().then(({ seen, rsvp }) => {
     if (seen) savePrefs({ reels: [...(myDoc()?.reels || []), key] });
     else S.deferred.add(key); // stays face down; Up next offers "Reveal the movie"
     S.revealing = null;
+    // The reveal is the visit's peak: the news cards don't open over the
+    // ticket that follows it (the bar keeps the count).
+    if (seen) S.walked = true;
+    if (rsvp && S.me) {
+      const when = L.dayFromKey(n.day).toLocaleDateString(undefined, { weekday: 'long' });
+      once(`free:${n.day}`, async () => { await A.setFree(n.day, S.me, true); toast(`You’re in for ${when}.`); });
+    }
     render();
-    if (!seen || !imFree(n.day)) return;
-    setTimeout(() => {
-      const t = $('#next .ticket');
-      if (!t) return;
-      t.setAttribute('tabindex', '-1');
-      t.focus({ preventScroll: true });
-      t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
-    }, 0);
+    if (seen && (rsvp || imFree(n.day))) setTimeout(() => landOnTicket(), 0); // after the repaint
   });
 }
+// After the reveal, someone coming lands on their ticket (it can take a moment
+// to appear when they've just counted themselves in).
+function landOnTicket(tries = 30) {
+  const t = $('#next .ticket');
+  if (!t) { if (tries) setTimeout(() => landOnTicket(tries - 1), 100); return; }
+  t.setAttribute('tabindex', '-1');
+  t.focus({ preventScroll: true });
+  t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+}
 const doneFor = (n) => (imFree(n.day) ? 'See my ticket' : 'OK');
+// Someone with a name who isn't coming yet ends the reveal on an invitation.
+const inviteFor = (n) => !!S.me && !imFree(n.day) && !isMine(n) && !showing(n);
 const blocked = () => !!document.querySelector('.tour-overlay, .reel-overlay, .reveal-overlay');
 
 // The reel settled a tie: play it once per person so everyone sees how.
@@ -628,7 +642,7 @@ function maybeRevealMovie(n) {
   if (S.me && !myDoc()) return; // wait until we know which reveals you've seen
   const p = pendingShow(n);
   if (!p || p.tie || p.deferred || blocked()) return;
-  play(n, p.key, () => revealMovie(n.lockedMovie, { when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n) }));
+  play(n, p.key, () => revealMovie(n.lockedMovie, { when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n), invite: inviteFor(n) }));
 }
 
 // ---- the calendar --------------------------------------------------------------

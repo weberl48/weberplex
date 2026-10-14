@@ -31,7 +31,11 @@ tools): the pick sticks to movies that fit it, or to the whole shelf when none
 do. A **veto** takes a movie out of that night's pick (one per person, undoable
 until the lock; if everything is vetoed the vetoes are ignored). Ties go to the
 reel, which plays once on everyone's phone; a clear winner gets the **reveal**
-instead, a card that flips to the poster once per person. Until your reel or
+instead, once per person: the house goes dark and a face-down card waits in a
+ring of chasing bulbs until you tap it over to the poster. It waits until the
+page has everything it needs, so it knows whether you're coming: it ends on
+**See my ticket** if you are, and on **Count me in** if you have a name and
+aren't (the news cards then wait in their bar instead of covering the ticket). Until your reel or
 reveal has played, the page keeps the movie face down (the marquee reads "The
 movie is…", and so does your ticket). It plays after How it works and before
 the news cards, so a "Locked for Friday" card never spoils it, and it counts as

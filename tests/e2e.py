@@ -200,28 +200,31 @@ def overlay_checks(browser, errors):
     }""")
     veto = '<button type="button" data-action="veto" data-id="m">%s</button>'
     opens = {
-        'reveal': ("""import('/js/reveal.js').then((m) => m.revealMovie({ title: 'The Man Who Would Be King', poster: '' }, { when: 'Fri 8 PM', place: "Jo's" }))""", '.reveal-overlay'),
+        'reveal': ("""import('/js/reveal.js').then((m) => m.revealMovie({ title: 'The Man Who Would Be King', poster: '' }, { when: 'Fri 8 PM', place: "Jo's" }))""", '.reveal-overlay .reveal-actions'),
         'reel': ("""import('/js/reel.js').then((m) => { const ms = [{ title: 'A', poster: '' }, { title: 'B', poster: '' }]; return m.spinReel(ms, ms[1], { title: '2-way tie. The reel decides…', done: 'Nice' }); })""", '.reel-overlay'),
     }
     for name, (open_js, overlay) in opens.items():
         page.evaluate('(h) => paintBox(h)', veto % 'Veto')
         page.focus('#fbox [data-action="veto"]')
         page.evaluate(f'() => {{ {open_js}; }}')
-        expect(page.locator(f'{overlay} button')).to_be_visible()
-        fits = page.evaluate('(s) => { const o = document.querySelector(s); return o.scrollHeight <= o.clientHeight; }', overlay)
+        if name == 'reveal':
+            page.click('.reveal-card')  # the card waits face down until it's turned
+        expect(page.locator(f'{overlay} button').first).to_be_visible()
+        fits = page.evaluate('(s) => { const o = document.querySelector(s).closest(".reveal-overlay, .reel-overlay"); return o.scrollHeight <= o.clientHeight; }', overlay)
         assert fits, f'{name} overlay is taller than a landscape phone'
         shot(page, f'06-landscape-{name}')
         # A repaint under the overlay replaces the Veto button (same key, new node).
         page.evaluate('(h) => paintBox(h)', veto % 'Undo veto')
         page.click(f'{overlay} button', timeout=3000)  # in reach without scrolling the page
-        expect(page.locator(overlay)).to_have_count(0)
+        expect(page.locator('.reveal-overlay, .reel-overlay')).to_have_count(0)
         expect(page.locator('#fbox [data-action="veto"]')).to_be_focused()
     # A title too long for the screen: the content is taller than the overlay, and the overlay
     # scrolls so the OK button still comes into reach.
     page.evaluate("""() => { import('/js/reveal.js').then((m) => m.revealMovie({ title: 'The Incredibly Long and Winding Title of a Movie That Nobody Could Fit on a Phone Held Sideways '.repeat(4), poster: '' }, { when: 'Fri 8 PM', place: "Jo's" })); }""")
-    expect(page.locator('.reveal-overlay button')).to_be_visible()
+    page.click('.reveal-card')
+    expect(page.locator('.reveal-actions button')).to_be_visible()
     assert page.evaluate("() => { const o = document.querySelector('.reveal-overlay'); return o.scrollHeight > o.clientHeight + 100; }")
-    page.click('.reveal-overlay button', timeout=3000)
+    page.click('.reveal-actions button', timeout=3000)
     expect(page.locator('.reveal-overlay')).to_have_count(0)
     page.context.close()
 
@@ -326,22 +329,44 @@ def honest_sending_checks(browser, errors):
     page = as_person(browser, errors, 'lia', 'Lia')
     page.goto(f'{SITE}/?emu')
     skip_cards(page)
-    held = []
-    page.context.route('**/google.firestore.v1.Firestore/Write/**', lambda r: held.append(r))  # never answered
+    page.context.route('**/google.firestore.v1.Firestore/Write/**', lambda r: r.abort())  # nothing gets through
     vote = page.locator('#shelf .card .vote:not(.on)').first
     movie = vote.get_attribute('data-id')
     vote.click()
     expect(page.locator('#toast')).to_contain_text('Not sent yet', timeout=8000)
     assert page.evaluate('navigator.onLine'), 'the browser still thinks it is online'
-    page.context.unroute('**/google.firestore.v1.Firestore/Write/**')
-    for r in held:
-        try:
-            r.abort()  # the SDK reconnects and resends
-        except Exception:
-            pass
+    page.context.unroute('**/google.firestore.v1.Firestore/Write/**')  # the SDK retries and resends
     expect(page.locator('#toast')).to_contain_text('Sent.', timeout=20000)
     assert json.loads(emu('GET', f'{DOCS}/votes/{movie}__lia', owner=True)).get('fields'), 'the vote reached the server'
     page.context.close()
+
+
+def reveal_invite_checks(browser, errors):
+    """Someone with a name who isn't coming yet: the reveal waits face down, then ends on
+    Count me in, which puts them on the list and lands them on their ticket."""
+    now = datetime.now(timezone.utc)
+    day = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+    emu('PATCH', f'{DOCS}/people/nia', {'fields': fields({'name': 'Nia', 'at': now, 'toured': True, 'lastSeen': now})}, owner=True)
+    emu('PATCH', f'{DOCS}/movies/tt0073195', {'fields': fields({
+        'imdbId': 'tt0073195', 'title': 'Jaws', 'year': '1975', 'poster': '', 'runtime': '124 min', 'rating': '', 'genres': ['Thriller'],
+        'trailer': '', 'description': '', 'pitch': '', 'shelf': [], 'by': 'hal', 'byName': 'Hal', 'at': now})}, owner=True)
+    emu('PATCH', f'{DOCS}/nights/{day}', {'fields': fields({
+        'day': day, 'startsAt': now + timedelta(days=1), 'host': 'Hal', 'hostKey': 'hal', 'status': 'locked', 'createdAt': now,
+        'theme': '', 'vetoes': {}, 'lockedTie': [], 'lockedMovieId': 'tt0073195', 'lockedAt': now,
+        'lockedMovie': {'imdbId': 'tt0073195', 'title': 'Jaws', 'year': '1975', 'poster': '', 'runtime': '124 min', 'rating': '', 'genres': ['Thriller'], 'trailer': ''}})}, owner=True)
+    page = as_person(browser, errors, 'nia', 'Nia')
+    page.goto(f'{SITE}/?emu')
+    expect(page.locator('.reveal-overlay')).to_be_visible(timeout=15000)
+    page.click('.reveal-card')
+    expect(page.locator('.reveal-title')).to_have_text('Jaws', timeout=10000)
+    expect(page.locator('.reveal-actions button')).to_have_text(['Count me in', 'Not this time'])
+    page.click('.reveal-actions [data-r="in"]')
+    expect(page.locator('#next .ticket')).to_be_focused(timeout=10000)
+    expect(page.locator('#toast')).to_contain_text('in for', timeout=10000)
+    assert json.loads(emu('GET', f'{DOCS}/free/{day}__nia', owner=True)).get('fields'), 'Nia is on the list'
+    page.context.close()
+    # Out of the way of the checks that follow (they open a reveal of their own).
+    emu('PATCH', f'{DOCS}/nights/{day}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
 
 
 def news_cards_checks(browser, errors):
@@ -754,17 +779,25 @@ def main():
         lock.click()
         expect(sam.locator('.reveal-overlay')).to_be_visible(timeout=15000)
         expect(sam.locator('.reel-overlay')).to_have_count(0)
+        sam.wait_for_timeout(1500)
+        expect(sam.locator('.reveal-stage.waiting')).to_have_count(1)  # still face down: nothing turns by itself
+        expect(sam.locator('.reveal-title')).to_have_text('')
+        expect(sam.locator('.reveal-card')).to_be_focused()
+        sam.keyboard.press('Enter')  # Enter turns it, like a tap
         expect(sam.locator('.reveal-title')).to_have_text(loser, timeout=10000)
         expect(sam.locator('.reveal-when')).to_contain_text("8 PM at Jo's")
         shot(sam, '04d-reveal')
         sam.keyboard.press('Tab')  # focus stays inside the dialog
-        expect(sam.locator('.reveal-overlay button')).to_be_focused()
-        expect(sam.locator('.reveal-overlay button')).to_have_text('See my ticket')  # Sam is coming
-        sam.click('.reveal-overlay button')
+        expect(sam.locator('.reveal-actions button')).to_be_focused()
+        expect(sam.locator('.reveal-actions button')).to_have_text('See my ticket')  # Sam is coming
+        sam.click('.reveal-actions button')
         expect(sam.locator('.reveal-overlay')).to_have_count(0)
         expect(sam.locator('#next .ticket h3')).to_contain_text(loser, ignore_case=True)
         expect(sam.locator('#next .ticket')).to_be_focused()  # the reveal hands over to the ticket
+        sam.wait_for_timeout(1500)
+        expect(sam.locator('.tour-overlay')).to_have_count(0)  # and no news cards over it
         expect(jo.locator('.reveal-overlay')).to_be_visible(timeout=15000)
+        jo.locator('.reveal-card').click(timeout=15000)  # turn it over
         expect(jo.locator('.reveal-title')).to_have_text(loser, timeout=10000)
         jo.keyboard.press('Escape')
         expect(jo.locator('.reveal-overlay')).to_have_count(0)
@@ -819,8 +852,9 @@ def main():
         lock = jo.locator('#next [data-action="lock-now"]')
         lock.click()
         lock.click()
+        sam.locator('.reveal-card').click(timeout=15000)
         expect(sam.locator('.reveal-title')).to_have_text(house_title, timeout=15000)
-        sam.click('.reveal-overlay button')
+        sam.click('.reveal-actions button')
         expect(sam.locator('#next .ticket h3')).to_contain_text(house_title, ignore_case=True)
         expect(sam.locator('#next')).to_contain_text('Theme')
         # "Not you?" on Sam's phone (it asks twice): the next person on it still gets the
@@ -831,6 +865,7 @@ def main():
         expect(sam.locator('#whoami')).to_contain_text('Sam')  # one tap doesn't drop anyone
         sam.click('[data-action=switch]')
         expect(sam.locator('.reveal-overlay')).to_be_visible(timeout=10000)
+        sam.locator('.reveal-card').click(timeout=15000)  # turn it over
         expect(sam.locator('.reveal-title')).to_have_text(house_title)
         sam.keyboard.press('Escape')
         expect(sam.locator('.reveal-overlay')).to_have_count(0)
@@ -843,6 +878,7 @@ def main():
         expect(sam.locator('.reveal-overlay')).to_have_count(0)
         reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/kim'))['fields']['reels']['arrayValue']['values']]
         assert any(r.startswith(f'r:{day2}.') for r in reels), reels
+        jo.locator('.reveal-card').click(timeout=15000)  # turn it over
         expect(jo.locator('.reveal-title')).to_have_text(house_title, timeout=15000)
         jo.keyboard.press('Escape')
 
@@ -910,6 +946,7 @@ def main():
         paint_checks(newbie)
         news_cards_checks(browser, errors)
         honest_sending_checks(browser, errors)
+        reveal_invite_checks(browser, errors)
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)
