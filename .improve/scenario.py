@@ -106,6 +106,7 @@ def seed_group(rng):
     for key, name in PEOPLE:
         put(f'people/{key}', {'name': name, 'at': week, 'toured': True, 'lastSeen': yesterday if key == 'jo' else now})
     picks = rng.sample(POOL, 8)
+    voted = set()
     shelf, past = picks[:7], picks[7]
     for i, (imdb, title, year, runtime, rating, genres) in enumerate(shelf):
         by_key, by_name = PEOPLE[i % len(PEOPLE)]
@@ -117,12 +118,15 @@ def seed_group(rng):
             'by': by_key, 'byName': by_name, 'at': yesterday + timedelta(hours=2) if i == 6 else week})
         for key, name in PEOPLE:
             if rng.random() < 0.45:
+                voted.add((imdb, key))
                 put(f'votes/{imdb}__{key}', {'movie': imdb, 'title': title, 'nameKey': key, 'name': name, 'at': week})
             if rng.random() < 0.2:
                 put(f'seen/{imdb}__{key}', {'movie': imdb, 'nameKey': key, 'name': name, 'at': week})
-    # Friday-ish: a night two days out, hosted by Hal and already locked.
+    # Friday-ish: a night two days out, hosted by Hal and already locked, to the
+    # movie the pick rule gives: most thumbs from the people coming (first on ties).
     lday, lstart = day_at(2)
-    lmovie = shelf[0]
+    coming = {'hal', 'jo', 'sam'}
+    lmovie = max(shelf, key=lambda m: sum(1 for k in coming if (m[0], k) in voted))
     for key, name in (('hal', 'Hal'), ('jo', 'Jo'), ('sam', 'Sam')):
         put(f'free/{lday}__{key}', {'day': lday, 'nameKey': key, 'name': name, 'at': week})
     put(f'nights/{lday}', {
@@ -217,6 +221,15 @@ class Phone:
         return ms
 
 
+def reveal(phone, prefix):
+    """The signature moment: frames while the card waits, then the tap, then the turn."""
+    frames(phone, f'{prefix}-wait', seconds=1.2)
+    phone.step('turn the card to title', lambda: phone.page.click('.reveal-card'),
+               lambda: phone.page.wait_for_function("() => document.querySelector('.reveal-title')?.textContent.length > 0", timeout=5000))
+    frames(phone, f'{prefix}-turn', seconds=0.6, every=0.1)
+    transcript.append(f'- reveal buttons: {phone.page.locator(".reveal-actions button").all_text_contents()}')
+
+
 def frames(phone, prefix, seconds=1.8, every=0.12):
     """Timestamped key frames of an animation (the reveal)."""
     t0 = time.perf_counter()
@@ -250,9 +263,9 @@ def newcomer(browser, facts):
         g.step(f'tour next {i + 1}', lambda: p.click('[data-tour="next"]'), lambda: p.wait_for_timeout(50))
         g.shot(f'tour-{i + 2}', f'Walkthrough card {i + 2} of 5.')
     g.step('tour done to reveal', lambda: p.click('[data-tour="done"]'), visible(p, '.reveal-overlay'))
-    frames(g, 'reveal')
+    reveal(g, 'reveal')
     g.shot('reveal-landed', 'The reveal after it lands (signed out, once per phone).')
-    g.step('reveal ok', lambda: p.click('.reveal-overlay button'), lambda: p.locator('.reveal-overlay').wait_for(state='detached'))
+    g.step('reveal ok', lambda: p.click('.reveal-actions button'), lambda: p.locator('.reveal-overlay').wait_for(state='detached'))
     p.wait_for_selector('#shelf .card', timeout=20000)
     g.shot('page-top', 'The page after the reveal: marquee, Up next.')
     g.shot('page-full', 'The whole page as she lands.', full=True)
@@ -262,7 +275,7 @@ def newcomer(browser, facts):
     g.step('thumbs-up asks for a name', lambda: vote.click(), visible(p, '#pass'))
     g.shot('name-form', 'Her first thumbs-up brings up the name form.')
     p.fill('#passName', 'Gma')
-    g.step('name to thumbs-up counted', lambda: p.click('#passForm button[type=submit]'), text_in(p, '#toast', 'counts'))
+    g.step('name to thumbs-up counted', lambda: p.click('#passForm button[type=submit]'), text_in(p, '#toast', 'Welcome, Gma.'))
     g.shot('after-name', 'After she types her name: the thumbs-up went through.')
     cell = p.locator(f'#calendar .day[data-day="{facts["locked_day"]}"]')
     cell.scroll_into_view_if_needed()
@@ -284,9 +297,12 @@ def newcomer(browser, facts):
     z.page.click('[data-tour="skip"]')
     try:
         z.page.locator('.reveal-overlay').wait_for(state='visible', timeout=8000)
+        z.page.wait_for_timeout(800)
+        z.shot('reveal-waiting', 'The reveal waiting to be turned, at 200%.')
+        z.page.click('.reveal-card')
         z.page.wait_for_timeout(1500)
-        z.shot('reveal', 'The reveal at 200%.')
-        z.page.click('.reveal-overlay button')
+        z.shot('reveal', 'The reveal turned, at 200%.')
+        z.page.click('.reveal-actions button')
     except Exception:
         pass
     z.page.wait_for_selector('#shelf .card', timeout=20000)
@@ -299,10 +315,13 @@ def regular(browser, facts):
     j = Phone(browser, 'jo', 412, 915, 2.625, me='Jo')
     p = j.page
     j.step('open link to reveal', lambda: p.goto(f'{SITE}/?emu'), visible(p, '.reveal-overlay'))
-    frames(j, 'reveal')
+    reveal(j, 'reveal')
     j.shot('reveal-landed', 'The reveal of the locked night, landed.')
-    j.step('see my ticket', lambda: p.click('.reveal-overlay button'), visible(p, '#next .ticket'))
-    j.shot('ticket', 'See my ticket: the ticket in Up next.')
+    j.step('see my ticket', lambda: p.click('.reveal-actions button'), visible(p, '#next .ticket'))
+    p.wait_for_timeout(1500)
+    j.shot('ticket', 'See my ticket: the ticket in Up next, 1.5 s later.')
+    if p.locator('#news:not([hidden])').count():
+        p.click('#news [data-action="news-walk"]')
     try:
         j.step('news cards open', lambda: None, visible(p, '.tour-overlay', timeout=12000))
         label = p.locator('.tour-top .label').text_content()
@@ -318,6 +337,19 @@ def regular(browser, facts):
     j.shot('page-top', 'Jo\'s page after the cards.')
     j.shot('page-full', 'Jo\'s whole page.', full=True)
     j.ctx.close()
+
+
+def invitee(browser, facts):
+    transcript.append('\n## Kim, who has a name and is not coming (412 px phone)')
+    k = Phone(browser, 'kim', 412, 915, 2.625, me='Kim')
+    p = k.page
+    k.step('open link to reveal', lambda: p.goto(f'{SITE}/?emu'), visible(p, '.reveal-overlay'))
+    reveal(k, 'reveal')
+    k.shot('reveal-landed', 'The reveal for someone not coming: its ending.')
+    k.step('count me in from the reveal', lambda: p.click('.reveal-actions [data-r="in"]'), visible(p, '#next .ticket'))
+    p.wait_for_timeout(1200)
+    k.shot('ticket', 'Count me in from the reveal: her ticket.')
+    k.ctx.close()
 
 
 def host(browser, facts):
@@ -340,8 +372,7 @@ def host(browser, facts):
     h.step('i can host to slip', lambda: p.click('#dayDetail [data-action="host-slip"]'), visible(p, '#dayDetail .host-slip'))
     p.locator('#dayDetail').scroll_into_view_if_needed()
     h.shot('slip', 'The hosting slip.')
-    h.step('put it on the marquee', lambda: p.click('#dayDetail [data-action="host"]'), lambda: p.wait_for_function(
-        "() => document.querySelector('#toast')?.classList.contains('show')", timeout=20000))
+    h.step('put it on the marquee', lambda: p.click('#dayDetail [data-action="host"]'), text_in(p, '#toast', "It's on the marquee"))
     p.wait_for_timeout(500)
     h.shot('hosted', 'After Put it on the marquee: the toast and the day.')
     p.locator('#moreNights').scroll_into_view_if_needed()
@@ -358,7 +389,7 @@ def main():
     started = time.perf_counter()
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
-        for part in (newcomer, regular, host):
+        for part in (newcomer, regular, invitee, host):
             try:
                 part(browser, facts)
             except Exception as e:

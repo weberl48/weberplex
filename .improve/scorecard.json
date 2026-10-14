@@ -1,97 +1,883 @@
 {
-  "iteration": 1,
-  "branch": "improve-loop",
-  "shipped_commit": "1f5d93c",
-  "impeccable_scores": [
-    {"run": "2026-10-14T14-06-45Z", "commit": "pre-94072b1", "score": 27, "max": 40},
-    {"run": "2026-10-14T14-58-50Z", "commit": "pre-45dc333", "score": 29, "max": 40},
-    {"run": "2026-10-14T16-00-31Z", "commit": "45dc333+round3", "score": 29, "max": 40},
-    {"run": "2026-10-14T16-43-31Z", "commit": "pre-9846143", "score": 30, "max": 40},
-    {"run": "2026-10-14T18-08-15Z", "commit": "9846143", "score": 29, "max": 40},
-    {"run": "iter-01", "commit": "1f5d93c", "score": 29, "max": 40, "per_heuristic": [3, 3, 3, 2, 3, 3, 3, 3, 3, 3]}
-  ],
-  "tests": [
-    {"iteration": 1, "unit": "35/35", "emulator": "41/41", "e2e": "PASS", "scenario_runs": "4/4 clean (3x seed 1, 1x seed 2)"}
-  ],
-  "timings": [
-    {"iteration": 1, "source": ".improve/evidence/iter-01/timings.md"}
-  ],
-  "production_counts": {"date": "2026-10-14", "movies": 36, "votes": 3, "seen": 10, "people": 3, "nights": 2, "free": 1,
-    "note": "read-only aggregation counts; names used on votes/free/seen without a people doc: 0"},
-  "problems": [
-    {"id": "P-001", "title": "Tour and news sheet footer covered the last 18px of every card", "severity": "Major", "status": "fixed", "found": "critique #5", "fixed_in": "1f5d93c",
-     "evidence": ["verify/foot2.py: overlap 0px on 5 tour and 9 news cards at 360 and 206 after the fix"]},
-    {"id": "P-017", "title": "A tap on a dead or lie-fi connection looks saved and can vanish: the replayed thumbs-up after a name says 'counts' before it is sent; a retap while pending is silently ignored; the warning only fires on the browser offline event; the write queue is memory only", "severity": "Blocker", "status": "open", "found": "iter-01 operator O2",
-     "evidence": ["app.js:986-987 toast('Welcome... counts') right after el.click(), before any ack", "app.js:955-959 once() ignores retaps while busy, silently", "app.js:1042 offline toast only on the 'offline' event", "firebase.js:10 getFirestore with the default memory cache"]},
-    {"id": "P-018", "title": "The reveal opens before the page's lists load, so someone coming gets 'OK' instead of 'See my ticket'", "severity": "Major", "status": "open", "found": "iter-01 connoisseur C1, impeccable A issue 1",
-     "evidence": ["frames jo-reveal-1148ms ('OK'), run-s2 jo-01-reveal-landed", "assess-a6 sam-412-reveal-end.png 3/3 runs", "app.js:217-218 maybeReveal* run before ready()"]},
-    {"id": "P-019", "title": "The reveal has no build-up and the lights don't go down: the '?' turns within ~200 ms, the page stays readable behind it, and the marquee takes no part", "severity": "Major", "tags": ["taste"], "status": "open", "found": "iter-01 connoisseur C3 C4, newcomer N4, impeccable A issue 1",
-     "evidence": ["jo-reveal-0000ms -> 0278ms already turned", "gma-reveal-0780ms: 'AT HAL'S' legible behind the heading", "reveal.js:65 flips two frames after mount"]},
-    {"id": "P-020", "title": "The news sheet opens 4 ms after See my ticket, on top of the ticket", "severity": "Major", "tags": ["taste"], "status": "open", "found": "iter-01 connoisseur C2, impeccable A",
-     "evidence": ["jo-02-ticket.png (both seeds)", "timings: jo news cards open 4 ms after the ticket", "assess-a6 sam-360-after-ticket.png"]},
-    {"id": "P-021", "title": "The walkthrough's samples use real dates and real names, so its sample ticket ('The Witch · Fri, Oct 16 · Jo's') contradicts the real Friday night at Hal's; it teaches 'I'm free that evening' but not 'Count me in'", "severity": "Major", "status": "open", "found": "iter-01 newcomer N1 N3, connoisseur C6, impeccable A issue 5",
-     "evidence": ["gma-05-tour-5.png vs gma-06-reveal-landed.png", "gma-03-tour-3.png counts vs real calendar", "tour.js:14-55 demo dates from next Friday"]},
-    {"id": "P-022", "title": "A newcomer sits through 5 walkthrough cards while the marquee reads 'THE MOVIE IS…' before getting the answer they came for", "severity": "Major", "status": "open", "found": "iter-01 newcomer N2, connoisseur C6",
-     "evidence": ["gma-01..gma-05", "the title first appears in gma-06"]},
-    {"id": "P-023", "title": "At 200% text the ticket's details column collapses to one letter per line and the ticket runs two screens tall", "severity": "Major", "status": "open", "found": "iter-01 impeccable A issue 2",
-     "evidence": ["assess-a6 big-sam-full-a.png", "site.css ticket grid 1fr 74px and dl auto 1fr"]},
-    {"id": "P-024", "title": "Someone joining your night is reported as 'X marked free evenings · Their evenings show on the calendar' and ranked near last; hosting also produces 'Hal marked free evenings' right after 'Hal is hosting'", "severity": "Major", "status": "open", "found": "iter-01 impeccable A issue 3",
-     "evidence": ["assess-a6 sam news card 3 of 3", "actions.js:143-151 hosting writes the host's free mark", "logic.js free tier"]},
-    {"id": "P-025", "title": "A locked night seen without a ticket is a plain velvet box (no poster), with Stremio, '4 coming' and Concessions loose below; signed out with the reveal put off, Up next shows four amber buttons", "severity": "Major", "tags": ["taste"], "status": "open", "found": "iter-01 impeccable A issue 4",
-     "evidence": ["assess-a6 out-360-deferred-reveal.png", "app.js:494-519"]},
-    {"id": "P-002", "title": "Android back or Esc on the news deck marks every update read and removes the bar", "severity": "Major", "status": "open", "found": "critique #5, iter-01 impeccable A (verified)",
-     "evidence": ["tour.js backCloses(() => close('skip'))", "app.js walkNews onDone: markSeen() for anything but Show me"]},
-    {"id": "P-026", "title": "After a nameless thumbs-up, the name form takes her to the top of the page and never brings her back; the 'Welcome' confirmation lands later over another section", "severity": "Minor", "status": "open", "found": "iter-01 newcomer N6", "evidence": ["gma-10 -> gma-11 -> gma-12"]},
-    {"id": "P-027", "title": "Most wanted ribbon on 4 of 7 cards when thumbs tie; the voter faces under each card have no label; 'Stremio' unexplained", "severity": "Minor", "status": "open", "found": "iter-01 newcomer N8, impeccable A H6", "evidence": ["gma-09", "gma-08"]},
-    {"id": "P-028", "title": "Name chips on the guest-list form read like the list of who's coming", "severity": "Minor", "status": "open", "found": "iter-01 newcomer N9", "evidence": ["gma-07 vs '3 coming: Hal, Jo, Sam' in gma-11"]},
-    {"id": "P-029", "title": "Toasts cover what they confirm (the new calendar cell, the other Count me in, 'Hal is hosting…')", "severity": "Minor", "status": "open", "found": "iter-01 connoisseur C11, newcomer N11", "evidence": ["hal-04", "gma-14", "gma-12"]},
-    {"id": "P-030", "title": "Hosting ends in a toast; the new night appears only as a plain Also planned row, with no way to send it to the group text", "severity": "Minor", "tags": ["taste"], "status": "open", "found": "iter-01 connoisseur C7", "evidence": ["hal-03", "hal-04"]},
-    {"id": "P-031", "title": "Anyone can rate any night older than yesterday, so Kim is asked 'How was Paddington?' for a night she didn't attend", "severity": "Minor", "status": "open", "found": "iter-01 impeccable A H5", "evidence": ["app.js:561-564 canRateNight"]},
-    {"id": "P-032", "title": "A host may be able to drop out of their own night from Also planned or the day panel (two taps on You're in)", "severity": "Minor", "status": "open", "found": "iter-01 impeccable A H5", "evidence": ["GUESS from app.js:382-385, 519, 673; confirm with a test"]},
-    {"id": "P-033", "title": "Reads grow with history on every open and every Home Assistant poll (all votes while a night is planned); past roughly 400-700 thumbs-ups an ordinary day passes 50k", "severity": "Minor", "status": "deferred", "found": "iter-01 operator O1",
-     "evidence": ["lib/status.js:12,64,71", "production today: 3 votes, 36 movies (about 55 reads a page open)"], "note": "rated Blocker-on-a-timer by the operator; lowered to Minor because production is far from the threshold (2026-10-14 counts). Revisit when votes pass 200."},
-    {"id": "P-034", "title": "A signed-in phone with no people doc never reveals the movie and gets no news", "severity": "Minor", "status": "deferred", "found": "iter-01 operator O3",
-     "evidence": ["production 2026-10-14: 0 names used without a people doc"], "note": "GUESS killed for now; a self-repair would still be cheap"},
-    {"id": "P-035", "title": "Failures can't be diagnosed: no error reporting, tick failures discarded, two listeners swallow errors", "severity": "Minor", "status": "open", "found": "iter-01 operator O5", "evidence": ["api/status.js:10", "lib/tick.js:28-30,38-40", "app.js:57,77,82,84,130"]},
-    {"id": "P-036", "title": "The phone clock can lock from stale page state; the host can't undo an automatic lock from the page", "severity": "Minor", "status": "open", "found": "iter-01 operator O6", "evidence": ["store.js:2", "app.js:113-133", "actions.js:181-188"]},
-    {"id": "P-037", "title": "Server Firestore client has no timeout or retry and pages serially", "severity": "Minor", "status": "open", "found": "iter-01 operator O7", "evidence": ["firestore-rest.js:37-54"]},
-    {"id": "P-038", "title": "Device time zone drives day keys and start times", "severity": "Minor", "status": "open", "found": "iter-01 operator O8", "evidence": ["logic.js:280-292", "app.js:83,376"]},
-    {"id": "P-039", "title": "A Cinemeta failure strands Surprise me on 'Rummaging…'; a failed lookup can add a card titled with the IMDb id", "severity": "Minor", "status": "open", "found": "iter-01 operator O10", "evidence": ["app.js:1330,1347-1349"]},
-    {"id": "P-040", "title": "One malformed doc blanks the page for everyone (render has no guard)", "severity": "Minor", "status": "open", "found": "iter-01 operator O11", "evidence": ["app.js:203-226 (GUESS trigger)"]},
-    {"id": "P-041", "title": "Scenario timings didn't measure what their labels said (leftover toast satisfied 'counted'; host step accepted an error toast); seed locked a movie by hand, not by the pick rule", "severity": "Minor", "status": "open", "found": "iter-01 operator O4, connoisseur C5 (seed artifact)", "evidence": ["scenario.py:231-233,258"]},
-    {"id": "P-003", "title": "At 200% text the sheet is mostly footer; tour text cut mid-sentence with no sign it scrolls", "severity": "Minor", "status": "open", "found": "critique #5, iter-01 newcomer N10", "evidence": ["gma200-01, gma200-02"]},
-    {"id": "P-004", "title": "Day panel shows I'm free and the whole hosting form at once", "severity": "Minor", "status": "open", "found": "critique #5, iter-01 impeccable A", "evidence": ["app.js renderCalendar dd-host"]},
-    {"id": "P-005", "title": "Same-day hosting slip says 'The movie locks a day before'", "severity": "Minor", "status": "open", "found": "critique #5", "evidence": ["app.js hostSlip slip-note"]},
-    {"id": "P-006", "title": "News calls a night three weeks out 'Hal's Tuesday'; 'Locked for FRI' in capitals", "severity": "Minor", "status": "open", "found": "critique #5, iter-01 Draft", "evidence": ["logic.js dayName", "jo-03-news-1.png 'Locked for FRI'"], "note": "a dates fix is in git stash 'round5-partial'"},
-    {"id": "P-007", "title": "News ranks a night you could join behind housekeeping", "severity": "Minor", "status": "open", "found": "critique #5", "evidence": ["logic.js tier()"], "note": "fix in git stash 'round5-partial'"},
-    {"id": "P-008", "title": "Why-line says 'any Drama movie' when one fits", "severity": "Minor", "status": "open", "found": "critique #5", "evidence": ["app.js renderNext why"]},
-    {"id": "P-009", "title": "Two lit buttons on one news card; news theme as outlined tag", "severity": "Polish", "status": "open", "found": "critique #5, iter-01 impeccable A H4", "evidence": ["tour.js Next always bulb", "news.js demo()"]},
-    {"id": "P-010", "title": "Day panel on a night lists names without 'N coming:'", "severity": "Polish", "status": "open", "found": "critique #5", "evidence": ["app.js renderCalendar dd-line"]},
-    {"id": "P-011", "title": "Remove pill makes a 4th pill row", "severity": "Polish", "status": "open", "found": "critique #5", "evidence": ["assess-a5 w360-in-plot-card.png"]},
-    {"id": "P-012", "title": "'Show' label centers across two chip rows", "severity": "Polish", "status": "open", "found": "critique #5", "evidence": ["site.css .chip-row"]},
-    {"id": "P-013", "title": "Concessions outside the night card", "severity": "Polish", "status": "open", "found": "critique #5, iter-01 impeccable A", "evidence": ["app.js renderNext"]},
-    {"id": "P-014", "title": "'Fits…' chip has no vertical padding", "severity": "Polish", "status": "open", "found": "critique #5", "evidence": ["site.css .chip"]},
-    {"id": "P-015", "title": "Day panel and tour card changes aren't announced to screen readers", "severity": "Minor", "status": "open", "found": "critique #5, iter-01 impeccable A", "evidence": ["#dayDetail no live region", "tour.js paint focuses Next only"]},
-    {"id": "P-016", "title": "One e2e failure in 6 runs was not captured", "severity": "Minor", "status": "open", "found": "round 4", "evidence": ["session log"]},
-    {"id": "P-042", "title": "'EVERY NIGHT SO FAR' label sits against the rating box (h3.label overrides .past-label margin)", "severity": "Polish", "status": "open", "found": "iter-01 impeccable A", "evidence": ["site.css:180 vs :421"]},
-    {"id": "P-043", "title": "Ribbons follow only the first upcoming night: while it's locked, the next planned night's leader shows nowhere", "severity": "Minor", "status": "open", "found": "iter-01 impeccable A", "evidence": ["app.js renderShelf crown"]}
-  ],
-  "discarded": [
-    {"finding": "connoisseur C5: the locked movie contradicts the page's thumbs", "reason": "seed artifact: scenario.py locked shelf[0] by hand, not by the pick rule (fixed in the scenario for iteration 2)"},
-    {"finding": "newcomer N5 / connoisseur C12: day panel cut off after entering a name", "reason": "screenshot taken mid smooth-scroll (36 ms after the tap); scenario now waits for scrolling to settle. Re-check in iteration 2."},
-    {"finding": "newcomer N8 part: 'The shark still holds up' on Alien", "reason": "seed artifact (random pitches); pitches no longer name a movie"}
-  ],
-  "pivots": [
-    {"iteration": 2, "changes": [
-      {"id": "PV-2a", "fixes": ["P-017"], "what": "Honest sending: confirmations only after the server accepts a write; a write still unsent after 4 s shows a lasting 'Not sent yet' note (and 'Sent.' when it lands), even with no offline event; a retap while sending says so; leaving the page with unsent writes asks first.",
-       "proof": ["e2e: with Firestore writes held (route never answers) and navigator.onLine true, a thumbs-up shows 'Not sent yet' within 6 s and no 'counts' toast; releasing writes shows 'Sent.' and the vote doc exists", "after a nameless thumbs-up and a name, 'counts' appears only after the vote doc exists"],
-       "risk": "a slow but working network (>4 s) shows 'Not sent yet' briefly; noticed in scenario timings and e2e"},
-      {"id": "PV-2b", "fixes": ["P-018", "P-019", "P-020"], "what": "The reveal as the signature moment: it waits until every list has loaded (so the button is right); the lights go down (page not readable behind it); the '?' card waits face down in a chasing-bulb frame until tapped ('Tap to turn it over'); after See my ticket the news doesn't open over the ticket this visit (the bar keeps the count).",
-       "proof": ["scenario: Jo's reveal ends on 'See my ticket' in 3/3 runs", "scenario frames: the '?' is still face down at 1.5 s before the tap; turned and titled within 1.3 s after it", "no .tour-overlay for 5 s after See my ticket; the ticket is focused and on screen; the news bar shows the count", "overlay background alpha >= 0.95"],
-       "risk": "an extra tap; reduced motion; e2e flows that expect an automatic flip (updated); a tester or user who backs out before tapping still gets it next visit"},
-      {"id": "PV-2c", "fixes": ["P-021"], "what": "Walkthrough samples can't be mistaken for the real night: stamped SAMPLE, no real dates or group names; card 3 teaches both 'I'm free that evening' and 'Count me in' as the same thing; each card is announced to screen readers.",
-       "proof": ["scenario: no tour demo shows a date number or a name from the group", "e2e tour checks still pass", "a screen-reader live region carries each card's title"],
-       "risk": "samples feel less concrete"}
-    ], "deferred": ["P-023 ticket at 200% (next)", "P-024 news 'X is coming' (next)", "P-002 back = later", "P-025 locked night without a ticket", "P-022 tour before the answer (partly eased by PV-2c)"]}
-  ]
+ "iteration": 2,
+ "branch": "improve-loop",
+ "shipped_commit": "1f5d93c",
+ "impeccable_scores": [
+  {
+   "run": "2026-10-14T14-06-45Z",
+   "commit": "pre-94072b1",
+   "score": 27,
+   "max": 40
+  },
+  {
+   "run": "2026-10-14T14-58-50Z",
+   "commit": "pre-45dc333",
+   "score": 29,
+   "max": 40
+  },
+  {
+   "run": "2026-10-14T16-00-31Z",
+   "commit": "45dc333+round3",
+   "score": 29,
+   "max": 40
+  },
+  {
+   "run": "2026-10-14T16-43-31Z",
+   "commit": "pre-9846143",
+   "score": 30,
+   "max": 40
+  },
+  {
+   "run": "2026-10-14T18-08-15Z",
+   "commit": "9846143",
+   "score": 29,
+   "max": 40
+  },
+  {
+   "run": "iter-01",
+   "commit": "1f5d93c",
+   "score": 29,
+   "max": 40,
+   "per_heuristic": [
+    3,
+    3,
+    3,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3
+   ]
+  },
+  {
+   "run": "iter-02",
+   "commit": "984a52a",
+   "score": 29,
+   "max": 40,
+   "per_heuristic": [
+    3,
+    3,
+    3,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3
+   ]
+  }
+ ],
+ "tests": [
+  {
+   "iteration": 1,
+   "unit": "35/35",
+   "emulator": "41/41",
+   "e2e": "PASS",
+   "scenario_runs": "4/4 clean (3x seed 1, 1x seed 2)"
+  },
+  {
+   "iteration": 2,
+   "unit": "35/35",
+   "emulator": "41/41",
+   "e2e": "PASS (new checks: honest sending, reveal invite; lock race fixed)",
+   "scenario_runs": "4/4 clean"
+  }
+ ],
+ "timings": [
+  {
+   "iteration": 1,
+   "source": ".improve/evidence/iter-01/timings.md"
+  },
+  {
+   "iteration": 2,
+   "source": ".improve/evidence/iter-02/timings.md"
+  }
+ ],
+ "production_counts": {
+  "date": "2026-10-14",
+  "movies": 36,
+  "votes": 3,
+  "seen": 10,
+  "people": 3,
+  "nights": 2,
+  "free": 1,
+  "note": "read-only aggregation counts; names used on votes/free/seen without a people doc: 0"
+ },
+ "problems": [
+  {
+   "id": "P-001",
+   "title": "Tour and news sheet footer covered the last 18px of every card",
+   "severity": "Major",
+   "status": "fixed",
+   "found": "critique #5",
+   "fixed_in": "1f5d93c",
+   "evidence": [
+    "verify/foot2.py: overlap 0px on 5 tour and 9 news cards at 360 and 206 after the fix"
+   ]
+  },
+  {
+   "id": "P-017",
+   "title": "A tap on a dead or lie-fi connection looks saved and can vanish: the replayed thumbs-up after a name says 'counts' before it is sent; a retap while pending is silently ignored; the warning only fires on the browser offline event; the write queue is memory only",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-01 operator O2",
+   "evidence": [
+    "app.js:986-987 toast('Welcome... counts') right after el.click(), before any ack",
+    "app.js:955-959 once() ignores retaps while busy, silently",
+    "app.js:1042 offline toast only on the 'offline' event",
+    "firebase.js:10 getFirestore with the default memory cache"
+   ],
+   "note": "iter-02: confirmations wait for the server and a watchdog warns, but the watchdog misses writes that start with a read (drop-out, veto): operator O2, actions.js:121-127,168-175"
+  },
+  {
+   "id": "P-018",
+   "title": "The reveal opens before the page's lists load, so someone coming gets 'OK' instead of 'See my ticket'",
+   "severity": "Major",
+   "status": "fixed",
+   "found": "iter-01 connoisseur C1, impeccable A issue 1",
+   "evidence": [
+    "frames jo-reveal-1148ms ('OK'), run-s2 jo-01-reveal-landed",
+    "assess-a6 sam-412-reveal-end.png 3/3 runs",
+    "app.js:217-218 maybeReveal* run before ready()",
+    "iter-02: See my ticket in all runs and both seeds; impeccable A confirms"
+   ],
+   "fixed_in": "43a7824"
+  },
+  {
+   "id": "P-019",
+   "title": "The reveal has no build-up and the lights don't go down: the '?' turns within ~200 ms, the page stays readable behind it, and the marquee takes no part",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "fixed",
+   "found": "iter-01 connoisseur C3 C4, newcomer N4, impeccable A issue 1",
+   "evidence": [
+    "jo-reveal-0000ms -> 0278ms already turned",
+    "gma-reveal-0780ms: 'AT HAL'S' legible behind the heading",
+    "reveal.js:65 flips two frames after mount",
+    "iter-02 frames: card waits face down 1.2 s+, house fully dark"
+   ],
+   "fixed_in": "43a7824"
+  },
+  {
+   "id": "P-020",
+   "title": "The news sheet opens 4 ms after See my ticket, on top of the ticket",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "fixed",
+   "found": "iter-01 connoisseur C2, impeccable A",
+   "evidence": [
+    "jo-02-ticket.png (both seeds)",
+    "timings: jo news cards open 4 ms after the ticket",
+    "assess-a6 sam-360-after-ticket.png",
+    "iter-02 jo-02-ticket.png 1.5 s after: no sheet; e2e checks it"
+   ],
+   "fixed_in": "43a7824"
+  },
+  {
+   "id": "P-021",
+   "title": "The walkthrough's samples use real dates and real names, so its sample ticket ('The Witch · Fri, Oct 16 · Jo's') contradicts the real Friday night at Hal's; it teaches 'I'm free that evening' but not 'Count me in'",
+   "severity": "Major",
+   "status": "fixed",
+   "found": "iter-01 newcomer N1 N3, connoisseur C6, impeccable A issue 5",
+   "evidence": [
+    "gma-05-tour-5.png vs gma-06-reveal-landed.png",
+    "gma-03-tour-3.png counts vs real calendar",
+    "tour.js:14-55 demo dates from next Friday",
+    "iter-02: SAMPLE stamp, weekdays, e2e checks; residual: sample \"Fri · 8:00 PM\" matches the real night (newcomer N5, Minor)"
+   ],
+   "fixed_in": "d5d8019"
+  },
+  {
+   "id": "P-022",
+   "title": "A newcomer sits through 5 walkthrough cards while the marquee reads 'THE MOVIE IS…' before getting the answer they came for",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-01 newcomer N2, connoisseur C6",
+   "evidence": [
+    "gma-01..gma-05",
+    "the title first appears in gma-06"
+   ],
+   "note": "iter-02 newcomer N4, connoisseur C3: still about 7 taps before the page"
+  },
+  {
+   "id": "P-023",
+   "title": "At 200% text the ticket's details column collapses to one letter per line and the ticket runs two screens tall",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-01 impeccable A issue 2",
+   "evidence": [
+    "assess-a6 big-sam-full-a.png",
+    "site.css ticket grid 1fr 74px and dl auto 1fr"
+   ],
+   "note": "iter-02 impeccable A P1: 0px value column at 206 px; Limelight titles split mid-word (BAR/BARI/AN)"
+  },
+  {
+   "id": "P-024",
+   "title": "Someone joining your night is reported as 'X marked free evenings · Their evenings show on the calendar' and ranked near last; hosting also produces 'Hal marked free evenings' right after 'Hal is hosting'",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-01 impeccable A issue 3",
+   "evidence": [
+    "assess-a6 sam news card 3 of 3",
+    "actions.js:143-151 hosting writes the host's free mark",
+    "logic.js free tier"
+   ]
+  },
+  {
+   "id": "P-025",
+   "title": "A locked night seen without a ticket is a plain velvet box (no poster), with Stremio, '4 coming' and Concessions loose below; signed out with the reveal put off, Up next shows four amber buttons",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-01 impeccable A issue 4",
+   "evidence": [
+    "assess-a6 out-360-deferred-reveal.png",
+    "app.js:494-519"
+   ],
+   "note": "iter-02 impeccable A P2 again"
+  },
+  {
+   "id": "P-002",
+   "title": "Android back or Esc on the news deck marks every update read and removes the bar",
+   "severity": "Major",
+   "status": "open",
+   "found": "critique #5, iter-01 impeccable A (verified)",
+   "evidence": [
+    "tour.js backCloses(() => close('skip'))",
+    "app.js walkNews onDone: markSeen() for anything but Show me"
+   ]
+  },
+  {
+   "id": "P-026",
+   "title": "After a nameless thumbs-up, the name form takes her to the top of the page and never brings her back; the 'Welcome' confirmation lands later over another section",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 newcomer N6",
+   "evidence": [
+    "gma-10 -> gma-11 -> gma-12"
+   ]
+  },
+  {
+   "id": "P-027",
+   "title": "Most wanted ribbon on 4 of 7 cards when thumbs tie; the voter faces under each card have no label; 'Stremio' unexplained",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 newcomer N8, impeccable A H6",
+   "evidence": [
+    "gma-09",
+    "gma-08"
+   ]
+  },
+  {
+   "id": "P-028",
+   "title": "Name chips on the guest-list form read like the list of who's coming",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 newcomer N9",
+   "evidence": [
+    "gma-07 vs '3 coming: Hal, Jo, Sam' in gma-11"
+   ]
+  },
+  {
+   "id": "P-029",
+   "title": "Toasts cover what they confirm (the new calendar cell, the other Count me in, 'Hal is hosting…')",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 connoisseur C11, newcomer N11",
+   "evidence": [
+    "hal-04",
+    "gma-14",
+    "gma-12"
+   ]
+  },
+  {
+   "id": "P-030",
+   "title": "Hosting ends in a toast; the new night appears only as a plain Also planned row, with no way to send it to the group text",
+   "severity": "Minor",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-01 connoisseur C7",
+   "evidence": [
+    "hal-03",
+    "hal-04"
+   ]
+  },
+  {
+   "id": "P-031",
+   "title": "Anyone can rate any night older than yesterday, so Kim is asked 'How was Paddington?' for a night she didn't attend",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 impeccable A H5",
+   "evidence": [
+    "app.js:561-564 canRateNight"
+   ]
+  },
+  {
+   "id": "P-032",
+   "title": "A host may be able to drop out of their own night from Also planned or the day panel (two taps on You're in)",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 impeccable A H5",
+   "evidence": [
+    "GUESS from app.js:382-385, 519, 673; confirm with a test"
+   ]
+  },
+  {
+   "id": "P-033",
+   "title": "Reads grow with history on every open and every Home Assistant poll (all votes while a night is planned); past roughly 400-700 thumbs-ups an ordinary day passes 50k",
+   "severity": "Minor",
+   "status": "deferred",
+   "found": "iter-01 operator O1",
+   "evidence": [
+    "lib/status.js:12,64,71",
+    "production today: 3 votes, 36 movies (about 55 reads a page open)"
+   ],
+   "note": "rated Blocker-on-a-timer by the operator; lowered to Minor because production is far from the threshold (2026-10-14 counts). Revisit when votes pass 200."
+  },
+  {
+   "id": "P-034",
+   "title": "A signed-in phone with no people doc never reveals the movie and gets no news",
+   "severity": "Minor",
+   "status": "deferred",
+   "found": "iter-01 operator O3",
+   "evidence": [
+    "production 2026-10-14: 0 names used without a people doc"
+   ],
+   "note": "GUESS killed for now; a self-repair would still be cheap"
+  },
+  {
+   "id": "P-035",
+   "title": "Failures can't be diagnosed: no error reporting, tick failures discarded, two listeners swallow errors",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-01 operator O5",
+   "evidence": [
+    "api/status.js:10",
+    "lib/tick.js:28-30,38-40",
+    "app.js:57,77,82,84,130"
+   ],
+   "note": "iter-02 operator O5: tick errors recorded as skipped, /api/tick returns 200, nothing logged"
+  },
+  {
+   "id": "P-036",
+   "title": "The phone clock can lock from stale page state; the host can't undo an automatic lock from the page",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-01 operator O6",
+   "evidence": [
+    "store.js:2",
+    "app.js:113-133",
+    "actions.js:181-188"
+   ],
+   "note": "iter-02 operator O4: a stale tab can lock a just-vetoed movie; no Unlock after lock time"
+  },
+  {
+   "id": "P-037",
+   "title": "Server Firestore client has no timeout or retry and pages serially",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 operator O7",
+   "evidence": [
+    "firestore-rest.js:37-54"
+   ]
+  },
+  {
+   "id": "P-038",
+   "title": "Device time zone drives day keys and start times",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 operator O8",
+   "evidence": [
+    "logic.js:280-292",
+    "app.js:83,376"
+   ]
+  },
+  {
+   "id": "P-039",
+   "title": "A Cinemeta failure strands Surprise me on 'Rummaging…'; a failed lookup can add a card titled with the IMDb id",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 operator O10",
+   "evidence": [
+    "app.js:1330,1347-1349"
+   ]
+  },
+  {
+   "id": "P-040",
+   "title": "One malformed doc blanks the page for everyone (render has no guard)",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 operator O11",
+   "evidence": [
+    "app.js:203-226 (GUESS trigger)"
+   ]
+  },
+  {
+   "id": "P-041",
+   "title": "Scenario timings didn't measure what their labels said (leftover toast satisfied 'counted'; host step accepted an error toast); seed locked a movie by hand, not by the pick rule",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 operator O4, connoisseur C5 (seed artifact)",
+   "evidence": [
+    "scenario.py:231-233,258"
+   ]
+  },
+  {
+   "id": "P-003",
+   "title": "At 200% text the sheet is mostly footer; tour text cut mid-sentence with no sign it scrolls",
+   "severity": "Minor",
+   "status": "open",
+   "found": "critique #5, iter-01 newcomer N10",
+   "evidence": [
+    "gma200-01, gma200-02"
+   ]
+  },
+  {
+   "id": "P-004",
+   "title": "Day panel shows I'm free and the whole hosting form at once",
+   "severity": "Minor",
+   "status": "open",
+   "found": "critique #5, iter-01 impeccable A",
+   "evidence": [
+    "app.js renderCalendar dd-host"
+   ]
+  },
+  {
+   "id": "P-005",
+   "title": "Same-day hosting slip says 'The movie locks a day before'",
+   "severity": "Minor",
+   "status": "open",
+   "found": "critique #5",
+   "evidence": [
+    "app.js hostSlip slip-note"
+   ]
+  },
+  {
+   "id": "P-006",
+   "title": "News calls a night three weeks out 'Hal's Tuesday'; 'Locked for FRI' in capitals",
+   "severity": "Minor",
+   "status": "open",
+   "found": "critique #5, iter-01 Draft",
+   "evidence": [
+    "logic.js dayName",
+    "jo-03-news-1.png 'Locked for FRI'"
+   ],
+   "note": "a dates fix is in git stash 'round5-partial'"
+  },
+  {
+   "id": "P-007",
+   "title": "News ranks a night you could join behind housekeeping",
+   "severity": "Minor",
+   "status": "open",
+   "found": "critique #5",
+   "evidence": [
+    "logic.js tier()"
+   ],
+   "note": "fix in git stash 'round5-partial'"
+  },
+  {
+   "id": "P-008",
+   "title": "Why-line says 'any Drama movie' when one fits",
+   "severity": "Minor",
+   "status": "open",
+   "found": "critique #5",
+   "evidence": [
+    "app.js renderNext why"
+   ]
+  },
+  {
+   "id": "P-009",
+   "title": "Two lit buttons on one news card; news theme as outlined tag",
+   "severity": "Polish",
+   "status": "open",
+   "found": "critique #5, iter-01 impeccable A H4",
+   "evidence": [
+    "tour.js Next always bulb",
+    "news.js demo()"
+   ]
+  },
+  {
+   "id": "P-010",
+   "title": "Day panel on a night lists names without 'N coming:'",
+   "severity": "Polish",
+   "status": "open",
+   "found": "critique #5",
+   "evidence": [
+    "app.js renderCalendar dd-line"
+   ]
+  },
+  {
+   "id": "P-011",
+   "title": "Remove pill makes a 4th pill row",
+   "severity": "Polish",
+   "status": "open",
+   "found": "critique #5",
+   "evidence": [
+    "assess-a5 w360-in-plot-card.png"
+   ]
+  },
+  {
+   "id": "P-012",
+   "title": "'Show' label centers across two chip rows",
+   "severity": "Polish",
+   "status": "open",
+   "found": "critique #5",
+   "evidence": [
+    "site.css .chip-row"
+   ]
+  },
+  {
+   "id": "P-013",
+   "title": "Concessions outside the night card",
+   "severity": "Polish",
+   "status": "open",
+   "found": "critique #5, iter-01 impeccable A",
+   "evidence": [
+    "app.js renderNext"
+   ]
+  },
+  {
+   "id": "P-014",
+   "title": "'Fits…' chip has no vertical padding",
+   "severity": "Polish",
+   "status": "open",
+   "found": "critique #5",
+   "evidence": [
+    "site.css .chip"
+   ]
+  },
+  {
+   "id": "P-015",
+   "title": "Day panel and tour card changes aren't announced to screen readers",
+   "severity": "Minor",
+   "status": "open",
+   "found": "critique #5, iter-01 impeccable A",
+   "evidence": [
+    "#dayDetail no live region",
+    "tour.js paint focuses Next only"
+   ]
+  },
+  {
+   "id": "P-016",
+   "title": "One e2e failure in 6 runs was not captured",
+   "severity": "Minor",
+   "status": "fixed",
+   "found": "round 4",
+   "evidence": [
+    "session log"
+   ],
+   "fixed_in": "bfd1c20",
+   "note": "root cause: the lock transaction overtook a theme write tapped just before it; lock now waits for pending writes"
+  },
+  {
+   "id": "P-042",
+   "title": "'EVERY NIGHT SO FAR' label sits against the rating box (h3.label overrides .past-label margin)",
+   "severity": "Polish",
+   "status": "open",
+   "found": "iter-01 impeccable A",
+   "evidence": [
+    "site.css:180 vs :421"
+   ]
+  },
+  {
+   "id": "P-043",
+   "title": "Ribbons follow only the first upcoming night: while it's locked, the next planned night's leader shows nowhere",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-01 impeccable A",
+   "evidence": [
+    "app.js renderShelf crown"
+   ]
+  },
+  {
+   "id": "P-044",
+   "title": "The reveal's payoff has less life than its wait: bulbs chase while face down, then go still; 'The movie is…' hangs unfinished above the poster; the title is smaller and duller",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-02 connoisseur C1",
+   "evidence": [
+    "frame diffs: wait frames change 55,632 px, turn frames 0 px",
+    "jo-01-reveal-landed.png"
+   ]
+  },
+  {
+   "id": "P-045",
+   "title": "Backing out of the face-down card opens the news, which names the locked movie and shows its poster",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-02 impeccable A P1",
+   "evidence": [
+    "assess-a7 d_first.png",
+    "app.js maybeWalk lets a deferred reveal through",
+    "logic.js the locked item always names the title"
+   ]
+  },
+  {
+   "id": "P-046",
+   "title": "A signed-out visitor's reveal ends on a bare OK: no way to say I'm coming at the peak",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-02 newcomer N1, connoisseur C4, impeccable A P2",
+   "evidence": [
+    "gma-06-reveal-landed.png",
+    "app.js inviteFor requires S.me"
+   ]
+  },
+  {
+   "id": "P-047",
+   "title": "After a nameless thumbs-up the page jumps to the guest list and a name chip lands under her finger; a second tap signs her in as someone else",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-02 newcomer N2",
+   "evidence": [
+    "gma-09 -> gma-10 chip under the tap point",
+    "second-tap outcome is a GUESS"
+   ]
+  },
+  {
+   "id": "P-048",
+   "title": "'Put your name on the guest list' reads as an RSVP, but naming yourself doesn't count you in",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-02 newcomer N3",
+   "evidence": [
+    "gma-07 heading",
+    "gma-11 still '3 coming'"
+   ]
+  },
+  {
+   "id": "P-050",
+   "title": "Opening on a dead or lie-fi connection is never named: the page can say 'No night planned' and 'The shelf is empty' from empty cache snapshots",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-02 operator O3",
+   "evidence": [
+    "store.js drops fromCache",
+    "app.js ready()"
+   ],
+   "note": "which outcome happens is a GUESS"
+  },
+  {
+   "id": "P-053",
+   "title": "The toast only gets half the screen to size itself, so 'Not sent yet' is a five-line red column at 360",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-02 impeccable A P2",
+   "evidence": [
+    "site.css toast left:50%",
+    "measured 180 px of a 331 px max"
+   ]
+  },
+  {
+   "id": "P-054",
+   "title": "Off-scale values from iteration 2: .tour-cal .d-num 1.05rem; .reveal-stage radius 12px",
+   "severity": "Polish",
+   "status": "open",
+   "found": "iter-02 detector",
+   "evidence": [
+    "site.css:553",
+    "site.css:714"
+   ]
+  },
+  {
+   "id": "P-055",
+   "title": "The ticket and 'You're in ✓' show before the server has the RSVP; on lie-fi only the 4 s note corrects it",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-02 operator O1",
+   "evidence": [
+    "ticket at 61 ms vs server-confirmed toast at 327 ms"
+   ]
+  },
+  {
+   "id": "P-056",
+   "title": "Creating a mark that already exists is refused as an update, so the page says a tap 'didn't go through' when it did",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-02 operator O8",
+   "evidence": [
+    "firestore.rules:137,147,159"
+   ]
+  },
+  {
+   "id": "P-057",
+   "title": "Scenario evidence gaps: no frames during the flip; 'name to thumbs-up confirmed' stops at the join toast",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-02 connoisseur C6, newcomer N14, operator O10",
+   "evidence": [
+    "scenario.py reveal()"
+   ]
+  },
+  {
+   "id": "P-058",
+   "title": "After 'Not this time' focus drops to <body>; the news is held back after any reveal, even for people with no ticket",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-02 impeccable A",
+   "evidence": [
+    "reveal.js close()",
+    "app.js play() S.walked = true"
+   ]
+  },
+  {
+   "id": "P-059",
+   "title": "Copy: 'AT 8:00 PM · AT HAL'S'; 'Locked for FRI'; 'Your thumbs-up on Alien counts.' after Alien is picked; '4 coming: H J K S Hal, Jo, Kim, Sam'",
+   "severity": "Polish",
+   "status": "open",
+   "found": "iter-02 connoisseur C13, impeccable A",
+   "evidence": [
+    "jo-12",
+    "jo-04"
+   ]
+  }
+ ],
+ "discarded": [
+  {
+   "finding": "connoisseur C5: the locked movie contradicts the page's thumbs",
+   "reason": "seed artifact: scenario.py locked shelf[0] by hand, not by the pick rule (fixed in the scenario for iteration 2)"
+  },
+  {
+   "finding": "newcomer N5 / connoisseur C12: day panel cut off after entering a name",
+   "reason": "screenshot taken mid smooth-scroll (36 ms after the tap); scenario now waits for scrolling to settle. Re-check in iteration 2."
+  },
+  {
+   "finding": "newcomer N8 part: 'The shark still holds up' on Alien",
+   "reason": "seed artifact (random pitches); pitches no longer name a movie"
+  }
+ ],
+ "pivots": [
+  {
+   "iteration": 2,
+   "changes": [
+    {
+     "id": "PV-2a",
+     "fixes": [
+      "P-017"
+     ],
+     "what": "Honest sending: confirmations only after the server accepts a write; a write still unsent after 4 s shows a lasting 'Not sent yet' note (and 'Sent.' when it lands), even with no offline event; a retap while sending says so; leaving the page with unsent writes asks first.",
+     "proof": [
+      "e2e: with Firestore writes held (route never answers) and navigator.onLine true, a thumbs-up shows 'Not sent yet' within 6 s and no 'counts' toast; releasing writes shows 'Sent.' and the vote doc exists",
+      "after a nameless thumbs-up and a name, 'counts' appears only after the vote doc exists"
+     ],
+     "risk": "a slow but working network (>4 s) shows 'Not sent yet' briefly; noticed in scenario timings and e2e"
+    },
+    {
+     "id": "PV-2b",
+     "fixes": [
+      "P-018",
+      "P-019",
+      "P-020"
+     ],
+     "what": "The reveal as the signature moment: it waits until every list has loaded (so the button is right); the lights go down (page not readable behind it); the '?' card waits face down in a chasing-bulb frame until tapped ('Tap to turn it over'); after See my ticket the news doesn't open over the ticket this visit (the bar keeps the count).",
+     "proof": [
+      "scenario: Jo's reveal ends on 'See my ticket' in 3/3 runs",
+      "scenario frames: the '?' is still face down at 1.5 s before the tap; turned and titled within 1.3 s after it",
+      "no .tour-overlay for 5 s after See my ticket; the ticket is focused and on screen; the news bar shows the count",
+      "overlay background alpha >= 0.95"
+     ],
+     "risk": "an extra tap; reduced motion; e2e flows that expect an automatic flip (updated); a tester or user who backs out before tapping still gets it next visit"
+    },
+    {
+     "id": "PV-2c",
+     "fixes": [
+      "P-021"
+     ],
+     "what": "Walkthrough samples can't be mistaken for the real night: stamped SAMPLE, no real dates or group names; card 3 teaches both 'I'm free that evening' and 'Count me in' as the same thing; each card is announced to screen readers.",
+     "proof": [
+      "scenario: no tour demo shows a date number or a name from the group",
+      "e2e tour checks still pass",
+      "a screen-reader live region carries each card's title"
+     ],
+     "risk": "samples feel less concrete"
+    }
+   ],
+   "deferred": [
+    "P-023 ticket at 200% (next)",
+    "P-024 news 'X is coming' (next)",
+    "P-002 back = later",
+    "P-025 locked night without a ticket",
+    "P-022 tour before the answer (partly eased by PV-2c)"
+   ],
+   "results": {
+    "PV-2a": "kept; met: e2e honest-sending check passes; the operator found a gap (watchdog misses read-first writes), so P-017 stays open",
+    "PV-2b": "kept; met: See my ticket in all runs, face down until tapped (frames to 1.2 s), tap to title 1045-1061 ms median, no sheet over the ticket, house fully dark",
+    "PV-2c": "kept; met: SAMPLE stamp, weekday cells, screen-reader announcement (e2e)"
+   }
+  },
+  {
+   "iteration": 3,
+   "changes": [
+    {
+     "id": "PV-3a",
+     "fixes": [
+      "P-045",
+      "P-046",
+      "P-044",
+      "P-058"
+     ],
+     "what": "The reveal end to end: never spoiled by the news; a signed-out visitor ends on Count me in (asks the name, lands on the ticket); the payoff lights up; news held back only when the reveal lands on a ticket; 'Not this time' lands on Up next.",
+     "proof": [
+      "e2e: back on the face-down card -> nothing in the news names the movie",
+      "e2e: signed-out reveal -> Count me in -> name -> ticket focused and the free doc exists",
+      "scenario frames: the bulbs change after the turn; the heading no longer ends in an ellipsis"
+     ],
+     "risk": "more on the reveal; e2e flows"
+    },
+    {
+     "id": "PV-3b",
+     "fixes": [
+      "P-017",
+      "P-050"
+     ],
+     "what": "Honest sending, fixed: the watchdog watches the action itself; opening on a dead connection says so instead of showing an empty house.",
+     "proof": [
+      "e2e: with Firestore writes aborted, dropping out of a night shows 'Not sent yet'",
+      "e2e: with Firestore unreachable at load, the page says it can't reach the box office instead of 'No night planned'"
+     ],
+     "risk": "false alarms on slow networks"
+    },
+    {
+     "id": "PV-3c",
+     "fixes": [
+      "P-023",
+      "P-053",
+      "P-054"
+     ],
+     "what": "Big text and the toast: the ticket stacks below 340 px; Limelight headings shrink rather than split words; the toast uses the full width; off-scale values back on the scale.",
+     "proof": [
+      "200% capture: ticket value column >= 120 px; no heading splits a word",
+      "toast width at 360 >= 300 px for a long message",
+      "detector: no new off-scale findings"
+     ],
+     "risk": "the ticket's look at narrow widths"
+    }
+   ],
+   "deferred": [
+    "P-047, P-048 (name gate): next",
+    "P-022 tour length",
+    "P-025 locked night without a ticket",
+    "P-002 back on news",
+    "P-036 stale-tab lock",
+    "P-035 server clock logging"
+   ]
+  }
+ ]
 }
