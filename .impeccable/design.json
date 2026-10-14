@@ -1,0 +1,730 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-14T15:43:58.251Z",
+  "title": "Design System: Weberplex",
+  "extensions": {
+    "colorMeta": {
+      "bulb": {
+        "role": "primary",
+        "displayName": "Marquee Bulb",
+        "canonical": "#ffc76e",
+        "oklch": "oklch(86.2% 0.124 77.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.124 77.5)",
+          "oklch(26.4% 0.124 77.5)",
+          "oklch(37.9% 0.124 77.5)",
+          "oklch(49.3% 0.124 77.5)",
+          "oklch(60.7% 0.124 77.5)",
+          "oklch(72.1% 0.124 77.5)",
+          "oklch(83.6% 0.124 77.5)",
+          "oklch(95.0% 0.124 77.5)"
+        ]
+      },
+      "bulb-hi": {
+        "role": "primary",
+        "displayName": "Hot Filament",
+        "canonical": "#ffd590",
+        "oklch": "oklch(89.4% 0.098 79.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.098 79.4)",
+          "oklch(26.4% 0.098 79.4)",
+          "oklch(37.9% 0.098 79.4)",
+          "oklch(49.3% 0.098 79.4)",
+          "oklch(60.7% 0.098 79.4)",
+          "oklch(72.1% 0.098 79.4)",
+          "oklch(83.6% 0.098 79.4)",
+          "oklch(95.0% 0.098 79.4)"
+        ]
+      },
+      "bulb-filament": {
+        "role": "primary",
+        "displayName": "Filament",
+        "canonical": "#fff3d1",
+        "oklch": "oklch(96.5% 0.046 90.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.046 90.9)",
+          "oklch(26.4% 0.046 90.9)",
+          "oklch(37.9% 0.046 90.9)",
+          "oklch(49.3% 0.046 90.9)",
+          "oklch(60.7% 0.046 90.9)",
+          "oklch(72.1% 0.046 90.9)",
+          "oklch(83.6% 0.046 90.9)",
+          "oklch(95.0% 0.046 90.9)"
+        ]
+      },
+      "foreign-ink": {
+        "role": "secondary",
+        "displayName": "Foreign Ink",
+        "canonical": "#f0a9b8",
+        "oklch": "oklch(80.6% 0.085 5.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.085 5.2)",
+          "oklch(26.4% 0.085 5.2)",
+          "oklch(37.9% 0.085 5.2)",
+          "oklch(49.3% 0.085 5.2)",
+          "oklch(60.7% 0.085 5.2)",
+          "oklch(72.1% 0.085 5.2)",
+          "oklch(83.6% 0.085 5.2)",
+          "oklch(95.0% 0.085 5.2)"
+        ]
+      },
+      "curtain": {
+        "role": "secondary",
+        "displayName": "Curtain Oxblood",
+        "canonical": "#7d1b35",
+        "oklch": "oklch(39.5% 0.132 10.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.132 10.5)",
+          "oklch(26.4% 0.132 10.5)",
+          "oklch(37.9% 0.132 10.5)",
+          "oklch(49.3% 0.132 10.5)",
+          "oklch(60.7% 0.132 10.5)",
+          "oklch(72.1% 0.132 10.5)",
+          "oklch(83.6% 0.132 10.5)",
+          "oklch(95.0% 0.132 10.5)"
+        ]
+      },
+      "curtain-hi": {
+        "role": "secondary",
+        "displayName": "Lit Curtain",
+        "canonical": "#9c2747",
+        "oklch": "oklch(46.7% 0.153 9.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.153 9.5)",
+          "oklch(26.4% 0.153 9.5)",
+          "oklch(37.9% 0.153 9.5)",
+          "oklch(49.3% 0.153 9.5)",
+          "oklch(60.7% 0.153 9.5)",
+          "oklch(72.1% 0.153 9.5)",
+          "oklch(83.6% 0.153 9.5)",
+          "oklch(95.0% 0.153 9.5)"
+        ]
+      },
+      "marquee-body": {
+        "role": "secondary",
+        "displayName": "Marquee Body",
+        "canonical": "#3a0f1d",
+        "oklch": "oklch(24.6% 0.069 3.6)",
+        "tonalRamp": [
+          "oklch(15.0% 0.069 3.6)",
+          "oklch(26.4% 0.069 3.6)",
+          "oklch(37.9% 0.069 3.6)",
+          "oklch(49.3% 0.069 3.6)",
+          "oklch(60.7% 0.069 3.6)",
+          "oklch(72.1% 0.069 3.6)",
+          "oklch(83.6% 0.069 3.6)",
+          "oklch(95.0% 0.069 3.6)"
+        ]
+      },
+      "board": {
+        "role": "tertiary",
+        "displayName": "Letter Board",
+        "canonical": "#fbf3e2",
+        "oklch": "oklch(96.6% 0.024 85.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.024 85.8)",
+          "oklch(26.4% 0.024 85.8)",
+          "oklch(37.9% 0.024 85.8)",
+          "oklch(49.3% 0.024 85.8)",
+          "oklch(60.7% 0.024 85.8)",
+          "oklch(72.1% 0.024 85.8)",
+          "oklch(83.6% 0.024 85.8)",
+          "oklch(95.0% 0.024 85.8)"
+        ]
+      },
+      "board-ink": {
+        "role": "tertiary",
+        "displayName": "Board Ink",
+        "canonical": "#1b0f0c",
+        "oklch": "oklch(18.4% 0.022 34.6)",
+        "tonalRamp": [
+          "oklch(15.0% 0.022 34.6)",
+          "oklch(26.4% 0.022 34.6)",
+          "oklch(37.9% 0.022 34.6)",
+          "oklch(49.3% 0.022 34.6)",
+          "oklch(60.7% 0.022 34.6)",
+          "oklch(72.1% 0.022 34.6)",
+          "oklch(83.6% 0.022 34.6)",
+          "oklch(95.0% 0.022 34.6)"
+        ]
+      },
+      "ticket": {
+        "role": "tertiary",
+        "displayName": "Admit-One Paper",
+        "canonical": "#f1dbc6",
+        "oklch": "oklch(90.4% 0.037 66.0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.037 66.0)",
+          "oklch(26.4% 0.037 66.0)",
+          "oklch(37.9% 0.037 66.0)",
+          "oklch(49.3% 0.037 66.0)",
+          "oklch(60.7% 0.037 66.0)",
+          "oklch(72.1% 0.037 66.0)",
+          "oklch(83.6% 0.037 66.0)",
+          "oklch(95.0% 0.037 66.0)"
+        ]
+      },
+      "ticket-ink": {
+        "role": "tertiary",
+        "displayName": "Ticket Ink",
+        "canonical": "#2c1712",
+        "oklch": "oklch(23.2% 0.036 34.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.036 34.2)",
+          "oklch(26.4% 0.036 34.2)",
+          "oklch(37.9% 0.036 34.2)",
+          "oklch(49.3% 0.036 34.2)",
+          "oklch(60.7% 0.036 34.2)",
+          "oklch(72.1% 0.036 34.2)",
+          "oklch(83.6% 0.036 34.2)",
+          "oklch(95.0% 0.036 34.2)"
+        ]
+      },
+      "ticket-label": {
+        "role": "tertiary",
+        "displayName": "Ticket Label",
+        "canonical": "#7a4a3e",
+        "oklch": "oklch(46.2% 0.069 34.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.069 34.8)",
+          "oklch(26.4% 0.069 34.8)",
+          "oklch(37.9% 0.069 34.8)",
+          "oklch(49.3% 0.069 34.8)",
+          "oklch(60.7% 0.069 34.8)",
+          "oklch(72.1% 0.069 34.8)",
+          "oklch(83.6% 0.069 34.8)",
+          "oklch(95.0% 0.069 34.8)"
+        ]
+      },
+      "ticket-stamp": {
+        "role": "tertiary",
+        "displayName": "Ticket Stamp",
+        "canonical": "#2f7a4f",
+        "oklch": "oklch(52.1% 0.101 155.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.101 155.2)",
+          "oklch(26.4% 0.101 155.2)",
+          "oklch(37.9% 0.101 155.2)",
+          "oklch(49.3% 0.101 155.2)",
+          "oklch(60.7% 0.101 155.2)",
+          "oklch(72.1% 0.101 155.2)",
+          "oklch(83.6% 0.101 155.2)",
+          "oklch(95.0% 0.101 155.2)"
+        ]
+      },
+      "admit-red": {
+        "role": "tertiary",
+        "displayName": "Admit Red",
+        "canonical": "#8c2440",
+        "oklch": "oklch(43.4% 0.139 9.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.139 9.4)",
+          "oklch(26.4% 0.139 9.4)",
+          "oklch(37.9% 0.139 9.4)",
+          "oklch(49.3% 0.139 9.4)",
+          "oklch(60.7% 0.139 9.4)",
+          "oklch(72.1% 0.139 9.4)",
+          "oklch(83.6% 0.139 9.4)",
+          "oklch(95.0% 0.139 9.4)"
+        ]
+      },
+      "stripe-cream": {
+        "role": "secondary",
+        "displayName": "Stripe Cream",
+        "canonical": "#e8e0d6",
+        "oklch": "oklch(91.0% 0.016 73.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.016 73.7)",
+          "oklch(26.4% 0.016 73.7)",
+          "oklch(37.9% 0.016 73.7)",
+          "oklch(49.3% 0.016 73.7)",
+          "oklch(60.7% 0.016 73.7)",
+          "oklch(72.1% 0.016 73.7)",
+          "oklch(83.6% 0.016 73.7)",
+          "oklch(95.0% 0.016 73.7)"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Aisle Edge",
+        "canonical": "#7a5f6b",
+        "oklch": "oklch(51.7% 0.039 350.1)",
+        "tonalRamp": [
+          "oklch(15.0% 0.039 350.1)",
+          "oklch(26.4% 0.039 350.1)",
+          "oklch(37.9% 0.039 350.1)",
+          "oklch(49.3% 0.039 350.1)",
+          "oklch(60.7% 0.039 350.1)",
+          "oklch(72.1% 0.039 350.1)",
+          "oklch(83.6% 0.039 350.1)",
+          "oklch(95.0% 0.039 350.1)"
+        ]
+      },
+      "go": {
+        "role": "tertiary",
+        "displayName": "Concession Green",
+        "canonical": "#93d9ad",
+        "oklch": "oklch(82.7% 0.094 156.1)",
+        "tonalRamp": [
+          "oklch(15.0% 0.094 156.1)",
+          "oklch(26.4% 0.094 156.1)",
+          "oklch(37.9% 0.094 156.1)",
+          "oklch(49.3% 0.094 156.1)",
+          "oklch(60.7% 0.094 156.1)",
+          "oklch(72.1% 0.094 156.1)",
+          "oklch(83.6% 0.094 156.1)",
+          "oklch(95.0% 0.094 156.1)"
+        ]
+      },
+      "bad": {
+        "role": "tertiary",
+        "displayName": "Spilled Soda",
+        "canonical": "#ff8f80",
+        "oklch": "oklch(76.7% 0.138 28.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.138 28.7)",
+          "oklch(26.4% 0.138 28.7)",
+          "oklch(37.9% 0.138 28.7)",
+          "oklch(49.3% 0.138 28.7)",
+          "oklch(60.7% 0.138 28.7)",
+          "oklch(72.1% 0.138 28.7)",
+          "oklch(83.6% 0.138 28.7)",
+          "oklch(95.0% 0.138 28.7)"
+        ]
+      },
+      "projection-black": {
+        "role": "tertiary",
+        "displayName": "Projection Black",
+        "canonical": "#050203",
+        "oklch": "oklch(9.5% 0.012 354.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.012 354.3)",
+          "oklch(26.4% 0.012 354.3)",
+          "oklch(37.9% 0.012 354.3)",
+          "oklch(49.3% 0.012 354.3)",
+          "oklch(60.7% 0.012 354.3)",
+          "oklch(72.1% 0.012 354.3)",
+          "oklch(83.6% 0.012 354.3)",
+          "oklch(95.0% 0.012 354.3)"
+        ]
+      },
+      "velvet": {
+        "role": "neutral",
+        "displayName": "House Velvet",
+        "canonical": "#140a0f",
+        "oklch": "oklch(16.1% 0.020 348.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.020 348.2)",
+          "oklch(26.4% 0.020 348.2)",
+          "oklch(37.9% 0.020 348.2)",
+          "oklch(49.3% 0.020 348.2)",
+          "oklch(60.7% 0.020 348.2)",
+          "oklch(72.1% 0.020 348.2)",
+          "oklch(83.6% 0.020 348.2)",
+          "oklch(95.0% 0.020 348.2)"
+        ]
+      },
+      "velvet-2": {
+        "role": "neutral",
+        "displayName": "Raised Velvet",
+        "canonical": "#1e1117",
+        "oklch": "oklch(19.8% 0.024 350.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.024 350.3)",
+          "oklch(26.4% 0.024 350.3)",
+          "oklch(37.9% 0.024 350.3)",
+          "oklch(49.3% 0.024 350.3)",
+          "oklch(60.7% 0.024 350.3)",
+          "oklch(72.1% 0.024 350.3)",
+          "oklch(83.6% 0.024 350.3)",
+          "oklch(95.0% 0.024 350.3)"
+        ]
+      },
+      "velvet-3": {
+        "role": "neutral",
+        "displayName": "Plush Velvet",
+        "canonical": "#2a1720",
+        "oklch": "oklch(23.4% 0.034 350.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.034 350.2)",
+          "oklch(26.4% 0.034 350.2)",
+          "oklch(37.9% 0.034 350.2)",
+          "oklch(49.3% 0.034 350.2)",
+          "oklch(60.7% 0.034 350.2)",
+          "oklch(72.1% 0.034 350.2)",
+          "oklch(83.6% 0.034 350.2)",
+          "oklch(95.0% 0.034 350.2)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Aisle Rule",
+        "canonical": "#3b2530",
+        "oklch": "oklch(29.6% 0.038 348.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.038 348.2)",
+          "oklch(26.4% 0.038 348.2)",
+          "oklch(37.9% 0.038 348.2)",
+          "oklch(49.3% 0.038 348.2)",
+          "oklch(60.7% 0.038 348.2)",
+          "oklch(72.1% 0.038 348.2)",
+          "oklch(83.6% 0.038 348.2)",
+          "oklch(95.0% 0.038 348.2)"
+        ]
+      },
+      "screen": {
+        "role": "neutral",
+        "displayName": "Projector Light",
+        "canonical": "#f3e9dc",
+        "oklch": "oklch(93.8% 0.020 74.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.020 74.7)",
+          "oklch(26.4% 0.020 74.7)",
+          "oklch(37.9% 0.020 74.7)",
+          "oklch(49.3% 0.020 74.7)",
+          "oklch(60.7% 0.020 74.7)",
+          "oklch(72.1% 0.020 74.7)",
+          "oklch(83.6% 0.020 74.7)",
+          "oklch(95.0% 0.020 74.7)"
+        ]
+      },
+      "dim": {
+        "role": "neutral",
+        "displayName": "Dimmed Light",
+        "canonical": "#bba69c",
+        "oklch": "oklch(74.1% 0.028 47.1)",
+        "tonalRamp": [
+          "oklch(15.0% 0.028 47.1)",
+          "oklch(26.4% 0.028 47.1)",
+          "oklch(37.9% 0.028 47.1)",
+          "oklch(49.3% 0.028 47.1)",
+          "oklch(60.7% 0.028 47.1)",
+          "oklch(72.1% 0.028 47.1)",
+          "oklch(83.6% 0.028 47.1)",
+          "oklch(95.0% 0.028 47.1)"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Back-Row Light",
+        "canonical": "#9a8389",
+        "oklch": "oklch(63.3% 0.029 0.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.029 0.4)",
+          "oklch(26.4% 0.029 0.4)",
+          "oklch(37.9% 0.029 0.4)",
+          "oklch(49.3% 0.029 0.4)",
+          "oklch(60.7% 0.029 0.4)",
+          "oklch(72.1% 0.029 0.4)",
+          "oklch(83.6% 0.029 0.4)",
+          "oklch(95.0% 0.029 0.4)"
+        ]
+      },
+      "bulb-soft": {
+        "role": "primary",
+        "displayName": "Bulb Haze",
+        "canonical": "rgba(255, 199, 110, 0.16)"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Marquee Display",
+        "purpose": "The movie or night on the marquee; the ticket title."
+      },
+      "headline": {
+        "displayName": "Section Head",
+        "purpose": "Section and overlay heads, stat numbers; amber."
+      },
+      "title": {
+        "displayName": "Card Head",
+        "purpose": "Night card and guest-list headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text."
+      },
+      "body-small": {
+        "displayName": "Body Small",
+        "purpose": "Hints, chips, small buttons, day detail."
+      },
+      "prompt": {
+        "displayName": "Prompt",
+        "purpose": "A question or heading inside a panel, in sentence case."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Card meta, added-by lines, mini actions, plots, past-night dates, footer."
+      },
+      "label": {
+        "displayName": "Stamp Label",
+        "purpose": "Condensed spaced uppercase labels; kicker, ADMIT ONE and ticket fields are wider-spaced variants."
+      },
+      "numeral": {
+        "displayName": "Box-Office Numerals",
+        "purpose": "Countdowns, tallies, ranks, stub numbers; tabular."
+      }
+    },
+    "shadows": [
+      {
+        "name": "marquee-glow",
+        "value": "0 0 0 2px #5a1a2c inset, 0 18px 50px -20px rgba(255, 170, 80, 0.35)",
+        "purpose": "The marquee frame and its warm spill."
+      },
+      {
+        "name": "board-light",
+        "value": "0 0 24px rgba(255, 233, 190, 0.55), inset 0 0 22px rgba(255, 210, 140, 0.55)",
+        "purpose": "The letter board lit from within."
+      },
+      {
+        "name": "leader-glow",
+        "value": "0 0 0 1px var(--bulb), 0 10px 30px -12px rgba(255, 199, 110, 0.45)",
+        "purpose": "The movie currently winning."
+      },
+      {
+        "name": "reel-glow",
+        "value": "0 0 40px rgba(255, 199, 110, 0.35)",
+        "purpose": "The tie-breaker window while it plays."
+      },
+      {
+        "name": "held-paper",
+        "value": "0 16px 40px -18px rgba(0, 0, 0, 0.8)",
+        "purpose": "The ticket."
+      },
+      {
+        "name": "overlay-card",
+        "value": "0 24px 60px rgba(0, 0, 0, 0.6)",
+        "purpose": "Tour cards over the scrim."
+      },
+      {
+        "name": "toast",
+        "value": "0 12px 30px rgba(0, 0, 0, 0.5)",
+        "purpose": "The board-paper toast."
+      },
+      {
+        "name": "focus-haze",
+        "value": "0 0 0 3px var(--bulb-soft)",
+        "purpose": "Fields on focus."
+      }
+    ],
+    "motion": [
+      {
+        "name": "bulb-chase",
+        "value": "1.2s steps(1) infinite; second layer offset -0.6s",
+        "purpose": "Marquee bulbs only. Reduced motion: stopped, held at 0.4 opacity."
+      },
+      {
+        "name": "press",
+        "value": "120ms ease; translateY(1px)",
+        "purpose": "Buttons on press; color and border transitions share the timing."
+      },
+      {
+        "name": "vote-bump",
+        "value": "360ms ease; scale(1.45) at 40%",
+        "purpose": "A vote tally that changed."
+      },
+      {
+        "name": "toast",
+        "value": "180ms ease; opacity + translateY(20px to 0)",
+        "purpose": "Toast in and out."
+      },
+      {
+        "name": "reveal-flip",
+        "value": "1s cubic-bezier(.3, .7, .2, 1); rotateY(180deg)",
+        "purpose": "The card-flip reveal of a locked movie."
+      },
+      {
+        "name": "pass-flash",
+        "value": "900ms ease, twice",
+        "purpose": "Pointing at the guest-list form."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "640px",
+        "purpose": "min-width: wider shelf columns, four stat tiles, roomier marquee."
+      },
+      {
+        "name": "landscape-phone",
+        "value": "max-height: 520px",
+        "purpose": "Smaller posters and heads in reel and reveal overlays."
+      },
+      {
+        "name": "column",
+        "value": "46rem",
+        "purpose": "The single program column max width."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Bulb Button",
+      "kind": "button",
+      "refersTo": "button-bulb",
+      "description": "The main call in each block: That's me, Count me in, I can host, Add a movie.",
+      "html": "<button class=\"ds-btn ds-btn-bulb\">Count me in</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font: 600 1rem/1.5 'Archivo', system-ui, sans-serif; letter-spacing: 0.01em; transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: 2px solid var(--bulb, #ffc76e); outline-offset: 2px; } .ds-btn-bulb { background: var(--bulb, #ffc76e); color: var(--board-ink, #1b0f0c); } .ds-btn-bulb:hover { background: #ffd590; }"
+    },
+    {
+      "name": "Curtain Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Closing out a night: We watched it, Post a review.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">We watched it</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font: 600 1rem/1.5 'Archivo', system-ui, sans-serif; letter-spacing: 0.01em; transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: 2px solid var(--bulb, #ffc76e); outline-offset: 2px; } .ds-btn-primary { background: var(--curtain, #7d1b35); color: #fff3e6; } .ds-btn-primary:hover { background: var(--curtain-hi, #9c2747); }"
+    },
+    {
+      "name": "Ghost and RSVP (in) Buttons",
+      "kind": "button",
+      "refersTo": "button-rsvp-in",
+      "description": "Secondary actions in a row; and the RSVP once you're in: concession green, a second tap drops out.",
+      "html": "<div style=\"display:flex;gap:8px;flex-wrap:wrap\"><button class=\"ds-btn ds-btn-ghost\">Watch the trailer</button><button class=\"ds-btn ds-btn-ghost ds-on\" aria-pressed=\"true\">You’re in <svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"m9.5 16.6-4.6-4.6-1.8 1.8 6.4 6.4L21 8.7l-1.8-1.8-9.7 9.7Z\"/></svg></button></div>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font: 600 1rem/1.5 'Archivo', system-ui, sans-serif; letter-spacing: 0.01em; transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: 2px solid var(--bulb, #ffc76e); outline-offset: 2px; } .ds-btn-ghost { background: transparent; border-color: var(--rule-strong, #7a5f6b); color: var(--screen, #f3e9dc); } .ds-btn-ghost:hover { border-color: var(--screen, #f3e9dc); background: var(--velvet-2, #1e1117); } .ds-btn-ghost.ds-on { border-color: var(--go, #93d9ad); color: var(--go, #93d9ad); min-width: 9.5rem; }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Name, search, snacks: plush velvet with an amber haze on focus.",
+      "html": "<input class=\"ds-field\" placeholder=\"I'll bring…\">",
+      "css": ".ds-field { width: 100%; min-height: 46px; padding: 0 14px; background: var(--velvet-3, #2a1720); border: 1px solid var(--rule-strong, #7a5f6b); border-radius: 6px; color: var(--screen, #f3e9dc); caret-color: var(--bulb, #ffc76e); font: 400 1rem/1.5 'Archivo', system-ui, sans-serif; } .ds-field::placeholder { color: var(--faint, #9a8389); } .ds-field:focus { border-color: var(--bulb, #ffc76e); outline: none; box-shadow: 0 0 0 3px rgba(255, 199, 110, 0.16); }"
+    },
+    {
+      "name": "Filter Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Sort and filter the shelf; the active one is lit amber.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip ds-on\">Most wanted</button><button class=\"ds-chip\">Newest</button><button class=\"ds-chip\">Foreign<span class=\"ds-n\">3</span></button></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 6px; } .ds-chip { min-height: 40px; padding: 0 14px; border-radius: 999px; background: var(--velvet-2, #1e1117); border: 1px solid var(--rule-strong, #7a5f6b); color: var(--screen, #f3e9dc); cursor: pointer; font: 400 0.8125rem/1 'Archivo', system-ui, sans-serif; } .ds-chip:hover { border-color: var(--bulb, #ffc76e); } .ds-chip:focus-visible { outline: 2px solid var(--bulb, #ffc76e); outline-offset: 2px; } .ds-chip.ds-on { background: var(--ticket, #f1dbc6); border-color: var(--ticket, #f1dbc6); color: var(--ticket-ink, #2c1712); font-weight: 600; } .ds-n { font: 700 11px/1 'Courier Prime', monospace; opacity: 0.75; margin-left: 4px; }"
+    },
+    {
+      "name": "Vote Pill",
+      "kind": "chip",
+      "refersTo": "vote",
+      "description": "Thumbs-up (\"I'd watch it\") with a tabular tally; yours is lit.",
+      "html": "<div style=\"display:flex;gap:6px\"><button class=\"ds-vote ds-on\"><svg viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M2 21h4V9H2v12zm20-11a2 2 0 0 0-2-2h-6.3l1-4.6v-.3c0-.4-.2-.8-.4-1.1L13.2 1 6.6 7.6C6.2 8 6 8.5 6 9v10a2 2 0 0 0 2 2h9c.8 0 1.5-.5 1.8-1.2l3-7.1c.1-.2.2-.5.2-.7v-2z\"/></svg><span class=\"ds-n\">2</span></button><button class=\"ds-vote\"><svg viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M2 21h4V9H2v12zm20-11a2 2 0 0 0-2-2h-6.3l1-4.6v-.3c0-.4-.2-.8-.4-1.1L13.2 1 6.6 7.6C6.2 8 6 8.5 6 9v10a2 2 0 0 0 2 2h9c.8 0 1.5-.5 1.8-1.2l3-7.1c.1-.2.2-.5.2-.7v-2z\"/></svg><span class=\"ds-n\">0</span></button></div>",
+      "css": ".ds-vote { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; cursor: pointer; background: var(--velvet-3, #2a1720); border: 1px solid var(--rule-strong, #7a5f6b); color: var(--screen, #f3e9dc); font: 700 1rem/1 'Archivo', system-ui, sans-serif; } .ds-vote svg { width: 16px; height: 16px; } .ds-vote .ds-n { font-variant-numeric: tabular-nums; } .ds-vote:focus-visible { outline: 2px solid var(--bulb, #ffc76e); outline-offset: 2px; } .ds-vote.ds-on { background: var(--bulb, #ffc76e); border-color: var(--bulb, #ffc76e); color: var(--board-ink, #1b0f0c); }"
+    },
+    {
+      "name": "Lobby Card (front and back)",
+      "kind": "card",
+      "refersTo": "movie-card",
+      "description": "A shelf movie: the poster turns over (tap it) to admit-one stock with Seen it, the trailer, Stremio and the plot. The leader gets the glow and the ribbon.",
+      "html": "<div style=\"display:flex;gap:12px;flex-wrap:wrap\"><article class=\"ds-card ds-lead\"><div class=\"ds-poster\"><span class=\"ds-ear\"></span><span class=\"ds-noimg\">Alien</span><span class=\"ds-ribbon\">Leading Tue</span></div><div class=\"ds-body\"><h3>Alien</h3><p class=\"ds-meta\">1979 · 117 min · ★ 8.4</p><p class=\"ds-by\">Added by Sam</p></div></article><article class=\"ds-card\"><div class=\"ds-poster ds-back\"><span class=\"ds-ear ds-ear-back\"></span><span class=\"ds-mini ds-mini-on\">Seen <svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"m9.5 16.6-4.6-4.6-1.8 1.8 6.4 6.4L21 8.7l-1.8-1.8-9.7 9.7Z\"/></svg></span><span class=\"ds-mini\">Trailer</span><span class=\"ds-mini\">Stremio</span><p>Seen by Jo, Sam</p><p>In space, no one can hear you scream.</p></div><div class=\"ds-body\"><h3>Alien</h3><p class=\"ds-meta\">1979 · 117 min · ★ 8.4</p></div></article></div>",
+      "css": ".ds-card { width: 10rem; display: grid; grid-template-rows: auto 1fr; background: var(--velvet-2, #1e1117); border: 1px solid var(--rule, #3b2530); border-radius: 6px; overflow: hidden; color: var(--screen, #f3e9dc); font-family: 'Archivo', system-ui, sans-serif; } .ds-card.ds-lead { border-color: var(--bulb, #ffc76e); box-shadow: 0 0 0 1px var(--bulb, #ffc76e), 0 10px 30px -12px rgba(255, 199, 110, 0.45); } .ds-poster { position: relative; aspect-ratio: 2 / 3; background: var(--velvet-3, #2a1720); display: grid; place-items: center; } .ds-noimg { font-family: 'Limelight', Georgia, serif; color: var(--faint, #9a8389); } .ds-ear { position: absolute; top: 0; right: 0; width: 30px; height: 30px; background: linear-gradient(to bottom left, transparent 50%, rgba(44, 23, 18, 0.28) 50%, transparent 62%), linear-gradient(to bottom left, var(--velvet-2, #1e1117) 50%, var(--ticket, #f1dbc6) 50%); } .ds-ear-back { width: 40px; height: 40px; background: linear-gradient(to bottom left, transparent 50%, rgba(0, 0, 0, 0.35) 50%, transparent 62%), linear-gradient(to bottom left, var(--velvet-2, #1e1117) 50%, var(--velvet-3, #2a1720) 50%); } .ds-ribbon { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px; text-align: center; background: var(--bulb, #ffc76e); color: var(--board-ink, #1b0f0c); font: 700 11px/1 'Archivo', sans-serif; letter-spacing: 0.16em; text-transform: uppercase; } .ds-back { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 11px; place-items: initial; background: var(--ticket, #f1dbc6); color: var(--ticket-ink, #2c1712); box-shadow: inset 0 0 0 4px var(--ticket, #f1dbc6), inset 0 0 0 5px rgba(44, 23, 18, 0.28); font-size: 12px; } .ds-back p { margin: 0; width: 100%; } .ds-back p:first-of-type { color: var(--ticket-label, #7a4a3e); } .ds-back { position: relative; padding-right: 44px; } .ds-mini { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(44, 23, 18, 0.45); font-weight: 600; } .ds-mini-on { background: var(--ticket-stamp, #2f7a4f); border-color: var(--ticket-stamp, #2f7a4f); color: var(--board, #fbf3e2); } .ds-body { display: grid; gap: 6px; padding: 10px; } .ds-body h3 { margin: 0; font-size: 1rem; line-height: 1.25; } .ds-meta { margin: 0; color: var(--dim, #bba69c); font-size: 12px; } .ds-by { margin: 0; color: var(--faint, #9a8389); font-size: 12px; }"
+    },
+    {
+      "name": "Letter-Board Stats",
+      "kind": "custom",
+      "refersTo": "stat-board",
+      "description": "The long view spelled out on an unlit letter board, one grooved line per number.",
+      "html": "<ul class=\"ds-board-stats\"><li><b>3</b> Nights watched</li><li><b>4</b> Hours of movies</li><li><b>8</b> Movies added</li><li><b>9</b> Thumbs-ups</li></ul>",
+      "css": ".ds-board-stats { margin: 0; padding: 12px 14px; list-style: none; text-align: center; background: var(--board, #fbf3e2); color: var(--board-ink, #1b0f0c); border-radius: 4px; background-image: repeating-linear-gradient(180deg, transparent 0 33px, rgba(27, 15, 12, 0.08) 33px 34px); background-position: 0 12px; font: 400 1.125rem/34px 'Limelight', Georgia, serif; letter-spacing: 0.06em; text-transform: uppercase; max-width: 22rem; } .ds-board-stats b { font-weight: 400; color: var(--curtain, #7d1b35); }"
+    },
+    {
+      "name": "Marquee",
+      "kind": "custom",
+      "refersTo": "letter-board",
+      "description": "The one lit, animated thing on the page: chasing bulbs around a letter board.",
+      "html": "<section class=\"ds-marquee\"><div class=\"ds-board\"><p class=\"ds-kicker\">Spooky season · Now booking</p><h1>Jaws</h1><p class=\"ds-sub\">Friday, October 16 at 8:00 PM · at Jo's</p><span class=\"ds-count\">Starts in 2d 11h</span></div></section>",
+      "css": ".ds-marquee { position: relative; padding: 16px; border-radius: 10px; background: #3a0f1d; box-shadow: 0 0 0 2px #5a1a2c inset, 0 18px 50px -20px rgba(255, 170, 80, 0.35); isolation: isolate; } .ds-marquee::before, .ds-marquee::after { content: ''; position: absolute; inset: 4px; border-radius: 8px; z-index: -1; --b: radial-gradient(circle, #fff3d1 0 2.2px, #ffc76e 3px, rgba(255, 199, 110, 0) 6px); background: var(--b) 0 0 / 18px 12px repeat-x, var(--b) 0 100% / 18px 12px repeat-x, var(--b) 0 0 / 12px 18px repeat-y, var(--b) 100% 0 / 12px 18px repeat-y; animation: ds-chase 1.2s steps(1) infinite; } .ds-marquee::after { background-position: 9px 0, 9px 100%, 0 9px, 100% 9px; animation-delay: -0.6s; } @keyframes ds-chase { 0% { opacity: 1; } 50% { opacity: 0.25; } } @media (prefers-reduced-motion: reduce) { .ds-marquee::before, .ds-marquee::after { animation: none; } .ds-marquee::after { opacity: 0.4; } } .ds-board { background: var(--board, #fbf3e2); color: var(--board-ink, #1b0f0c); border-radius: 4px; padding: 18px 16px 16px; text-align: center; box-shadow: 0 0 24px rgba(255, 233, 190, 0.55), inset 0 0 22px rgba(255, 210, 140, 0.55); background-image: repeating-linear-gradient(180deg, transparent 0 33px, rgba(27, 15, 12, 0.07) 33px 34px); } .ds-kicker { margin: 0 0 10px; font: 700 0.8125rem/1 'Archivo', sans-serif; font-stretch: 75%; letter-spacing: 0.32em; text-transform: uppercase; color: #7d1b35; } .ds-board h1 { margin: 0; font: 400 clamp(1.75rem, 7vw, 3rem)/1.05 'Limelight', Georgia, serif; letter-spacing: 0.03em; text-transform: uppercase; } .ds-sub { margin: 12px 0 0; font: 600 1rem/1.35 'Archivo', sans-serif; font-stretch: 80%; letter-spacing: 0.08em; text-transform: uppercase; } .ds-count { display: inline-flex; margin-top: 12px; padding: 4px 10px; border-radius: 3px; background: var(--board-ink, #1b0f0c); color: var(--bulb, #ffc76e); font: 700 0.8125rem/1.4 'Courier Prime', monospace; letter-spacing: 0.08em; }"
+    },
+    {
+      "name": "Ticket",
+      "kind": "custom",
+      "refersTo": "ticket",
+      "description": "Admit-one paper with punched notches and a perforated stub, for a locked night you're coming to.",
+      "html": "<div class=\"ds-ticket\"><div class=\"ds-tmain\"><p class=\"ds-admit\">ADMIT ONE</p><h3>Jaws</h3><dl><dt>When</dt><dd>Friday, October 16 at 8:00 PM</dd><dt>Where</dt><dd>Jo's</dd><dt>Guest</dt><dd>Sam</dd></dl></div><div class=\"ds-stub\"><span>No. 560580</span></div></div>",
+      "css": ".ds-ticket { position: relative; display: grid; grid-template-columns: 1fr 74px; max-width: 24rem; background: var(--ticket, #f1dbc6); color: var(--ticket-ink, #2c1712); border-radius: 6px; box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.8); font-family: 'Archivo', sans-serif; -webkit-mask: radial-gradient(circle 11px at calc(100% - 74px) 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 11px at calc(100% - 74px) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat; mask: radial-gradient(circle 11px at calc(100% - 74px) 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 11px at calc(100% - 74px) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat; } .ds-tmain { padding: 18px 18px 16px; min-width: 0; } .ds-admit { margin: 0; font: 700 11px/1 'Archivo', sans-serif; letter-spacing: 0.38em; color: #8c2440; } .ds-ticket h3 { margin: 8px 0 6px; font: 400 clamp(1.4rem, 5vw, 2rem)/1.05 'Limelight', Georgia, serif; text-transform: uppercase; } .ds-ticket dl { margin: 10px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 0.8125rem; } .ds-ticket dt { font: 700 10px/1.9 'Archivo', sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #8a5a4c; } .ds-ticket dd { margin: 0; font-weight: 600; } .ds-stub { border-left: 2px dashed rgba(44, 23, 18, 0.35); display: grid; place-items: center; } .ds-stub span { writing-mode: vertical-rl; transform: rotate(180deg); font: 700 13px/1 'Courier Prime', monospace; letter-spacing: 0.2em; }"
+    },
+    {
+      "name": "Calendar Days",
+      "kind": "custom",
+      "refersTo": "calendar-day",
+      "description": "Free evenings in concession green; the leading day ringed in amber.",
+      "html": "<div class=\"ds-cal\"><button class=\"ds-day\"><span class=\"ds-dow\">W</span><span class=\"ds-num\">14</span><span class=\"ds-meta\"></span></button><button class=\"ds-day ds-free\"><span class=\"ds-dow\">T</span><span class=\"ds-num\">15</span><span class=\"ds-meta\">1</span></button><button class=\"ds-day ds-free ds-lead\"><span class=\"ds-dow\">F</span><span class=\"ds-num\">16</span><span class=\"ds-meta\">2 <b>⌂</b></span></button></div>",
+      "css": ".ds-cal { display: grid; grid-template-columns: repeat(3, 3.2rem); gap: 5px; } .ds-day { aspect-ratio: 1 / 1.08; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; align-items: center; padding: 4px 2px; border-radius: 6px; cursor: pointer; background: var(--velvet-2, #1e1117); border: 1px solid var(--rule, #3b2530); color: var(--screen, #f3e9dc); } .ds-day:hover { border-color: var(--faint, #9a8389); } .ds-day:focus-visible { outline: 3px solid var(--bulb, #ffc76e); outline-offset: 2px; } .ds-dow { font: 700 11px/1 'Archivo', sans-serif; letter-spacing: 0.12em; color: var(--faint, #9a8389); } .ds-num { font: 400 1.35rem/1 'Limelight', Georgia, serif; } .ds-meta { min-height: 14px; font: 700 11px/1 'Courier Prime', monospace; color: var(--dim, #bba69c); } .ds-meta b { color: var(--bulb, #ffc76e); font-size: 13px; } .ds-day.ds-free { background: rgba(147, 217, 173, 0.16); border-color: var(--go, #93d9ad); } .ds-day.ds-free .ds-meta { color: var(--go, #93d9ad); } .ds-day.ds-lead { box-shadow: 0 0 0 2px var(--bulb, #ffc76e); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "House Lights Down",
+    "overview": "Weberplex is a neighborhood picture house on a phone. At the top, one lit marquee holds the night: the season title, the movie or the host's house, when it starts, and how long until it does. Below it the house lights are down. The page is a deep velvet auditorium where everything is warm, quiet and easy to read, and light falls only where someone has a choice to make or where something is winning.\n\nThe page is a single program column built for an Android phone at 360 to 412 px, and desktop is the same column, centered. Posters carry the real color. The chrome stays velvet, oxblood and amber, so after the marquee the brightest things on screen are the movies.\n\nThe theme reaches everywhere, but the light stays in one place. Every component borrows a cinema material: letter-board paper, admit-one stock, stamp lettering, perforated stubs, concession stripes, the guest list, the box-office window. Brightness, glow and motion belong to the marquee and the two event moments (the reel and the reveal). As of 2026-10-14 the confirmed direction is to keep pushing that material into everyday components without adding light. The shelf's lobby cards, the letter-board stats, the guest-list name tags and the box-office day panel are the first of it. Buttons, fields and filter chips are still plain. The rejected look is generic dark-mode SaaS: gray cards, blue links, a dashboard that could be any product.",
+    "keyCharacteristics": [
+      "One lit, animated marquee per page; everything else is lit only by state.",
+      "Every dark is velvet-tinted and every light is warm paper. There are no neutral grays.",
+      "Amber marks what's yours, what's leading, or the main call in each block.",
+      "Art-deco marquee letters name things, a condensed grotesk does the labels, and typewriter numerals count.",
+      "Printed props (letter board, ticket, lobby cards) for the moments that matter.",
+      "2:3 posters everywhere, always the most colorful thing below the marquee.",
+      "A movie stays face down until its reveal has played for you."
+    ],
+    "rules": [
+      {
+        "name": "The Lit Seat Rule",
+        "body": "Amber fills mark only three things: what's yours (your vote, your face), what's leading (the lead card's ribbon and glow), and the main call in each block. It is never a decorative panel fill, and never a default: a chosen sort, filter or tab is printed on admit-one paper instead.",
+        "section": "colors"
+      },
+      {
+        "name": "The Good News Rule",
+        "body": "Green means free, seen, new or done right. It is never an action color and never a warning.",
+        "section": "colors"
+      },
+      {
+        "name": "The Warm Dark Rule",
+        "body": "Every dark carries the velvet's oxblood tint and every light is warm paper. Neutral gray, pure black and pure white don't appear.",
+        "section": "colors"
+      },
+      {
+        "name": "The Readable Back Row Rule",
+        "body": "Text passes 4.5:1 on whatever it sits on, and the edge of a control passes 3:1. Quieter means a dimmer step that still passes, never a failing one.",
+        "section": "colors"
+      },
+      {
+        "name": "The Marquee Letter Rule",
+        "body": "Limelight is for names and headings only, always at weight 400. It is never used for body copy, buttons, labels or anything a person has to read twice.",
+        "section": "typography"
+      },
+      {
+        "name": "The Typewriter Numbers Rule",
+        "body": "Anything counted, timed or stamped uses Courier Prime. Tallies that change use tabular numerals.",
+        "section": "typography"
+      },
+      {
+        "name": "The Small Print Floor Rule",
+        "body": "Sentences are 12px or larger; uppercase stamps and labels are 11px or larger. Nothing smaller ships.",
+        "section": "typography"
+      },
+      {
+        "name": "The Wrap, Don't Shrink Rule",
+        "body": "At 360px, controls wrap to a new line and text breaks anywhere. Nothing scrolls sideways, and nothing drops below its touch size to fit.",
+        "section": "layout"
+      },
+      {
+        "name": "The Light, Not Lift Rule",
+        "body": "A shadow is either light spilling from something lit or the darkness under something held. If neither is true, the surface is flat.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** keep the marquee the only thing that glows or animates at rest. Reduced motion stops the chase and holds the bulbs at 40% opacity.",
+      "**Do** give everyday components a cinema material (paper stock, stamp lettering, perforation, lobby cards, letter boards, concession stripes) instead of more light. That's the confirmed direction as of 2026-10-14.",
+      "**Do** reserve amber fills for what's yours, what's leading, and the main call in each block.",
+      "**Do** keep main buttons at least 44px tall, chips and votes 40px, and in-card pills at least 36px, and judge everything at 360 and 412px first, then at 200% text.",
+      "**Do** keep a locked movie face down everywhere on the page until that person's reveal has played.",
+      "**Do** draw icons as solid SVG in the thumb's style (thumb, house, check, the rating stars); never a Unicode glyph or emoji. A ★ inside running text (\"★ 8.4\", a review's score) is typography, not an icon, and stays.",
+      "**Do** keep posters at 2:3 and let them be the most colorful thing below the marquee.",
+      "**Do** set numbers, countdowns and stub print in Courier Prime with tabular numerals.",
+      "**Do** use velvet tonal steps and the 1px aisle rule for structure before reaching for a shadow."
+    ],
+    "donts": [
+      "**Don't** let it look like generic dark-mode SaaS: gray cards, blue links, a dashboard that could be any product.",
+      "**Don't** add a second glowing or animated element at rest outside the marquee. The reel and reveal glow only while they play.",
+      "**Don't** use neutral gray, pure black or pure white. Every dark is velvet-tinted and every light is warm paper.",
+      "**Don't** set body copy, buttons or labels in Limelight.",
+      "**Don't** use green for actions, or spilled soda for anything but failures and the veto strike-through.",
+      "**Don't** let a long name or title widen a card or the page. Wrap it.",
+      "**Don't** set a full sentence in the uppercase label style; sentences use the prompt or hint styles.",
+      "**Don't** put a thick accent stripe on a rounded panel; edge it with the aisle edge instead. The snack rows' concession stripe is the one exception: a printed pattern, not an accent color."
+    ]
+  }
+}
