@@ -193,3 +193,31 @@ test('names are validated', async () => {
   await assertFails(b.commit());
   assert.deepEqual(await A.join('  Zoë   Q '), { name: 'Zoë Q', nameKey: 'zoe-q' });
 });
+
+test('owner password: changing it needs the current one, then only the new one works', async () => {
+  await assertFails(A.changeOwnerPassword(BAD, 'my-new-password'));
+  await assert.rejects(A.changeOwnerPassword(KEY, 'short'), /8 characters/);
+  await assertSucceeds(A.changeOwnerPassword(KEY, 'my-new-password'));
+  assert.equal(await A.checkHostKey('my-new-password'), true);
+  assert.equal(await A.checkHostKey(KEY), false);
+  await assertFails(getDoc(doc(db, 'config', 'host')));
+  // Straight to the doc, skipping the client's length check: still refused.
+  const b = writeBatch(db);
+  b.set(doc(db, 'hostops', 'abcdefghijklmnopqrstuvwx'), { key: 'my-new-password', at: serverTimestamp() });
+  b.set(doc(db, 'config', 'host'), { key: 'tiny', op: 'abcdefghijklmnopqrstuvwx' });
+  await assertFails(b.commit());
+});
+
+test('your settings live on your people doc', async () => {
+  const sam = await A.join('Sam');
+  await assertSucceeds(A.savePrefs(sam, { lastSeen: true, toured: true, hostTime: '19:30', reels: ['2026-10-31.tt0000001'] }));
+  const d = (await getDoc(doc(db, 'people', 'sam'))).data();
+  assert.equal(d.name, 'Sam');
+  assert.equal(d.toured, true);
+  assert.equal(d.hostTime, '19:30');
+  assert.ok(d.lastSeen);
+  await assertFails(A.savePrefs(sam, { hostTime: 'late' }));
+  await assertFails(A.savePrefs(sam, { name: 'Somebody else' }));
+  await assertFails(A.savePrefs(sam, { secret: 1 }));
+  await assertFails(A.savePrefs({ name: 'Nobody', nameKey: 'nobody' }, { toured: true })); // join first
+});

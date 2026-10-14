@@ -16,7 +16,7 @@
   <div class="wrap">
     <header class="topbar">
       <a class="house" href="/">Weberplex</a>
-      <div class="whoami"><span>Owner console</span> <button class="linkish" type="button" id="forget" hidden>Forget key</button></div>
+      <div class="whoami"><span>Owner console</span> <button class="linkish" type="button" id="forget" hidden>Lock</button></div>
     </header>
 
     <section class="marquee">
@@ -29,10 +29,11 @@
 
     <section class="section" id="keySec" hidden>
       <div class="host-card">
-        <h3>Enter the owner key</h3>
-        <p class="hint">It's in your owner link, or in <code>.env.local</code> in the project folder. This browser will remember it.</p>
+        <h3>Lucas's password</h3>
+        <p class="hint">The owner tools are Lucas's. Nothing is saved in this browser, so you'll enter it each visit (your password manager can fill it).</p>
         <form class="row" id="keyForm">
-          <label class="sr-only" for="keyInput">Owner key</label>
+          <input type="text" name="username" value="lucas" autocomplete="username" hidden>
+          <label class="sr-only" for="keyInput">Password</label>
           <input class="field" id="keyInput" type="password" autocomplete="current-password" style="flex:1 1 14rem" required>
           <button class="btn btn-bulb" type="submit">Unlock</button>
         </form>
@@ -85,6 +86,17 @@
       <div class="section-head"><h2>The shelf</h2><span class="aside" id="shelfCount"></span></div>
       <p class="hint" style="margin-top:0">Send any movie to the basement screen, or take one off the shelf.</p>
       <div class="pick-list" id="shelfList"></div>
+    </section>
+
+    <section class="section" id="pwSec" hidden>
+      <div class="section-head"><h2>Password</h2><span class="aside">Only you know it</span></div>
+      <form class="row" id="pwForm">
+        <input type="text" name="username" value="lucas" autocomplete="username" hidden>
+        <label class="sr-only" for="pwInput">New password</label>
+        <input class="field" id="pwInput" type="password" autocomplete="new-password" minlength="8" maxlength="200" placeholder="New password (8+ characters)" style="flex:1 1 14rem" required>
+        <button class="btn" type="submit">Change password</button>
+      </form>
+      <p class="msg" id="pwMsg" role="status" hidden></p>
     </section>
 
     <section class="section" id="ha" hidden>

@@ -61,8 +61,14 @@ def shot(page, name):
     page.screenshot(path=str(SHOTS / f'{name}.png'), full_page=True)
 
 
+def skip_tour(page):
+    if page.locator('.tour-overlay').count():
+        page.click('[data-tour="skip"]')
+
+
 def join(page, name):
     page.goto(f'{SITE}/?emu')
+    skip_tour(page)
     expect(page.locator('#pass')).to_be_visible()
     page.fill('#passName', name)
     page.click('#passForm button[type=submit]')
@@ -99,11 +105,9 @@ def main():
     errors, missing = [], set()
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        toured = "try { localStorage.setItem('ps.toured', 'true'); } catch (e) {}"
         ctx = {}
         for name, vp in (('owner', {'width': 900, 'height': 1000}), ('sam', PHONE), ('jo', PHONE)):
             ctx[name] = browser.new_context(viewport=vp, accept_downloads=True)
-            ctx[name].add_init_script(toured)
         owner, sam, jo = (ctx[n].new_page() for n in ('owner', 'sam', 'jo'))
         for name, page in (('owner', owner), ('sam', sam), ('jo', jo)):
             page.on('console', lambda m, n=name: m.type == 'error' and 'Failed to load resource' not in m.text
@@ -205,7 +209,10 @@ def main():
         shot(sam, '03-guest-ticket')
 
         # Owner sends it to the Shield.
-        owner.reload()
+        owner.reload()  # nothing saved: a reload locks the console again
+        expect(owner.locator('#keySec')).to_be_visible(timeout=10000)
+        owner.fill('#keyInput', KEY)
+        owner.click('#keyForm button[type=submit]')
         expect(owner.locator('#nightsList [data-shield]')).to_have_count(1, timeout=10000)
         owner.locator('#nightsList [data-shield]').click()
         expect(owner.locator('#toast')).to_contain_text('Sent', timeout=10000)
@@ -244,9 +251,27 @@ def main():
             newbie.click('[data-tour="next"]')
         newbie.click('[data-tour="done"]')
         expect(tour).to_have_count(0)
+        newbie.fill('#passName', 'Newbie')
+        newbie.click('#passForm button[type=submit]')
+        expect(newbie.locator('#whoami')).to_contain_text('Newbie')
+        newbie.wait_for_timeout(1500)
         newbie.reload()
         newbie.wait_for_timeout(1500)
         expect(tour).to_have_count(0)
+        # The browser holds only the name; the rest is on people/newbie.
+        keys = newbie.evaluate('Object.keys(localStorage)')
+        assert keys == ['ps.me'], keys
+        person = json.loads(emu('GET', f'{DOCS}/people/newbie'))['fields']
+        assert person['toured']['booleanValue'] is True, person
+        # Same name on another phone (already signed in there): the database
+        # knows Newbie has seen the walkthrough, so it stays closed.
+        octx = browser.new_context(viewport=PHONE)
+        octx.add_init_script("""try { localStorage.setItem('ps.me', JSON.stringify({ name: 'Newbie', nameKey: 'newbie' })); } catch (e) {}""")
+        other = octx.new_page()
+        other.goto(f'{SITE}/?emu')
+        expect(other.locator('#whoami')).to_contain_text('Newbie', timeout=10000)
+        other.wait_for_timeout(2000)
+        expect(other.locator('.tour-overlay')).to_have_count(0)
         newbie.locator('.topbar [data-action="tour"]').click()
         expect(tour).to_be_visible()
         newbie.keyboard.press('Escape')

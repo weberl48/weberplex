@@ -38,10 +38,16 @@ service cloud.firestore {
 
     // ---- owner plumbing -----------------------------------------------------
     match /config/host {
-      allow read, update, delete: if false;
+      allow read, delete: if false;
       // One-shot: once it exists, a second set() is an update and is refused.
       allow create: if request.resource.data.keys().hasOnly(['key'])
         && request.resource.data.key is string && request.resource.data.key.size() >= 20;
+      // The owner changes the password by proving the current one in the same
+      // batch (hostKey() reads the stored doc as it was before this write).
+      allow update: if request.resource.data.keys().hasOnly(['key', 'op'])
+        && request.resource.data.key is string
+        && request.resource.data.key.size() >= 8 && request.resource.data.key.size() <= 200
+        && freshHostOp(request.resource.data.op);
     }
     match /config/season {
       allow read: if true;
@@ -73,7 +79,18 @@ service cloud.firestore {
       allow read: if true;
       allow create: if validKey(key) && validName(request.resource.data.name)
         && request.resource.data.keys().hasOnly(['name', 'at']) && stamped(request.resource.data);
-      allow update, delete: if false;
+      // Each person's place in the site, kept here instead of in the browser:
+      // when they last looked, the walkthrough, their usual start time, and
+      // which tie reels they've already watched. Name and join date are fixed.
+      allow update: if request.resource.data.keys().hasOnly(['name', 'at', 'lastSeen', 'toured', 'hostTime', 'reels'])
+        && request.resource.data.name == resource.data.name && request.resource.data.at == resource.data.at
+        && (!('lastSeen' in request.resource.data) || request.resource.data.lastSeen is timestamp)
+        && (!('toured' in request.resource.data) || request.resource.data.toured is bool)
+        && (!('hostTime' in request.resource.data)
+            || (request.resource.data.hostTime is string && request.resource.data.hostTime.matches('^[0-2][0-9]:[0-5][0-9]$')))
+        && (!('reels' in request.resource.data)
+            || (request.resource.data.reels is list && request.resource.data.reels.size() <= 20));
+      allow delete: if false;
     }
 
     // ---- the shelf ----------------------------------------------------------

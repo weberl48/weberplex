@@ -36,6 +36,11 @@ export function saveLocal(key, value) {
     else localStorage.setItem(key, JSON.stringify(value));
   } catch { /* private mode: the page still works, it just forgets */ }
 }
+// Older versions kept settings in the browser; they live in the database now.
+// Only ps.me (who you are on this phone) stays.
+export function dropLegacyLocal() {
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith('ps.') && k !== 'ps.me') localStorage.removeItem(k); } catch { /* private mode */ }
+}
 export function loadLocal(key) {
   try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
 }

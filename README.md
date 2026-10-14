@@ -6,8 +6,10 @@ shared shelf, and thumbs-up what they'd watch. The site picks the movie.
 
 - Site: https://weberplex.vercel.app (the old speakeasy-picture-show.vercel.app
   address redirects here)
-- Owner console: https://weberplex.vercel.app/host (the ready-made link with
-  the key is `HOST_LINK` in `.env.local`, which git ignores)
+- Owner console: https://weberplex.vercel.app/host. It's Lucas's: the link
+  only shows when you're signed in as Lucas, and it asks for Lucas's password
+  each visit. (`HOST_LINK` in `.env.local` carries the original key and stops
+  working once the password is changed from the console.)
 - HA endpoint: https://weberplex.vercel.app/api/status
 - Code: https://github.com/weberl48/weberplex (pushes to `master` deploy)
 
@@ -38,6 +40,10 @@ straight to Firestore (project id `speakeasy-picture-show`, which Firebase
 can't rename), and **`firestore.rules` is the backend**:
 
 - Guests are identified by name only (a deliberate choice: no accounts).
+  The browser remembers only that name. Everything else about a person
+  lives on `people/{name}`: when they last looked (for the "since you last
+  looked" banner), whether they've seen the walkthrough, their usual start
+  time, and which tie reels they've watched. So it follows them to any phone.
 - `movies/{imdbId}`: the shelf. Guests add under their name; house picks
   (`by == ''`) need the owner key. Movies are never edited.
 - `votes/` and `seen/`: one doc per person per movie. `free/{day}__{name}`:
@@ -46,8 +52,8 @@ can't rename), and **`firestore.rules` is the backend**:
   only these changes: new time; planned → locked (to a movie on the shelf);
   locked → planned before showtime; locked → done after showtime; cancel;
   and re-hosting a cancelled day. Snacks and reviews live under each night.
-- The owner key (a fresh `hostops/<id>` doc in the same batch, compared with
-  the never-readable `config/host`) guards only: the season title, house
+- The owner password (a fresh `hostops/<id>` doc in the same batch, compared
+  with the never-readable `config/host`) guards only: changing the password, the season title, house
   picks, removing house picks, and Show on the Shield.
 
 **The clock.** Any phone that notices a night is due locks it (in a
@@ -105,8 +111,10 @@ in `public/js/config.js` is public by design.
 
 - Seed a list: `HOST_KEY=... npm run seed -- seed/<list>.json [--seen-as Lucas] [--season]`
 - Run the clock by hand: `node tools/tick.mjs`
-- Rotate the owner key: delete `config/host` in the Firebase console, create
-  it again (the rules allow one create), update `.env.local`.
+- Change the owner password: the Password section of the owner console (it
+  needs the current one). If it's lost, delete `config/host` in the Firebase
+  console and create it again with a 20+ character key (the rules allow one
+  create), then change it from the console.
 - Read budget: Spark allows 50k reads a day and going over breaks the site
   until the daily reset. Page loads read the whole shelf, thumbs, seen marks
   and upcoming free marks; HA's status poll reads every thumbs-up while a

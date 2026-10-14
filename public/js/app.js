@@ -3,7 +3,7 @@
 // dynamic containers. Inputs live in static markup so a live update never
 // steals focus or wipes what someone is typing.
 import { db, F } from './firebase.js';
-import { SITE_URL } from './config.js';
+import { SITE_URL, OWNER } from './config.js';
 import { makeActions, AlreadyOnShelfError } from './actions.js';
 import { watch, watchNights, watchFree, watchDoc, loadRows } from './store.js';
 import { searchMovies, movieMeta, topMovies } from './cinemeta.js';
@@ -11,17 +11,23 @@ import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 import { spinReel } from './reel.js';
 import { openTour } from './tour.js';
 import * as L from './logic.js';
-import { $, esc, THUMB, faces, posterImg, saveLocal, loadLocal, toast, downloadFile, writeError, armed, paint } from './ui.js';
+import { $, esc, THUMB, faces, posterImg, saveLocal, loadLocal, dropLegacyLocal, toast, downloadFile, writeError, armed, paint } from './ui.js';
 
 const A = makeActions(db, F);
+// The browser keeps only who you are (ps.me). Everything else about you is on
+// your people doc. Older versions kept more here: read it once, then drop it.
+const legacy = { since: loadLocal('ps.lastSeen'), toured: loadLocal('ps.toured') };
+dropLegacyLocal();
 const S = {
   loaded: new Set(),
   nights: [], movies: [], votes: [], seen: [], free: [], people: [], season: null,
   me: loadLocal('ps.me'),            // { name, nameKey }
-  since: loadLocal('ps.lastSeen'),   // "since you last looked" (ms), per phone
+  since: null,                       // "since you last looked" (ms), from your people doc
   news: null,
   day: null,                         // calendar day shown in detail
-  hostTime: loadLocal('ps.hostTime') || '20:00',
+  hostTime: '20:00',                 // your usual start time, from your people doc
+  toured: !!legacy.toured,           // walkthrough done this visit (saved once you have a name)
+  reelsSeen: new Set(),              // tie reels played this visit
   sort: 'wanted', filter: 'All',
   tab: 'search', tabItems: [], tabNote: '', tabLoading: false,
   openPlots: new Set(), lastVotes: new Map(),
@@ -33,13 +39,32 @@ const busy = new Set();
 const ready = () => ['nights', 'movies', 'votes', 'seen', 'free'].every((k) => S.loaded.has(k));
 const got = (key) => (rows) => { S[key] = rows; S.loaded.add(key); render(); clock(); };
 
+// ---- your settings (people/{nameKey}) ------------------------------------------
+const myDoc = () => (S.me ? S.people.find((p) => p.id === S.me.nameKey) : null);
+const savePrefs = (prefs) => { if (S.me) A.savePrefs(S.me, prefs).catch((e) => console.warn('settings not saved', e)); };
+// Read your settings in once per name: later snapshots (your own lastSeen
+// write when you leave) mustn't move this visit's "since you last looked".
+let prefsFor = null;
+function applyPrefs() {
+  const d = myDoc();
+  if (!d || prefsFor === S.me.nameKey) return;
+  prefsFor = S.me.nameKey;
+  S.since = d.lastSeen?.toMillis?.() ?? legacy.since ?? null;
+  if (d.hostTime) S.hostTime = d.hostTime;
+  // A real look (4 s+) counts as seen. Saved now, while the page is surely
+  // alive; the write on leaving below may not land if the tab is closing.
+  setTimeout(() => { if (document.visibilityState === 'visible' && prefsFor === d.id) savePrefs({ lastSeen: true }); }, 4000);
+  if (!d.toured && S.toured) savePrefs({ toured: true });
+  else if (!d.toured && !document.querySelector('.tour-overlay')) startTour();
+}
+
 // ---- subscriptions ----------------------------------------------------------
 const onErr = (e) => { console.error(e); toast('Lost the connection to the box office. Reload to try again.', true); };
 watchNights(db, F, (rows) => { got('nights')(rows); clock(); syncNightSubs(); }, onErr);
 watch(db, F, 'movies', got('movies'), onErr);
 watch(db, F, 'votes', got('votes'), onErr);
 watch(db, F, 'seen', got('seen'), onErr);
-watch(db, F, 'people', got('people'), () => {});
+watch(db, F, 'people', (rows) => { S.people = rows; S.loaded.add('people'); applyPrefs(); render(); }, () => {});
 watchFree(db, F, L.dayKey(new Date(Date.now() - 86400000)), got('free'), onErr);
 watchDoc(db, F, 'config/season', (d) => { S.season = d?.title || null; render(); }, () => {});
 
@@ -168,6 +193,7 @@ function renderBoard(n, shelf) {
 }
 
 function renderWho() {
+  $('#ownerLink').hidden = S.me?.nameKey !== OWNER;
   out('#whoami').innerHTML = S.me
     ? `<span>Signed in as</span> <b>${esc(S.me.name)}</b> <button class="linkish" type="button" data-action="switch">Not you?</button>`
     : '';
@@ -192,10 +218,10 @@ function renderNews() {
   out('#newsList').innerHTML = items.map((i) =>
     `<li><button class="linkish" type="button" data-action="goto" data-target="${esc(i.target)}">${esc(i.text)}</button></li>`).join('');
 }
-function markSeen() { S.since = Date.now(); saveLocal('ps.lastSeen', S.since); render(); }
+function markSeen() { S.since = Date.now(); savePrefs({ lastSeen: true }); render(); }
 // Leaving after a real look (4 s+) counts as seen; the next banner starts here.
 let visibleAt = Date.now();
-const leaving = () => { if (Date.now() - visibleAt >= 4000) saveLocal('ps.lastSeen', Date.now()); };
+const leaving = () => { if (Date.now() - visibleAt >= 4000) { visibleAt = Date.now(); savePrefs({ lastSeen: true }); } };
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leaving(); else visibleAt = Date.now(); });
 window.addEventListener('pagehide', leaving);
 
@@ -312,12 +338,14 @@ function reviewBox(n, reviews) {
 // The reel settled a tie: play it once per phone so everyone sees how.
 function maybeRevealTie(n) {
   if (n?.status !== 'locked' || !(n.lockedTie?.length > 1)) return;
-  const key = `ps.reel.${n.day}.${n.lockedMovieId}`;
-  if (loadLocal(key) || document.querySelector('.tour-overlay')) return;
+  if (S.me && !myDoc()) return; // wait until we know which reels you've seen
+  const key = `${n.day}.${n.lockedMovieId}`;
+  if (S.reelsSeen.has(key) || myDoc()?.reels?.includes(key) || document.querySelector('.tour-overlay')) return;
   const pool = n.lockedTie.map((id) => S.movies.find((m) => m.imdbId === id)).filter(Boolean);
   const winner = pool.find((m) => m.imdbId === n.lockedMovieId);
   if (pool.length < 2 || !winner) return;
-  saveLocal(key, true);
+  S.reelsSeen.add(key);
+  savePrefs({ reels: [...(myDoc()?.reels || []), key] });
   spinReel(pool, winner, { title: `${pool.length}-way tie. The reel decides…`, done: 'Nice' });
 }
 
@@ -515,6 +543,7 @@ async function join(name) {
     const who = await A.join(name);
     S.me = who;
     saveLocal('ps.me', who);
+    applyPrefs();
     $('#passName').value = '';
     toast(`Welcome, ${who.name}.`);
     render();
@@ -525,13 +554,15 @@ async function join(name) {
   }
 }
 function startTour() {
-  openTour({ onDone: () => { saveLocal('ps.toured', true); if (!S.me && !$('#pass').hidden) $('#passName').focus(); } });
+  openTour({ onDone: () => { S.toured = true; savePrefs({ toured: true }); if (!S.me && !$('#pass').hidden) $('#passName').focus(); } });
 }
-if (!loadLocal('ps.toured')) startTour();
+// No name yet: show the walkthrough now. With a name, applyPrefs decides once
+// your people doc arrives.
+if (!S.me && !S.toured) startTour();
 
 $('#passForm').addEventListener('submit', (e) => { e.preventDefault(); join($('#passName').value); });
 document.addEventListener('change', (e) => {
-  if (e.target.id === 'hostTime') { S.hostTime = e.target.value; saveLocal('ps.hostTime', S.hostTime); }
+  if (e.target.id === 'hostTime') { S.hostTime = e.target.value; savePrefs({ hostTime: S.hostTime }); }
 });
 document.addEventListener('submit', (e) => {
   const form = e.target.closest('.snack-form');
@@ -551,7 +582,7 @@ document.addEventListener('click', (e) => {
   const movie = () => shelfNow().movies.find((x) => x.imdbId === id);
   switch (el.dataset.action) {
     case 'join': join(el.dataset.name); break;
-    case 'switch': S.me = null; saveLocal('ps.me', null); render(); $('#passName').focus(); break;
+    case 'switch': S.me = null; saveLocal('ps.me', null); prefsFor = null; S.since = null; S.hostTime = '20:00'; render(); $('#passName').focus(); break;
     case 'tour': startTour(); break;
     case 'news-seen': markSeen(); break;
     case 'goto': $(el.dataset.target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); break;

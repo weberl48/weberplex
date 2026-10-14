@@ -6,7 +6,7 @@ import { SITE_URL } from './config.js';
 import { makeActions } from './actions.js';
 import { watch, watchNights, watchDoc } from './store.js';
 import * as L from './logic.js';
-import { $, esc, posterImg, saveLocal, loadLocal, toast, writeError as baseError, armed, paint } from './ui.js';
+import { $, esc, posterImg, dropLegacyLocal, toast, writeError as baseError, armed, paint } from './ui.js';
 
 const writeError = (e) => baseError(e, 'owner');
 import { searchMovies, movieMeta } from './cinemeta.js';
@@ -15,13 +15,14 @@ import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 const A = makeActions(db, F);
 const S = { key: null, verified: false, nights: [], movies: [], votes: [], seen: [], season: '' };
 
-// An owner link carries the key as #k=...; store it and scrub it from the URL.
+// The password lives only in this page's memory: nothing in the browser.
+// An owner link can carry it as #k=...; take it and scrub it from the URL.
+dropLegacyLocal();
 const fromHash = new URLSearchParams(location.hash.slice(1)).get('k');
 if (fromHash) {
-  saveLocal('ps.hostKey', fromHash);
+  S.key = fromHash;
   history.replaceState(null, '', location.pathname + location.search);
 }
-S.key = loadLocal('ps.hostKey');
 
 $('#shareUrl').value = SITE_URL;
 $('#statusUrl').textContent = `${SITE_URL}/api/status`;
@@ -39,8 +40,7 @@ async function verifyKey() {
   const ok = await A.checkHostKey(S.key);
   if (!ok) {
     S.key = null;
-    saveLocal('ps.hostKey', null);
-    $('#keyMsg').textContent = 'That key didn’t open the booth. Check it and try again.';
+    $('#keyMsg').textContent = 'That password didn’t open the booth. Check it and try again.';
     $('#keyMsg').className = 'msg bad';
   } else S.verified = true;
   render();
@@ -50,7 +50,7 @@ const shelf = () => L.tallyShelf({ movies: S.movies, votes: S.votes, seen: S.see
 
 function render() {
   const on = !!S.key;
-  for (const id of ['#shareSec', '#seasonSec', '#nightsSec', '#houseSec', '#shelfSec', '#ha']) $(id).hidden = !on;
+  for (const id of ['#shareSec', '#seasonSec', '#nightsSec', '#houseSec', '#shelfSec', '#pwSec', '#ha']) $(id).hidden = !on;
   $('#keySec').hidden = on;
   $('#forget').hidden = !on;
   if (!on) return;
@@ -218,19 +218,34 @@ $('#houseGrid').addEventListener('click', addHouse);
 $('#keyForm').addEventListener('submit', (e) => {
   e.preventDefault();
   if (!$('#keyInput').value.trim()) {
-    $('#keyMsg').textContent = 'Type the owner key first.';
+    $('#keyMsg').textContent = 'Type the password first.';
     $('#keyMsg').className = 'msg bad';
     return;
   }
   S.key = $('#keyInput').value.trim();
   S.verified = false;
-  saveLocal('ps.hostKey', S.key);
   $('#keyInput').value = '';
   $('#keyMsg').textContent = '';
   verifyKey();
   render();
 });
-$('#forget').addEventListener('click', () => { S.key = null; S.verified = false; saveLocal('ps.hostKey', null); render(); });
+$('#forget').addEventListener('click', () => { S.key = null; S.verified = false; render(); });
+$('#pwForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const next = $('#pwInput').value;
+  const msg = $('#pwMsg');
+  msg.hidden = false;
+  try {
+    await A.changeOwnerPassword(S.key, next);
+    S.key = next;
+    $('#pwInput').value = '';
+    msg.textContent = 'Password changed. Old owner links no longer work.';
+    msg.className = 'msg good';
+  } catch (err) {
+    msg.textContent = err.message === 'Use at least 8 characters.' ? err.message : writeError(err);
+    msg.className = 'msg bad';
+  }
+});
 $('#copyShare').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(SITE_URL); toast('Guest link copied.'); } catch { $('#shareUrl').select(); }
 });

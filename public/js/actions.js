@@ -36,6 +36,7 @@ export function makeActions(db, F) {
     const op = secureId(24);
     batch.set(doc(db, 'hostops', op), { key: hostKey, at: serverTimestamp() });
     batch.set(doc(db, 'config', 'season'), { op }, { merge: true });
+    batch.op = op;
     return batch;
   }
 
@@ -57,6 +58,15 @@ export function makeActions(db, F) {
         return who;
       }
       return { name: snap.data().name, nameKey: who.nameKey };
+    },
+
+    // Per-person settings on people/{nameKey} (nothing lives in the browser
+    // but your name): lastSeen (true = now), toured, hostTime, reels.
+    async savePrefs(who, prefs) {
+      const p = { ...prefs };
+      if (p.lastSeen === true) p.lastSeen = serverTimestamp();
+      if (p.reels) p.reels = p.reels.slice(-20);
+      await batched((b) => b.set(doc(db, 'people', who.nameKey), p, { merge: true }));
     },
 
     // ---- the shelf ---------------------------------------------------------
@@ -181,6 +191,15 @@ export function makeActions(db, F) {
     // ---- owner -------------------------------------------------------------------
     async seedHostKey(hostKey) {
       await batched((b) => b.set(doc(db, 'config', 'host'), { key: hostKey }));
+    },
+
+    // Swaps the owner password; the current one has to be right.
+    async changeOwnerPassword(hostKey, next) {
+      const pw = String(next);
+      if (pw.length < 8) throw new Error('Use at least 8 characters.');
+      const b = ownerBatch(hostKey);
+      b.set(doc(db, 'config', 'host'), { key: pw, op: b.op });
+      await b.commit();
     },
 
     // Proves the key without changing anything visible.

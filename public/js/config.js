@@ -9,6 +9,10 @@ export const firebaseConfig = {
 
 export const SITE_URL = 'https://weberplex.vercel.app';
 
+// The site's owner (a nameKey). Only they see the owner console link; the
+// console itself still needs their password.
+export const OWNER = 'lucas';
+
 // Regular hosts, offered as quick choices when setting a locked night's
 // house. Hosting itself is volunteer-based: nobody is assigned by default.
 export const PLACES = ['Weber', 'Ferger', 'Libby', 'Huey'];
