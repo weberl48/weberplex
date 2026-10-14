@@ -738,7 +738,7 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
   backface-visibility: hidden; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
 }
 .reveal-cover { display: grid; place-items: center; background: var(--curtain); color: var(--bulb); font: 400 4.5rem/1 var(--f-display); }
-.reveal-face { display: block; }
+.reveal-poster { display: block; } /* a span inside the card's button; the cover stays a grid */
 .reveal-poster { transform: rotateY(180deg); background: #050203; }
 .reveal-poster img, .reveal-poster .noimg { width: 100%; height: 100%; object-fit: cover; }
 .reveal-poster .noimg { display: grid; place-items: center; padding: 12px; font-family: var(--f-display); color: var(--screen); }
