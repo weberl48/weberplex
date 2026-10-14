@@ -104,6 +104,10 @@
         <h3>Lock the show</h3>
         <span class="label">Night</span>
         <div class="pick-list" id="lockDates"></div>
+        <div id="lockHostWrap" hidden>
+          <span class="label">Who's hosting</span>
+          <div class="pick-list" id="lockHost" style="margin-top:6px"></div>
+        </div>
         <span class="label">Picture</span>
         <div class="pick-list" id="lockMovies"></div>
         <div class="row">
@@ -118,6 +122,11 @@
         <h3 id="lockedWhat"></h3>
         <p class="hint" id="lockedWhen"></p>
         <div class="lineup" id="lockedWho"></div>
+        <form class="row" id="placeForm">
+          <label class="label" for="placeSel">Whose house</label>
+          <select class="field place" id="placeSel"></select>
+          <button class="btn btn-ghost btn-small" type="submit">Save</button>
+        </form>
         <div class="row">
           <button class="btn btn-bulb" type="button" id="shieldLockedBtn">Show on the Shield</button>
           <button class="btn btn-ghost" type="button" id="reopenBtn">Reopen voting</button>

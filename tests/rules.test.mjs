@@ -240,6 +240,29 @@ test('nights carry whose house they are at, through lock and reopen', async () =
   assert.ok(places.includes('x'.repeat(30)), 'long house names are trimmed to the rule limit');
 });
 
+test('anyone can offer to host an open night; the host picks at lock', async () => {
+  const id = await A.createNight(KEY, { title: 'Host needed', dates: [{ startsAt: new Date(Date.now() + 86400000), place: '' }] });
+  const [d] = (await getDocs(collection(db, 'nights', id, 'dates'))).docs.map((x) => ({ id: x.id, ...x.data(), startsAt: x.data().startsAt.toDate() }));
+  assert.equal(d.place, undefined);
+  const jo = await A.join('Jo');
+  await assertSucceeds(A.setOffer(id, d.id, jo, true));
+  assert.ok((await getDoc(doc(db, 'nights', id, 'rsvps', `${d.id}__jo`))).exists(), 'offering counts you in');
+  await assertSucceeds(A.setOffer(id, d.id, jo, false));
+  await assertSucceeds(A.setOffer(id, d.id, jo, true)); // already counted in: no duplicate RSVP write
+  await assertFails(A.setOffer(id, 'nope', jo, true));
+  const sam = await A.join('Sam');
+  await A.suggest(id, sam, movie(1));
+  const m = (await getDoc(doc(db, 'nights', id, 'movies', movie(1).imdbId))).data();
+  await A.lock(KEY, id, d, m, 'Jo');
+  assert.equal((await getDoc(doc(db, 'nights', id))).data().lockedPlace, 'Jo');
+  await assertFails(A.setOffer(id, d.id, sam, true)); // locked: offers closed
+  await assertFails(A.setPlace('wrong-key-wrong-key-wrong', id, 'Huey'));
+  await assertSucceeds(A.setPlace(KEY, id, 'Huey'));
+  assert.equal((await getDoc(doc(db, 'nights', id))).data().lockedPlace, 'Huey');
+  await assertSucceeds(A.setPlace(KEY, id, ''));
+  assert.equal((await getDoc(doc(db, 'nights', id))).data().lockedPlace, null);
+});
+
 test('cancelled and done nights accept nothing from guests', async () => {
   const { id, dates } = await openNight();
   const sam = await A.join('Sam');

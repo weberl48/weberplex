@@ -1,5 +1,5 @@
 // Live subscriptions. Each callback gets plain objects ({ id, ...data }).
-const SUBS = ['dates', 'rsvps', 'movies', 'slots', 'votes', 'snacks', 'reviews'];
+const SUBS = ['dates', 'rsvps', 'offers', 'movies', 'slots', 'votes', 'snacks', 'reviews'];
 const rows = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }));
 
 export function watchNights(db, F, cb, onErr) {

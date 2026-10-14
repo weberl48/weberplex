@@ -97,6 +97,21 @@ service cloud.firestore {
         allow update: if false;
       }
 
+      // "I can host": any guest can offer to host a candidate night while
+      // voting is open. The host picks among the offers when locking.
+      match /offers/{id} {
+        allow read: if true;
+        allow create: if nightNow(n).status == 'open'
+          && request.resource.data.keys().hasOnly(['dateId', 'nameKey', 'name', 'at'])
+          && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
+          && request.resource.data.dateId is string
+          && id == request.resource.data.dateId + '__' + request.resource.data.nameKey
+          && exists(/databases/$(database)/documents/nights/$(n)/dates/$(request.resource.data.dateId))
+          && stamped(request.resource.data);
+        allow delete: if nightNow(n).status == 'open' || hostTouched(n);
+        allow update: if false;
+      }
+
       // A guest's movie and its slot doc are written together. Slot ids are
       // `<nameKey>__<1..5>` and each points at exactly one movie that points
       // back, so nobody can hold more than five movies per night.

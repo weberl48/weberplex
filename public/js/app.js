@@ -156,16 +156,26 @@ function renderShowtimes(tal) {
     const on = !!S.me && d.going.some((g) => g.nameKey === S.me.nameKey);
     const best = tal.dates.length > 1 && tal.bestDates.includes(d.id);
     const st = L.showtimeParts(d.startsAt);
+    const where = d.place ? `at ${L.placeLabel(d.place)}` : d.offers.length ? `${L.placeLabel(d.offers[0].name)}?` : 'host needed';
+    const offering = !!S.me && d.offers.some((o) => o.nameKey === S.me.nameKey);
+    const strip = d.place ? '' : `
+      <div class="offer-strip">
+        <span>${d.offers.length ? `${esc(d.offers.map((o) => o.name).join(', '))} can host` : 'No host yet for this night'}</span>
+        <button class="mini offer${offering ? ' on' : ''}" type="button" data-action="offer" data-id="${esc(d.id)}" aria-pressed="${offering}">${offering ? 'You offered to host' : 'I can host'}</button>
+      </div>`;
     return `
+      <div class="showtime-wrap${d.place ? '' : ' needs-host'}">
       <button class="showtime${on ? ' on' : ''}" type="button" data-action="rsvp" data-id="${esc(d.id)}" aria-pressed="${on}"
-        aria-label="${esc(L.showtimeLong(d.startsAt))}${d.place ? ` at ${esc(L.placeLabel(d.place))}` : ''}: ${d.count} going${best ? ', most people' : ''}">
+        aria-label="${esc(L.showtimeLong(d.startsAt))}, ${esc(where)}: ${d.count} going${best ? ', most people' : ''}">
         <span class="st-cal" aria-hidden="true"><span class="dow">${esc(st.dow)}</span><span class="day">${esc(st.day)}</span><span class="mon">${esc(st.mon)}</span></span>
         <span class="st-main">
-          <span class="st-time">${esc(st.time)}${d.place ? ` <span class="st-place">at ${esc(L.placeLabel(d.place))}</span>` : ''} ${best ? '<span class="st-flag">Most people</span>' : ''}</span>
+          <span class="st-time">${esc(st.time)} ${best ? '<span class="st-flag">Most people</span>' : ''}</span>
+          <span class="st-place">${esc(where)}</span>
           <span class="st-going">${faces(d.going, S.me?.nameKey)} ${d.count ? `${d.count} in` : 'Nobody yet'}</span>
         </span>
         <span class="st-check">${on ? 'I’m in' : 'Count me in'}</span>
-      </button>`;
+      </button>${strip}
+      </div>`;
   }).join('');
 }
 
@@ -321,7 +331,7 @@ function renderTicket(tal) {
         <h3>${esc(m.title)}</h3>
         <dl>
           <dt>When</dt><dd>${esc(L.showtimeLong(n.lockedStartsAt))}</dd>
-          ${n.lockedPlace ? `<dt>Where</dt><dd>${esc(L.placeLabel(n.lockedPlace))}</dd>` : ''}
+          <dt>Where</dt><dd>${n.lockedPlace ? esc(L.placeLabel(n.lockedPlace)) : 'Host to be decided'}</dd>
           <dt>Guest</dt><dd>${esc(S.me.name)}</dd>
           ${meta ? `<dt>Running</dt><dd>${esc(meta)}</dd>` : ''}
           <dt>Seat</dt><dd>First come, first served</dd>
@@ -463,6 +473,16 @@ document.addEventListener('click', (e) => {
       once(`rsvp:${id}`, async () => {
         await A.setRsvp(night.id, id, me, !going);
         if (night.status === 'locked') toast(going ? 'Seat released. Maybe next time.' : 'You’re on the list. Ticket’s below.');
+      });
+      break;
+    }
+    case 'offer': {
+      const me = requireMe(); if (!me || !night) return;
+      const date = t().dates.find((d) => d.id === id);
+      const offering = !!date?.offers.some((o) => o.nameKey === me.nameKey);
+      once(`offer:${id}`, async () => {
+        await A.setOffer(night.id, id, me, !offering);
+        toast(offering ? 'Offer withdrawn.' : `Thanks! You're down to host ${L.showtimeLong(date.startsAt)}, and counted in.`);
       });
       break;
     }

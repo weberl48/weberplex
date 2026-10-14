@@ -34,12 +34,25 @@ test('tally ranks dates and movies, flags ties, ignores orphan votes', () => {
   assert.deepEqual(t.dates.map((d) => d.id), ['d1', 'd2']);
   assert.deepEqual(t.bestDates, ['d2']);
   assert.deepEqual(t.dates[1].going.map((g) => g.name), ['Al', 'Jo']);
+  assert.deepEqual(t.dates[0].offers, []);
   assert.deepEqual(t.movies.map((m) => m.imdbId), ['tt2', 'tt3', 'tt1']);
   assert.equal(t.tie, true);
   assert.deepEqual(t.leaders.map((m) => m.imdbId), ['tt2', 'tt3']);
   const empty = tally({});
   assert.deepEqual(empty.leaders, []);
   assert.deepEqual(empty.bestDates, []);
+});
+
+test('host offers attach to their night, earliest first', () => {
+  const t = tally({
+    dates: [{ id: 'd1', startsAt: new Date('2026-10-17T00:00:00Z') }],
+    offers: [
+      { dateId: 'd1', nameKey: 'jo', name: 'Jo', at: new Date(5) },
+      { dateId: 'd1', nameKey: 'al', name: 'Al', at: new Date(2) },
+      { dateId: 'zz', nameKey: 'x', name: 'X', at: new Date(1) },
+    ],
+  });
+  assert.deepEqual(t.dates[0].offers.map((o) => o.name), ['Al', 'Jo']);
 });
 
 test('slots fill lowest-first and stop at five', () => {
@@ -109,6 +122,8 @@ test('hosting rotates Weber -> Ferger -> Libby', () => {
   assert.equal(nextPlace([{ status: 'open' }, { status: 'done', lockedPlace: 'Weber' }], P), 'Ferger');
   assert.equal(nextPlace([{ status: 'locked', lockedPlace: 'Libby' }], P), 'Weber');
   assert.equal(nextPlace([{ status: 'cancelled', lockedPlace: 'Ferger' }, { status: 'done', lockedPlace: 'Ferger' }], P), 'Libby');
+  assert.equal(nextPlace([{ status: 'done', lockedPlace: 'Sam' }, { status: 'done', lockedPlace: 'Libby' }], P), 'Weber');
+  assert.equal(nextPlace([{ status: 'done', lockedPlace: 'Libby' }], [...P, 'Huey']), 'Huey');
   assert.equal(placeLabel('Ferger'), "Ferger's");
   assert.equal(placeLabel(''), '');
 });

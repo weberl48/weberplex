@@ -45,7 +45,12 @@ const toDate = (v) => (v instanceof Date ? v : v?.toDate ? v.toDate() : v ? new 
 const toMs = (v) => toDate(v)?.getTime() ?? 0;
 
 // The whole ballot in one pass: who's going when, and what's winning.
-export function tally({ dates = [], rsvps = [], movies = [], votes = [] }) {
+export function tally({ dates = [], rsvps = [], movies = [], votes = [], offers = [] }) {
+  const hosts = new Map();
+  for (const o of [...offers].sort((a, b) => toMs(a.at) - toMs(b.at))) {
+    if (!hosts.has(o.dateId)) hosts.set(o.dateId, []);
+    hosts.get(o.dateId).push({ nameKey: o.nameKey, name: o.name });
+  }
   const going = new Map();
   for (const r of rsvps) {
     if (!going.has(r.dateId)) going.set(r.dateId, []);
@@ -54,7 +59,7 @@ export function tally({ dates = [], rsvps = [], movies = [], votes = [] }) {
   const datesOut = dates
     .map((d) => {
       const g = (going.get(d.id) || []).sort((a, b) => a.name.localeCompare(b.name));
-      return { ...d, startsAt: toDate(d.startsAt), going: g, count: g.length };
+      return { ...d, startsAt: toDate(d.startsAt), going: g, count: g.length, offers: hosts.get(d.id) || [] };
     })
     .sort((a, b) => toMs(a.startsAt) - toMs(b.startsAt));
   const topCount = Math.max(0, ...datesOut.map((d) => d.count));
@@ -83,9 +88,10 @@ export function tally({ dates = [], rsvps = [], movies = [], votes = [] }) {
 export const placeLabel = (place) => (place ? `${place}'s` : '');
 
 // Whose turn it is: the house after the most recent locked or watched
-// night's, in rotation order. Nights arrive newest first.
+// night's, in rotation order. Nights arrive newest first; nights a
+// volunteer hosted don't move the rotation.
 export function nextPlace(nights, places) {
-  const last = nights.find((n) => (n.status === 'locked' || n.status === 'done') && n.lockedPlace)?.lockedPlace;
+  const last = nights.find((n) => (n.status === 'locked' || n.status === 'done') && places.includes(n.lockedPlace))?.lockedPlace;
   const i = places.indexOf(last);
   return i === -1 ? places[0] : places[(i + 1) % places.length];
 }

@@ -20,10 +20,14 @@ locks the night and the picture; Home Assistant takes it from there.
 | Showing (after showtime) | Same ticket, plus star ratings and one-line reviews |
 | Finished | Moves to Past screenings with the average rating |
 
-Hosting rotates between the Webers, the Fergers and Libby (`PLACES` in
+Hosting rotates between Weber, Ferger, Libby and Huey (`PLACES` in
 `public/js/config.js`). Each candidate night carries whose house it's at; a
-new night defaults to the next house after the last one. The house shows on
-the showtimes, marquee, ticket and calendar file.
+new night defaults to the next house after the last one. A night can also be
+posted as "Anyone can host": any guest can tap **I can host** (which also
+counts them in), and the host picks among the volunteers when locking, or
+leaves it undecided and sets it later from the locked night. The house shows
+on the showtimes, marquee, ticket and calendar file. Home Assistant only warms
+the basement for nights at Weber's.
 
 The host console books a night (title plus any number of candidate times),
 adds or removes nights, adds **house picks** (tagged, outside everyone's five;

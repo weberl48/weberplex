@@ -118,6 +118,8 @@ def main():
         host.click('#addNewDate')
         host.locator('#newDates input').nth(1).fill(local_input(past))
         host.locator('#newDates select').nth(1).select_option('Ferger')
+        host.locator('#newDates select').nth(0).select_option('')  # the future night: anyone can host
+        assert 'Huey' in host.locator('#newDates select').nth(0).inner_text()
         host.click('#newForm button[type=submit]')
         expect(host.locator('#nightSec')).to_be_visible()
         expect(host.locator('#dateList .date-item')).to_have_count(2)
@@ -142,6 +144,10 @@ def main():
         expect(jo.locator('.showtime').nth(1)).to_contain_text('2 in')
         expect(jo.locator('.showtime').nth(1)).to_contain_text('Most people')
         expect(jo.locator('.showtime').nth(0)).to_contain_text("at Ferger's")  # the past night, sorted first
+        expect(jo.locator('.showtime').nth(1)).to_contain_text('host needed')
+        jo.locator('.offer-strip [data-action=offer]').click()
+        expect(jo.locator('.offer-strip')).to_contain_text('Jo can host')
+        expect(jo.locator('.offer.on')).to_have_count(1)
 
         # Five picks, then the sixth is refused.
         titles = [pick(sam, t) for t in ('dune part two', 'alien', 'jaws', 'paddington', 'heat')]
@@ -218,12 +224,14 @@ def main():
         winner = host.locator('.reel-result').inner_text().removeprefix("It's ").rstrip('.')
         use.click()
         host.locator('#lockDates input').nth(1).check()
+        expect(host.locator('#lockHost')).to_contain_text("Jo's (volunteered)")
         shot(host, '05-host-lock')
         host.click('#lockBtn')
         expect(host.locator('#lockedCard')).to_be_visible()
 
         # Guests see the booking, ticket and calendar file.
         expect(sam.locator('#board')).to_contain_text('now booking')
+        expect(sam.locator('#board')).to_contain_text("at Jo's")
         expect(sam.locator('#board h1')).to_have_text(winner.upper(), ignore_case=True)
         expect(sam.locator('.ticket')).to_contain_text('ADMIT ONE')
         expect(sam.locator('#lineup .guest')).to_have_count(2)

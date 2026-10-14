@@ -11,7 +11,7 @@ import { searchMovies, movieMeta } from './cinemeta.js';
 import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 
 const A = makeActions(db, F);
-const S = { key: null, nights: [], current: null, sub: null, chosenDate: null, chosenMovie: null, verified: false };
+const S = { key: null, nights: [], current: null, sub: null, chosenDate: null, chosenMovie: null, chosenHost: null, verified: false };
 let unNight = null;
 
 // A host link carries the key as #k=...; store it and scrub it from the URL.
@@ -88,7 +88,7 @@ function renderOpen(tal) {
   $('#dateList').innerHTML = tal.dates.length
     ? tal.dates.map((d) => `
         <li class="date-item">
-          <span>${esc(L.showtimeLong(d.startsAt))}${d.place ? ` · at ${esc(L.placeLabel(d.place))}` : ''} · <b>${d.count}</b> in ${faces(d.going)}</span>
+          <span>${esc(L.showtimeLong(d.startsAt))} · ${d.place ? `at ${esc(L.placeLabel(d.place))}` : `host needed${d.offers.length ? ` (${esc(d.offers.map((o) => o.name).join(', '))} offered)` : ''}`} · <b>${d.count}</b> in ${faces(d.going)}</span>
           <button class="mini" type="button" data-remove-date="${esc(d.id)}">Remove</button>
         </li>`).join('')
     : '<li class="empty">No nights yet. Add one below.</li>';
@@ -99,7 +99,7 @@ function renderOpen(tal) {
   $('#lockDates').innerHTML = tal.dates.map((d) => `
     <label class="pick-opt" style="grid-template-columns:auto 1fr auto">
       <input type="radio" name="lockDate" value="${esc(d.id)}"${d.id === S.chosenDate ? ' checked' : ''}>
-      <span>${esc(L.showtimeLong(d.startsAt))}${d.place ? ` · ${esc(L.placeLabel(d.place))}` : ''}${tal.bestDates.includes(d.id) && tal.dates.length > 1 ? ' · most people' : ''}</span>
+      <span>${esc(L.showtimeLong(d.startsAt))} · ${d.place ? esc(L.placeLabel(d.place)) : 'host needed'}${tal.bestDates.includes(d.id) && tal.dates.length > 1 ? ' · most people' : ''}</span>
       <span class="v">${d.count}</span>
     </label>`).join('') || '<p class="empty">Add a night first.</p>';
 
@@ -114,6 +114,7 @@ function renderOpen(tal) {
     </label>`).join('') || '<p class="empty">No pictures suggested yet.</p>';
   renderHouseBrowse(tal);
 
+  renderLockHost(tal);
   const pool = spinPool(tal);
   $('#spinBtn').disabled = pool.length < 2;
   $('#spinHint').textContent = tal.tie
@@ -124,12 +125,32 @@ function renderOpen(tal) {
 
 const spinPool = (tal) => (tal.tie ? tal.leaders : tal.movies);
 
+// For a "host needed" night: choose among the volunteers, or leave it TBD.
+function renderLockHost(tal) {
+  const date = tal.dates.find((d) => d.id === S.chosenDate);
+  const open = !!date && !date.place;
+  $('#lockHostWrap').hidden = !open;
+  if (!open) { S.chosenHost = null; return; }
+  const names = date.offers.map((o) => o.name);
+  if (S.chosenHost == null || (S.chosenHost && !names.includes(S.chosenHost))) S.chosenHost = names[0] || '';
+  $('#lockHost').innerHTML = [...names.map((n) => [n, `${L.placeLabel(n)} (volunteered)`]), ['', 'Decide later']].map(([v, label]) => `
+    <label class="pick-opt" style="grid-template-columns:auto 1fr">
+      <input type="radio" name="lockHost" value="${esc(v)}"${v === S.chosenHost ? ' checked' : ''}>
+      <span>${esc(label)}</span>
+    </label>`).join('') + (names.length ? '' : '<p class="hint">Nobody has offered to host this night yet.</p>');
+}
+
 function renderLocked(tal) {
   const n = S.current;
   const date = tal.dates.find((d) => d.id === n.lockedDateId);
   $('#lockedWhat').textContent = n.lockedMovie?.title || 'Locked';
   $('#lockedWhen').textContent = `${L.showtimeLong(n.lockedStartsAt)}${n.lockedPlace ? ` · at ${L.placeLabel(n.lockedPlace)}` : ''} · ${date?.count || 0} coming`;
   $('#lockedWho').innerHTML = (date?.going || []).map((g) => `<span class="guest">${faces([g])}${esc(g.name)}</span>`).join('');
+  if (document.activeElement !== $('#placeSel')) {
+    const choices = [...new Set([...PLACES, ...(date?.offers || []).map((o) => o.name), ...(n.lockedPlace ? [n.lockedPlace] : [])])];
+    $('#placeSel').innerHTML = choices.map((p) => `<option value="${esc(p)}"${p === n.lockedPlace ? ' selected' : ''}>${esc(L.placeLabel(p))}</option>`).join('')
+      + `<option value=""${n.lockedPlace ? '' : ' selected'}>Not decided yet</option>`;
+  }
 }
 
 // ---- new night form -------------------------------------------------------
@@ -141,8 +162,10 @@ function nextFriday8pm(offsetDays = 0) {
 }
 const toLocalInput = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
-const placeOptions = (selected) => PLACES.map((p) =>
-  `<option value="${esc(p)}"${p === selected ? ' selected' : ''}>${esc(L.placeLabel(p))}</option>`).join('');
+// House choices for a candidate night; '' posts it as "host needed".
+const placeOptions = (selected) => [...PLACES.map((p) =>
+  `<option value="${esc(p)}"${p === selected ? ' selected' : ''}>${esc(L.placeLabel(p))}</option>`),
+  `<option value=""${selected === '' ? ' selected' : ''}>Anyone can host</option>`].join('');
 
 function addNewDateRow() {
   const rows = $('#newDates').children.length;
@@ -195,6 +218,8 @@ $('#renameForm').addEventListener('submit', async (e) => {
 document.addEventListener('change', (e) => {
   if (e.target.name === 'lockDate') S.chosenDate = e.target.value;
   if (e.target.name === 'lockMovie') S.chosenMovie = e.target.value;
+  if (e.target.name === 'lockDate') { S.chosenHost = null; render(); }
+  if (e.target.name === 'lockHost') S.chosenHost = e.target.value;
 });
 
 async function sendToShield(movie) {
@@ -217,7 +242,7 @@ document.addEventListener('click', async (e) => {
   if (rmDate) {
     if (!armed(rmDate, 'Tap to confirm')) return;
     const d = L.tally(S.sub || {}).dates.find((x) => x.id === rmDate.dataset.removeDate);
-    try { await A.removeDate(S.key, S.current.id, d.id, d.going.map((g) => g.nameKey)); toast('Night removed.'); } catch (err) { toast(writeError(err), true); }
+    try { await A.removeDate(S.key, S.current.id, d.id, d.going.map((g) => g.nameKey), d.offers.map((o) => o.nameKey)); toast('Night removed.'); } catch (err) { toast(writeError(err), true); }
   }
   if (rmMovie) {
     e.preventDefault();
@@ -245,7 +270,7 @@ $('#lockBtn').addEventListener('click', async () => {
   if (!date || !movie) return;
   $('#lockMsg').textContent = 'Locking…';
   try {
-    await A.lock(S.key, S.current.id, date, movie);
+    await A.lock(S.key, S.current.id, date, movie, date.place || S.chosenHost || null);
     $('#lockMsg').textContent = '';
     toast(`Locked: ${movie.title}, ${L.showtimeLong(date.startsAt)}.`);
   } catch (err) {
@@ -356,6 +381,14 @@ $('#houseResults').addEventListener('click', addHouse);
 $('#houseGrid').addEventListener('click', addHouse);
 
 // ---- locked night controls -----------------------------------------------
+$('#placeForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await A.setPlace(S.key, S.current.id, $('#placeSel').value);
+    toast($('#placeSel').value ? `Moved to ${L.placeLabel($('#placeSel').value)}.` : 'House set to not decided yet.');
+  } catch (err) { toast(writeError(err), true); }
+});
+
 $('#shieldLockedBtn').addEventListener('click', () => {
   const m = S.current?.lockedMovie;
   if (m?.imdbId) sendToShield(m);

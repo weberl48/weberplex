@@ -110,6 +110,20 @@ export function makeActions(db, F) {
       await b.commit();
     },
 
+    // Offering to host also counts you in for that night.
+    async setOffer(nightId, dateId, who, on) {
+      const b = writeBatch(db);
+      const ref = sub(nightId, 'offers', `${dateId}__${who.nameKey}`);
+      if (on) {
+        b.set(ref, { dateId, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
+        const rsvp = sub(nightId, 'rsvps', `${dateId}__${who.nameKey}`);
+        if (!(await getDoc(rsvp)).exists()) b.set(rsvp, { dateId, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
+      } else {
+        b.delete(ref);
+      }
+      await b.commit();
+    },
+
     async setVote(nightId, imdbId, who, on) {
       const ref = sub(nightId, 'votes', `${imdbId}__${who.nameKey}`);
       const b = writeBatch(db);
@@ -185,11 +199,12 @@ export function makeActions(db, F) {
       await batch.commit();
     },
 
-    async removeDate(hostKey, nightId, dateId, rsvpNameKeys = []) {
+    async removeDate(hostKey, nightId, dateId, rsvpNameKeys = [], offerNameKeys = []) {
       const { batch, op } = hostBatch(hostKey);
       batch.update(night(nightId), { op });
       batch.delete(sub(nightId, 'dates', dateId));
       for (const k of rsvpNameKeys) batch.delete(sub(nightId, 'rsvps', `${dateId}__${k}`));
+      for (const k of offerNameKeys) batch.delete(sub(nightId, 'offers', `${dateId}__${k}`));
       await batch.commit();
     },
 
@@ -228,15 +243,23 @@ export function makeActions(db, F) {
       await batch.commit();
     },
 
-    async lock(hostKey, nightId, date, movie) {
+    // `place` overrides the date's house: a volunteer's name, or null for TBD.
+    async lock(hostKey, nightId, date, movie, place = date.place || null) {
       const { batch, op } = hostBatch(hostKey);
       const { imdbId, title, year, poster, runtime, rating, genres, trailer } = movie;
       batch.update(night(nightId), {
         op, status: 'locked', lockedAt: serverTimestamp(),
-        lockedDateId: date.id, lockedStartsAt: date.startsAt, lockedPlace: date.place || null,
+        lockedDateId: date.id, lockedStartsAt: date.startsAt, lockedPlace: place || null,
         lockedMovieId: imdbId,
         lockedMovie: { imdbId, title, year, poster, runtime, rating, genres, trailer },
       });
+      await batch.commit();
+    },
+
+    // Set or change whose house a locked night is at.
+    async setPlace(hostKey, nightId, place) {
+      const { batch, op } = hostBatch(hostKey);
+      batch.update(night(nightId), { op, lockedPlace: String(place || '').trim().slice(0, 30) || null });
       await batch.commit();
     },
 
