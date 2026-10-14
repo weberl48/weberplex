@@ -100,6 +100,203 @@ def add_by_search(page, term, pitch=''):
 def card(page, title):
     return page.locator('#shelf .card', has=page.locator('h3', has_text=title)).first
 
+# ---- UI behaviour checks -----------------------------------------------------------
+# Small, direct checks of how the page treats a repaint, a landscape phone, the owner
+# password and a 24-character name. They run after the main flow, on fresh pages.
+LONG = 'W' * 24  # the longest name there is, with nowhere to break
+
+
+def tracked(browser, errors, label, **opts):
+    page = browser.new_context(**opts).new_page()
+    page.on('pageerror', lambda e: errors.append(f'{label}: {e}'))
+    return page
+
+
+def fields(obj):
+    """Plain Python values as Firestore REST fields (for seeding through the emulator's admin door)."""
+    def val(x):
+        if isinstance(x, bool):
+            return {'booleanValue': x}
+        if isinstance(x, datetime):
+            return {'timestampValue': x.isoformat().replace('+00:00', 'Z')}
+        if isinstance(x, list):
+            return {'arrayValue': {'values': [val(i) for i in x]}}
+        if isinstance(x, dict):
+            return {'mapValue': {'fields': fields(x)}}
+        if isinstance(x, int):
+            return {'integerValue': str(x)}
+        return {'stringValue': x}
+    return {k: val(v) for k, v in obj.items()}
+
+
+def paint_checks(page):
+    """paint(): untouched controls follow the new html, edited ones and the focused one stay,
+    keyed chips keep focus, and a vanished control hands focus to its container."""
+    page.goto(f'{SITE}/?emu')
+    skip_tour(page)
+    r = page.evaluate("""async () => {
+      const { paint } = await import('/js/ui.js');
+      const el = document.createElement('div');
+      document.body.append(el);
+      const menu = (v) => `<select id="t"><option value="">None</option><option value="a"${v === 'a' ? ' selected' : ''}>A</option><option value="b"${v === 'b' ? ' selected' : ''}>B</option></select>`;
+      const t = () => el.querySelector('#t'), i = () => el.querySelector('#i');
+      const out = {};
+      paint(el, menu('a') + '<input id="i" value="x"><textarea id="n"></textarea>');
+      paint(el, menu('b') + '<input id="i" value="y"><textarea id="n"></textarea>');
+      out.followed = [t().value, i().value];            // nobody touched them: the new html wins
+      t().value = 'a'; i().value = 'typed'; el.querySelector('#n').value = 'note';
+      paint(el, menu('b') + '<input id="i" value="z"><textarea id="n"></textarea> ');
+      out.kept = [t().value, i().value, el.querySelector('#n').value];  // edited: kept
+      i().focus();
+      i().value = 'z';                                   // back to its painted value, but focused
+      paint(el, menu('b') + '<input id="i" value="w"><textarea id="n"></textarea>  ');
+      out.focused = [document.activeElement.id, i().value];
+
+      const chips = (extra) => '<div>' + ['Popcorn', 'Candy', 'Drinks'].map((x) => `<button type="button" data-action="quick-snack" data-day="d" data-item="${x}">${x}</button>`).join('')
+        + ['Fran', 'Jo'].map((x) => `<button type="button" data-action="join" data-name="${x}">${x}</button>`).join('') + '</div>' + extra;
+      paint(el, chips(''));
+      el.querySelector('[data-item="Candy"]').focus();
+      paint(el, chips('<p>1</p>'));
+      out.chip = document.activeElement.dataset.item;
+      el.querySelector('[data-name="Jo"]').focus();
+      paint(el, chips('<p>2</p>'));
+      out.name = document.activeElement.dataset.name;
+
+      paint(el, '<button type="button" data-action="veto" data-id="m">Veto</button>');
+      el.querySelector('[data-action="veto"]').focus();
+      paint(el, '<button type="button" data-action="unveto" data-id="m">Undo veto</button>');
+      out.gone = [document.activeElement === el, el.getAttribute('tabindex')];
+      el.remove();
+      return out;
+    }""")
+    assert r['followed'] == ['b', 'y'], r
+    assert r['kept'] == ['a', 'typed', 'note'], r
+    assert r['focused'] == ['i', 'z'], r
+    assert r['chip'] == 'Candy' and r['name'] == 'Jo', r
+    assert r['gone'] == [True, '-1'], r
+
+
+def overlay_checks(browser, errors):
+    """The reveal and the reel on a landscape phone: the OK button is in reach, and focus
+    goes back to the control that had it even when a repaint replaced that control."""
+    page = tracked(browser, errors, 'landscape', viewport={'width': 844, 'height': 390}, reduced_motion='reduce')
+    page.goto(f'{SITE}/?emu')
+    skip_tour(page)
+    page.evaluate("""() => {
+      const box = document.createElement('div');
+      box.id = 'fbox';
+      document.body.append(box);
+      window.paintBox = async (html) => (await import('/js/ui.js')).paint(box, html);
+    }""")
+    veto = '<button type="button" data-action="veto" data-id="m">%s</button>'
+    opens = {
+        'reveal': ("""import('/js/reveal.js').then((m) => m.revealMovie({ title: 'The Man Who Would Be King', poster: '' }, { when: 'Fri 8 PM', place: "Jo's" }))""", '.reveal-overlay'),
+        'reel': ("""import('/js/reel.js').then((m) => { const ms = [{ title: 'A', poster: '' }, { title: 'B', poster: '' }]; return m.spinReel(ms, ms[1], { title: '2-way tie. The reel decides…', done: 'Nice' }); })""", '.reel-overlay'),
+    }
+    for name, (open_js, overlay) in opens.items():
+        page.evaluate('(h) => paintBox(h)', veto % 'Veto')
+        page.focus('#fbox [data-action="veto"]')
+        page.evaluate(f'() => {{ {open_js}; }}')
+        expect(page.locator(f'{overlay} button')).to_be_visible()
+        fits = page.evaluate('(s) => { const o = document.querySelector(s); return o.scrollHeight <= o.clientHeight; }', overlay)
+        assert fits, f'{name} overlay is taller than a landscape phone'
+        shot(page, f'06-landscape-{name}')
+        # A repaint under the overlay replaces the Veto button (same key, new node).
+        page.evaluate('(h) => paintBox(h)', veto % 'Undo veto')
+        page.click(f'{overlay} button', timeout=3000)  # in reach without scrolling the page
+        expect(page.locator(overlay)).to_have_count(0)
+        expect(page.locator('#fbox [data-action="veto"]')).to_be_focused()
+    # A title too long for the screen: the content is taller than the overlay, and the overlay
+    # scrolls so the OK button still comes into reach.
+    page.evaluate("""() => { import('/js/reveal.js').then((m) => m.revealMovie({ title: 'The Incredibly Long and Winding Title of a Movie That Nobody Could Fit on a Phone Held Sideways '.repeat(4), poster: '' }, { when: 'Fri 8 PM', place: "Jo's" })); }""")
+    expect(page.locator('.reveal-overlay button')).to_be_visible()
+    assert page.evaluate("() => { const o = document.querySelector('.reveal-overlay'); return o.scrollHeight > o.clientHeight + 100; }")
+    page.click('.reveal-overlay button', timeout=3000)
+    expect(page.locator('.reveal-overlay')).to_have_count(0)
+    page.context.close()
+
+
+def owner_gate_checks(browser, errors):
+    """A wrong password never shows the owner sections, typed or from #k=, and the page says it is checking."""
+    for how in ('typed', 'link'):
+        page = tracked(browser, errors, f'gate-{how}')
+        page.add_init_script("""
+          window.__seen = { leaked: false, msgs: [] };
+          new MutationObserver(() => {
+            const sec = document.getElementById('seasonSec');
+            if (sec && !sec.hidden) window.__seen.leaked = true;
+            const m = document.getElementById('keyMsg')?.textContent;
+            if (m && !window.__seen.msgs.includes(m)) window.__seen.msgs.push(m);
+          }).observe(document, { subtree: true, childList: true, attributes: true, characterData: true });""")
+        if how == 'typed':
+            page.goto(f'{SITE}/host.html?emu')
+            expect(page.locator('#keySec')).to_be_visible(timeout=10000)
+            page.fill('#keyInput', 'not-the-password-123')
+            page.click('#keyForm button[type=submit]')
+        else:
+            page.goto(f'{SITE}/host.html?emu#k=not-the-password-123')
+        expect(page.locator('#keyMsg')).to_contain_text('didn’t open the booth', timeout=10000)
+        expect(page.locator('#keySec')).to_be_visible()
+        seen = page.evaluate('window.__seen')
+        assert not seen['leaked'], f'{how}: owner sections showed before the password was checked'
+        assert 'Checking…' in seen['msgs'], (how, seen)
+        page.context.close()
+
+
+def owner_guard_checks(browser, errors):
+    """Two taps in the same breath do one write: a house pick stays added, a password change stays changed."""
+    page = tracked(browser, errors, 'guard', viewport={'width': 900, 'height': 1000})
+    page.goto(f'{SITE}/host.html?emu#k={KEY}')
+    expect(page.locator('#seasonSec')).to_be_visible(timeout=10000)
+    page.fill('#houseQ', 'blade runner')
+    page.click('#houseForm button[type=submit]')
+    expect(page.locator('#houseResults .result:not(.taken)').first).to_be_visible(timeout=10000)
+    page.evaluate("() => { const b = document.querySelector('#houseResults .result:not(.taken)'); b.click(); b.click(); }")
+    expect(page.locator('#houseMsg')).to_contain_text('as a house pick', timeout=15000)
+    page.wait_for_timeout(1500)
+    expect(page.locator('#houseMsg')).to_contain_text('as a house pick')  # not "refused" from the second tap
+    expect(page.locator('#houseMsg')).to_have_class(re.compile(r'\bgood\b'))
+    page.fill('#pwInput', 'e2e-new-password-1')
+    page.evaluate("() => { const f = document.getElementById('pwForm'); f.requestSubmit(); f.requestSubmit(); }")
+    expect(page.locator('#pwMsg')).to_contain_text('Password changed', timeout=10000)
+    page.wait_for_timeout(1500)
+    expect(page.locator('#pwMsg')).to_contain_text('Password changed')  # the second tap didn't use the old password
+    expect(page.locator('#pwMsg')).to_have_class(re.compile(r'\bgood\b'))
+    page.context.close()
+
+
+def long_name_checks(browser, errors):
+    """A 24-character name with no spaces never widens the page at phone width."""
+    now = datetime.now(timezone.utc)
+    key = LONG.lower()
+    day = (now - timedelta(days=2)).strftime('%Y-%m-%d')
+    movie = {'imdbId': 'tt9990001', 'title': 'Long Name Movie', 'year': '2001', 'poster': '', 'runtime': '', 'rating': '',
+             'genres': [], 'trailer': '', 'description': ''}
+    emu('PATCH', f'{DOCS}/movies/tt9990002', {'fields': fields({
+        **movie, 'imdbId': 'tt9990002', 'title': LONG, 'poster': f'{SITE}/img/og.png', 'pitch': '', 'shelf': [], 'by': key, 'byName': LONG, 'at': now})}, owner=True)
+    emu('PATCH', f'{DOCS}/nights/{day}', {'fields': fields({
+        'day': day, 'startsAt': now - timedelta(days=2), 'host': LONG, 'hostKey': key, 'status': 'done', 'createdAt': now,
+        'lockedMovieId': 'tt9990001', 'lockedMovie': movie, 'lockedTie': [], 'lockedAt': now, 'finishedAt': now,
+        'theme': '', 'vetoes': {}})}, owner=True)
+    emu('PATCH', f'{DOCS}/nights/{day}/reviews/{key}', {'fields': fields({
+        'stars': 4, 'line': '', 'nameKey': key, 'name': LONG, 'at': now})}, owner=True)
+    wide = 'document.documentElement.scrollWidth - document.documentElement.clientWidth'
+    page = tracked(browser, errors, 'long-guest', viewport=PHONE)
+    page.goto(f'{SITE}/?emu')
+    skip_tour(page)
+    expect(page.locator('#past .past-row .d', has_text=LONG)).to_have_count(1, timeout=10000)
+    expect(page.locator('#rateBox .review .who span:first-child', has_text=LONG)).to_have_count(1)
+    over = page.evaluate(wide)
+    assert over <= 0, f'guest page is {over}px too wide'
+    shot(page, '07-long-name-guest')
+    page.context.close()
+    page = tracked(browser, errors, 'long-owner', viewport=PHONE)
+    page.goto(f'{SITE}/host.html?emu#k={KEY}')
+    expect(page.locator('#shelfList .pick-opt', has_text=LONG)).to_have_count(1, timeout=10000)
+    over = page.evaluate(wide)
+    assert over <= 0, f'owner console is {over}px too wide'
+    page.context.close()
+
 
 def main():
     ensure_site()
@@ -212,6 +409,8 @@ def main():
         expect(sam.locator('#news')).to_be_visible(timeout=10000)
         expect(sam.locator('#newsList')).to_contain_text('new movie')
         expect(sam.locator('#newsList')).to_contain_text('thumbs-up')
+        # A bullet sits on an item's first line, not the last line of a wrapped one.
+        assert sam.evaluate("getComputedStyle(document.querySelector('#newsList .linkish')).verticalAlign") == 'top'
         expect(card(sam, paddington).locator('.new-chip')).to_have_count(1)
         expect(card(sam, jaws).locator('.vote-new')).to_have_text('+1')
         shot(sam, '02-guest-news')
@@ -314,12 +513,19 @@ def main():
         expect(sam.locator('#next .theme-chip')).to_have_count(0)
         expect(sam.locator('#next .leaders li')).to_have_count(3)  # Paddington, the other finalist, Jo's trending pick
 
+        # The snack chips share an action and a day: the one you tapped keeps focus when the
+        # list repaints, not the first chip.
+        sam.click('#next [data-action="quick-snack"][data-item="Candy"]')
+        expect(sam.locator('#next .snack')).to_contain_text('Candy')
+        expect(sam.locator('#next [data-action="quick-snack"][data-item="Candy"]')).to_be_focused()
+
         # Sam vetoes Paddington (it would have tied with the other finalist): struck
         # through for everyone, one veto each, and only its owner can undo it.
         def veto_button(page, action):
             return page.locator('#next .leaders li', has_text=paddington).locator(f'[data-action="{action}"]')
         veto_button(sam, 'veto').click()
         expect(sam.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
+        expect(sam.locator('#next')).to_be_focused()  # the Veto button became "Undo veto" (a new key): focus stays in the card
         expect(sam.locator('#next .vetoes s')).to_have_text(paddington)
         expect(sam.locator('#next .leaders')).not_to_contain_text(paddington)
         expect(sam.locator('#next [data-action="veto"]')).to_have_count(0)  # one veto each
@@ -335,6 +541,7 @@ def main():
         expect(sam.locator('#toast')).to_contain_text('Veto taken back')  # the write landed, not just the local echo
         veto_button(sam, 'veto').click()
         expect(sam.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
+        expect(sam.locator('#toast')).to_contain_text('Vetoed')  # on the server before Jo locks, or the lock can tie
 
         # Locking honours the veto: the other finalist wins outright (no tie, so no
         # reel) and the reveal flips the poster for each person, once.
@@ -473,6 +680,12 @@ def main():
         expect(tour).to_be_visible()
         newbie.keyboard.press('Escape')
         expect(tour).to_have_count(0)
+
+        paint_checks(newbie)
+        overlay_checks(browser, errors)
+        owner_gate_checks(browser, errors)
+        long_name_checks(browser, errors)
+        owner_guard_checks(browser, errors)  # last: it changes the owner password
         browser.close()
 
     own = [m for m in missing if SITE in m]

@@ -56,6 +56,8 @@ a { color: var(--bulb); }
 button, input, select, textarea { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--bulb); outline-offset: 2px; }
+/* a container that only takes focus from script (a repaint, an overlay) isn't a control */
+[tabindex="-1"]:focus { outline: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .wrap { max-width: 46rem; margin: 0 auto; padding-inline: 16px; padding-block: 0 4rem; }
@@ -421,7 +423,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .news .section-head { margin-bottom: 0.4rem; }
 .news .section-head h2 { font-size: var(--step-1); }
 .news-list { margin: 0 0 0.6rem; padding-left: 1.1rem; display: grid; gap: 4px; }
-.news-list .linkish { color: var(--screen); text-decoration-color: var(--bulb); text-align: left; }
+.news-list .linkish { color: var(--screen); text-decoration-color: var(--bulb); text-align: left; vertical-align: top; }
 .new-chip {
   position: absolute; right: 6px; top: 6px; padding: 3px 7px; border-radius: 3px;
   background: var(--go); color: var(--board-ink); font: 700 10px/1 var(--f-body); letter-spacing: 0.16em; text-transform: uppercase;
@@ -540,6 +542,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ---- long text never widens a card or the page ---------------------------- */
 .card { grid-template-columns: minmax(0, 1fr); }
 .pitch, .by, .seen-line, .meta, .review p, .snack b, .dd-line, .tile-why { overflow-wrap: anywhere; }
+.review .who > span:first-child, .past-row .d, .pick-opt > span { min-width: 0; overflow-wrap: anywhere; }
 .snack > div { min-width: 0; }
 .day.sel:focus-visible, .day:focus-visible { outline: 3px solid var(--bulb); outline-offset: 2px; }
 
@@ -557,7 +560,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ---- spin the reel ----------------------------------------------------- */
 .reel-overlay {
   position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px;
-  background: rgba(10, 4, 7, 0.88);
+  background: rgba(10, 4, 7, 0.88); overflow-y: auto; overscroll-behavior: contain;
 }
 .reel-box { width: min(19rem, 100%); text-align: center; }
 .reel-box h2 { margin: 0 0 14px; font: 400 var(--step-2)/1.1 var(--f-display); color: var(--bulb); }
@@ -576,7 +579,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ---- the reveal ------------------------------------------------------------ */
 .reveal-overlay {
   position: fixed; inset: 0; z-index: 41; display: grid; place-items: center; padding: 16px;
-  background: rgba(10, 4, 7, 0.88);
+  background: rgba(10, 4, 7, 0.88); overflow-y: auto; overscroll-behavior: contain;
 }
 .reveal-box { width: min(19rem, 100%); text-align: center; }
 .reveal-box h2 { margin: 0 0 14px; font: 400 var(--step-2)/1.1 var(--f-display); color: var(--bulb); }
@@ -596,6 +599,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .reveal-poster .noimg { display: grid; place-items: center; padding: 12px; font-family: var(--f-display); color: var(--screen); }
 .reveal-title { margin: 16px 0 0; min-height: 1.4em; font: 400 var(--step-2)/1.15 var(--f-display); color: var(--screen); overflow-wrap: anywhere; }
 .reveal-when { margin: 4px 0 14px; min-height: 1.5em; color: var(--dim); }
+
+/* a landscape phone is about 390px tall: shrink the posters so the OK button fits */
+@media (max-height: 520px) {
+  .reel-overlay, .reveal-overlay { padding: 8px; }
+  .reel-box h2, .reveal-box h2 { margin-bottom: 8px; font-size: var(--step-1); }
+  .reel-window { height: 11rem; }
+  .reel-result { margin-top: 8px; }
+  .reveal-card { width: min(7.5rem, 62vw); }
+  .reveal-cover { font-size: 3rem; }
+  .reveal-title { margin-top: 8px; font-size: var(--step-1); }
+  .reveal-when { margin-bottom: 8px; }
+}
 
 /* ---- host console ------------------------------------------------------- */
 .host-card { padding: 1rem; border-radius: var(--radius); background: var(--velvet-2); border: 1px solid var(--rule); display: grid; gap: 12px; }

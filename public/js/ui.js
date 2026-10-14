@@ -79,8 +79,8 @@ export function writeError(e, ctx = '') {
 
 // A stable key for a control, so it can be found again after a repaint.
 const KEY_ATTRS = ['data-action', 'data-id', 'data-day', 'data-sort', 'data-tag', 'data-star', 'data-tab',
-  'data-shield', 'data-remove', 'data-cancel', 'data-house-add', 'data-house-tag'];
-function keyOf(n) {
+  'data-shield', 'data-remove', 'data-cancel', 'data-house-add', 'data-house-tag', 'data-item', 'data-name'];
+export function keyOf(n) {
   if (n.id) return `#${CSS.escape(n.id)}`;
   const parts = KEY_ATTRS.filter((a) => n.hasAttribute(a)).map((a) => `[${a}="${CSS.escape(n.getAttribute(a))}"]`);
   return parts.length ? parts.join('') : null;
@@ -109,6 +109,15 @@ function reapplyArmed(root) {
   }
 }
 
+// Did the person change this control since it was painted? A control they
+// haven't touched follows the new html, so a menu that mirrors shared state
+// (the host's theme or time) shows what changed on another device.
+function edited(c) {
+  if (c.tagName !== 'SELECT') return c.value !== c.defaultValue;
+  const painted = [...c.options].find((o) => o.defaultSelected) || c.options[0];
+  return c.value !== (painted?.value ?? '');
+}
+
 // Replace a container's HTML only when it changed, keeping what the person
 // is doing: typed values, the focused control, the caret, armed buttons.
 const lastHtml = new WeakMap();
@@ -116,20 +125,27 @@ export function paint(el, html) {
   if (!el || lastHtml.get(el) === html) return;
   lastHtml.set(el, html);
   const active = document.activeElement;
-  const focusKey = active && el.contains(active) ? keyOf(active) : null;
+  const focused = !!active && el.contains(active);
+  const focusKey = focused ? keyOf(active) : null;
   let caret = null;
   try { if (focusKey && typeof active.selectionStart === 'number') caret = [active.selectionStart, active.selectionEnd]; } catch { /* not a text field */ }
-  const values = [...el.querySelectorAll('input[id], textarea[id], select[id]')].map((i) => [i.id, i.value]);
+  const values = [...el.querySelectorAll('input[id], textarea[id], select[id]')]
+    .filter((i) => i === active || edited(i)).map((i) => [i.id, i.value]);
   el.innerHTML = html;
   for (const [id, v] of values) {
     const n = el.querySelector(`#${CSS.escape(id)}`);
     if (n && n.value !== v && (n.tagName !== 'SELECT' || [...n.options].some((o) => o.value === v))) n.value = v;
   }
-  if (focusKey) {
-    const n = el.querySelector(focusKey);
+  if (focused) {
+    const n = focusKey && el.querySelector(focusKey);
     if (n) {
       n.focus({ preventScroll: true });
       if (caret) try { n.setSelectionRange(...caret); } catch { /* fine */ }
+    } else {
+      // What had focus is gone (Veto became Undo veto): keep the place in the
+      // page rather than dropping to <body>.
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+      el.focus({ preventScroll: true });
     }
   }
   reapplyArmed(el);

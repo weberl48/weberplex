@@ -2,7 +2,7 @@
 // Shown once per person (app.js decides when). Same manners as the reel:
 // focus moves in, Tab stays inside, Esc closes, focus goes back, and
 // reduced-motion skips the flip.
-import { posterImg } from './ui.js';
+import { posterImg, keyOf } from './ui.js';
 
 const bigPoster = (url) => (url || '').replace('/poster/small/', '/poster/medium/');
 
@@ -28,6 +28,7 @@ export function revealMovie(movie, { when = '', place = '' } = {}) {
         <div class="row" style="justify-content:center"><button class="btn btn-bulb" type="button" hidden>OK</button></div>
       </div>`;
     const prev = document.activeElement;
+    const prevKey = prev ? keyOf(prev) : null; // a repaint under the overlay can replace prev
     overlay.tabIndex = -1;
     document.body.append(overlay);
     overlay.focus();
@@ -41,7 +42,12 @@ export function revealMovie(movie, { when = '', place = '' } = {}) {
       okBtn.hidden = false;
       okBtn.focus();
     };
-    const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey, true); prev?.focus?.(); resolve(movie); };
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey, true);
+      (prev?.isConnected ? prev : prevKey && document.querySelector(prevKey))?.focus?.();
+      resolve(movie);
+    };
     function onKey(e) {
       if (e.key === 'Escape') { e.preventDefault(); finish(); close(); }
       if (e.key === 'Tab') { e.preventDefault(); (okBtn.hidden ? overlay : okBtn).focus(); }

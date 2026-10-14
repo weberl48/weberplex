@@ -15,6 +15,16 @@ import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 const A = makeActions(db, F);
 const S = { key: null, verified: false, nights: [], movies: [], votes: [], seen: [], season: '' };
 
+// One write per button at a time: a second tap while the first is in flight
+// would read the same stale state (a house pick turned into an update, a
+// password change sent with the old password) and be refused.
+const busy = new Set();
+async function once(key, fn) {
+  if (busy.has(key)) return;
+  busy.add(key);
+  try { await fn(); } catch (e) { console.error(e); toast(writeError(e), true); } finally { busy.delete(key); }
+}
+
 // The password lives only in this page's memory: nothing in the browser.
 // An owner link can carry it as #k=...; take it and scrub it from the URL.
 dropLegacyLocal();
@@ -37,19 +47,26 @@ verifyKey();
 
 async function verifyKey() {
   if (!S.key || S.verified) return;
-  const ok = await A.checkHostKey(S.key);
+  const key = S.key;
+  $('#keyMsg').textContent = 'Checking…';
+  $('#keyMsg').className = 'msg';
+  const ok = await A.checkHostKey(key);
+  if (S.key !== key) return; // locked, or a newer password is being checked
   if (!ok) {
     S.key = null;
     $('#keyMsg').textContent = 'That password didn’t open the booth. Check it and try again.';
     $('#keyMsg').className = 'msg bad';
-  } else S.verified = true;
+  } else {
+    S.verified = true;
+    $('#keyMsg').textContent = '';
+  }
   render();
 }
 
 const shelf = () => L.tallyShelf({ movies: S.movies, votes: S.votes, seen: S.seen, watched: L.watchedIds(S.nights) });
 
 function render() {
-  const on = !!S.key;
+  const on = !!S.key && S.verified; // the sections stay hidden until the password has been checked
   for (const id of ['#shareSec', '#seasonSec', '#nightsSec', '#houseSec', '#shelfSec', '#pwSec', '#ha']) $(id).hidden = !on;
   $('#keySec').hidden = on;
   $('#forget').hidden = !on;
@@ -75,9 +92,11 @@ function render() {
   renderHouseBrowse();
 }
 
-$('#seasonForm').addEventListener('submit', async (e) => {
+$('#seasonForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  try { await A.setSeason(S.key, $('#seasonInput').value); toast('Season title saved.'); } catch (err) { toast(writeError(err), true); }
+  once('season', async () => {
+    try { await A.setSeason(S.key, $('#seasonInput').value); toast('Season title saved.'); } catch (err) { toast(writeError(err), true); }
+  });
 });
 
 async function sendToShield(movie) {
@@ -92,7 +111,7 @@ document.addEventListener('click', async (e) => {
   if (sh) {
     const m = S.movies.find((x) => x.imdbId === sh.dataset.shield)
       || S.nights.find((n) => n.lockedMovieId === sh.dataset.shield)?.lockedMovie;
-    if (m) sendToShield(m);
+    if (m) once(`shield:${sh.dataset.shield}`, () => sendToShield(m));
     return;
   }
   const rm = e.target.closest('[data-remove]');
@@ -182,34 +201,36 @@ $('#houseForm').addEventListener('submit', async (e) => {
     $('#houseResults').innerHTML = `<p class="empty">${esc(err.message)}</p>`;
   }
 });
-async function addHouse(e) {
+function addHouse(e) {
   const b = e.target.closest('[data-house-add]');
   if (!b || b.classList.contains('taken') || b.disabled) return;
   const id = b.dataset.houseAdd;
   const fromList = houseResults.find((m) => (m.imdb_id || m.id) === id) || H.items.map((x) => x.meta).find((m) => (m.imdb_id || m.id) === id);
-  $('#houseMsg').textContent = 'Adding…';
-  $('#houseMsg').className = 'msg';
-  try {
-    const meta = (await movieMeta(id).catch(() => null)) || fromList;
-    const movie = { ...L.movieFromMeta({ ...meta, poster: meta.poster || fromList?.poster }), shelf: [...houseTags] };
-    const added = await A.addHousePicks(S.key, [movie], S.movies);
-    if (!added.length) {
-      const on = S.movies.find((m) => m.imdbId === movie.imdbId);
-      $('#houseMsg').textContent = `${movie.title} is already on the shelf${on?.byName ? ` (added by ${on.byName})` : ''}.`;
+  return once(`house:${id}`, async () => {
+    $('#houseMsg').textContent = 'Adding…';
+    $('#houseMsg').className = 'msg';
+    try {
+      const meta = (await movieMeta(id).catch(() => null)) || fromList;
+      const movie = { ...L.movieFromMeta({ ...meta, poster: meta.poster || fromList?.poster }), shelf: [...houseTags] };
+      const added = await A.addHousePicks(S.key, [movie], S.movies);
+      if (!added.length) {
+        const on = S.movies.find((m) => m.imdbId === movie.imdbId);
+        $('#houseMsg').textContent = `${movie.title} is already on the shelf${on?.byName ? ` (added by ${on.byName})` : ''}.`;
+        $('#houseMsg').className = 'msg bad';
+        return;
+      }
+      $('#houseMsg').textContent = `Added ${movie.title} as a house pick.`;
+      $('#houseMsg').className = 'msg good';
+      houseTags.clear();
+      document.querySelectorAll('#houseTags [data-house-tag]').forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); });
+      renderHouseBrowse();
+      $('#houseQ').value = '';
+      $('#houseResults').hidden = true;
+    } catch (err) {
+      $('#houseMsg').textContent = writeError(err);
       $('#houseMsg').className = 'msg bad';
-      return;
     }
-    $('#houseMsg').textContent = `Added ${movie.title} as a house pick.`;
-    $('#houseMsg').className = 'msg good';
-    houseTags.clear();
-    document.querySelectorAll('#houseTags [data-house-tag]').forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); });
-    renderHouseBrowse();
-    $('#houseQ').value = '';
-    $('#houseResults').hidden = true;
-  } catch (err) {
-    $('#houseMsg').textContent = writeError(err);
-    $('#houseMsg').className = 'msg bad';
-  }
+  });
 }
 $('#houseResults').addEventListener('click', addHouse);
 $('#houseGrid').addEventListener('click', addHouse);
@@ -230,21 +251,23 @@ $('#keyForm').addEventListener('submit', (e) => {
   render();
 });
 $('#forget').addEventListener('click', () => { S.key = null; S.verified = false; render(); });
-$('#pwForm').addEventListener('submit', async (e) => {
+$('#pwForm').addEventListener('submit', (e) => {
   e.preventDefault();
   const next = $('#pwInput').value;
   const msg = $('#pwMsg');
   msg.hidden = false;
-  try {
-    await A.changeOwnerPassword(S.key, next);
-    S.key = next;
-    $('#pwInput').value = '';
-    msg.textContent = 'Password changed. Old owner links no longer work.';
-    msg.className = 'msg good';
-  } catch (err) {
-    msg.textContent = err.message === 'Use at least 8 characters.' ? err.message : writeError(err);
-    msg.className = 'msg bad';
-  }
+  once('pw', async () => {
+    try {
+      await A.changeOwnerPassword(S.key, next);
+      S.key = next;
+      $('#pwInput').value = '';
+      msg.textContent = 'Password changed. Old owner links no longer work.';
+      msg.className = 'msg good';
+    } catch (err) {
+      msg.textContent = err.message === 'Use at least 8 characters.' ? err.message : writeError(err);
+      msg.className = 'msg bad';
+    }
+  });
 });
 $('#copyShare').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(SITE_URL); toast('Guest link copied.'); } catch { $('#shareUrl').select(); }

@@ -1,5 +1,5 @@
 // "Spin the reel": a slot-machine strip of posters that lands on `winner`.
-import { esc, posterImg } from './ui.js';
+import { esc, posterImg, keyOf } from './ui.js';
 
 export function spinReel(movies, winner, { title = 'Spinning the reel…', done = 'Use this one' } = {}) {
   return new Promise((resolve) => {
@@ -22,6 +22,7 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…', done 
         <div class="row" style="justify-content:center"><button class="btn btn-bulb" type="button" hidden>${esc(done)}</button></div>
       </div>`;
     const prev = document.activeElement;
+    const prevKey = prev ? keyOf(prev) : null; // a repaint under the overlay can replace prev
     overlay.tabIndex = -1;
     document.body.append(overlay);
     overlay.focus();
@@ -34,7 +35,12 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…', done 
       okBtn.hidden = false;
       okBtn.focus();
     };
-    const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey, true); prev?.focus?.(); resolve(winner); };
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey, true);
+      (prev?.isConnected ? prev : prevKey && document.querySelector(prevKey))?.focus?.();
+      resolve(winner);
+    };
     function onKey(e) {
       if (e.key === 'Escape') { e.preventDefault(); if (okBtn.hidden) finish(); close(); }
       if (e.key === 'Tab') { e.preventDefault(); (okBtn.hidden ? overlay : okBtn).focus(); }
