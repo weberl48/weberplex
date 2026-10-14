@@ -238,7 +238,7 @@ Weberplex is a neighborhood picture house on a phone. At the top, one lit marque
 
 The page is a single program column built for an Android phone at 360 to 412 px, and desktop is the same column, centered. Posters carry the real color. The chrome stays velvet, oxblood and amber, so after the marquee the brightest things on screen are the movies.
 
-The theme reaches everywhere, but the light stays in one place. Every component borrows a cinema material: letter-board paper, admit-one stock, stamp lettering, perforated stubs, concession stripes, the guest list, the box-office window. Brightness, glow and motion belong to the marquee and the two event moments (the reel and the reveal). As of 2026-10-14 the confirmed direction is to keep pushing that material into everyday components without adding light. The letter-board stats, the guest-list name tags, the hosting slip, the "If it locked now" card and the box-office day panel are the first of it. Shelf cards stay plain velvet by the user's choice (2026-10-14): poster on top, everything about the movie right under it. Buttons, fields and filter chips are still plain. The rejected look is generic dark-mode SaaS: gray cards, blue links, a dashboard that could be any product.
+The theme reaches everywhere, but the light stays in one place. Every component borrows a cinema material: letter-board paper, admit-one stock, stamp lettering, perforated stubs, concession stripes, the guest list, the box-office window. Brightness, glow and motion belong to the marquee and the event moments: the curtain that opens every visit, the reel and the reveal. As of 2026-10-14 the confirmed direction is to keep pushing that material into everyday components without adding light. The letter-board stats, the guest-list name tags, the hosting slip, the "If it locked now" card and the box-office day panel are the first of it. Shelf cards stay plain velvet by the user's choice (2026-10-14): poster on top, everything about the movie right under it. Buttons, fields and filter chips are still plain. The rejected look is generic dark-mode SaaS: gray cards, blue links, a dashboard that could be any product.
 
 **Key Characteristics:**
 - One lit, animated marquee per page; everything else is lit only by state.
@@ -261,7 +261,7 @@ A warm three-light theater: velvet dark, an oxblood curtain, amber bulbs, and pa
 
 ### Secondary
 - **Curtain Oxblood** (curtain): the fill for committing taps: closing out a night ("We watched it", posting a review) and putting a hosted night on the marquee. Also the reveal card's cover, kicker lettering on the letter board, and the red in the concession-stripe ribbon on snacks.
-- **Lit Curtain** (curtain-hi): hover on curtain buttons and the outline of the Foreign tag, whose lettering is **Foreign Ink** (foreign-ink).
+- **Lit Curtain** (curtain-hi): hover on curtain buttons, the light side of the house curtain's pleats, and the outline of the Foreign tag, whose lettering is **Foreign Ink** (foreign-ink).
 - **Marquee Body** (marquee-body): the plush frame around the letter board that the bulbs sit on.
 
 ### Tertiary
@@ -409,6 +409,9 @@ Admit-one paper with two 11px punched notches and a dashed stub perforation. On 
 ### The Calendar Day (signature)
 A raised-velvet square on a seven-column grid. A tap shows the day in the box-office window below and marks nothing; the arrow keys move between days, and the grid is a single Tab stop. From the top: an 11px day-of-week (or month marker), the date in Limelight, and a Courier meta line with the count and a house icon when someone hosts. Free is a concession-green tint and border. The leading day gets a 2px amber ring, the selected day a projector-light outline, and fresh activity a small green dot.
 
+### The House Curtain (opening moment)
+Every load opens on the curtain (added at the user's request, 2026-10-14). Two Curtain Oxblood panels, pleated by a repeating gradient of shadow (`#3e0a19`) and Lit Curtain, darker at the head and the hem, hang under a pleated valance edged with a 3px gold rope and a scalloped fringe (`#c99a3e`). After 0.2s the panels gather to the sides over 1.25s (`cubic-bezier(.7, 0, .2, 1)`), squeezing toward their outer edges so the pleats bunch, and fade in their last third; the valance lifts away at 1.1s, and by 1.75s nothing is left. It sits over everything (z-index 90) but takes no taps, so the page behind is usable from the first frame, and it isn't remembered (the page stores nothing but your name), so it plays on every load. With reduced motion there's no curtain.
+
 ### The Reel and The Reveal (event moments)
 The reel is a full-screen scrim, 97% house dark: a projection-black window in a 3px amber frame with the reel glow, posters scrolling past under a fade. It lands like the reveal: the window lights with an amber ring, the heading becomes the night's feature, the winner lands in amber Limelight at display size, and when, where and who's coming print under it, with the reveal's endings. The reveal is the house lights going down: the page fades to full dark over 0.9s, then the card comes up out of the dark. A 2:3 card, oxblood with an amber Limelight question mark, waits face down in a ring of bulbs that chase like the marquee's, over "Tap to turn it over" in amber condensed caps; nothing turns by itself. A tap (or Enter or Space) turns it over 1s (`cubic-bezier(.3, .7, .2, 1)`) to the poster; then the house lights it up: the bulbs flash four times and hold lit with the reel glow, the heading resolves from "The movie is…" to "Friday's feature", and the title lands in amber Limelight at display size, with when and where under it, then who's coming and why it won in dim body text ("4 coming: you, Hal, Jo, Sam · 3 of the 4 coming thumbed it up"). It ends on See my ticket for someone coming and on Count me in / Not this time for anyone who isn't (with no name yet, Count me in asks for one, then lands on the ticket). It waits until every list has loaded (so it knows whether you're coming), plays once per person after How it works, and the news cards don't open over the ticket that follows it: See my ticket brings the ticket to the top of the screen, where it prints in (a short drop and fade). Back or Esc before the card turns is "not now": it stays face down and the news waits in its bar. Their posters load eagerly so the reel never spins past blanks. With reduced motion the bulbs hold still and the card turns without the spin.
 
@@ -430,7 +433,7 @@ Letter-board paper with board ink, 6px corners, rising 20px into place over 180m
 
 ### Don't:
 - **Don't** let it look like generic dark-mode SaaS: gray cards, blue links, a dashboard that could be any product.
-- **Don't** add a glowing or animated element at rest beyond the marquee and the leader glow. The reel and reveal glow only while they play.
+- **Don't** add a glowing or animated element at rest beyond the marquee and the leader glow. The curtain, the reel and the reveal move only while they play.
 - **Don't** use neutral gray, pure black or pure white. Every dark is velvet-tinted and every light is warm paper.
 - **Don't** set body copy, buttons or labels in Limelight.
 - **Don't** use green for actions, or spilled soda for anything but failures and the veto strike-through.

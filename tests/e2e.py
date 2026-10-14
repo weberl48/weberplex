@@ -191,6 +191,7 @@ def overlay_checks(browser, errors):
     goes back to the control that had it even when a repaint replaced that control."""
     page = tracked(browser, errors, 'landscape', viewport={'width': 844, 'height': 390}, reduced_motion='reduce')
     page.goto(f'{SITE}/?emu')
+    expect(page.locator('.curtain')).to_be_hidden()  # reduced motion: no curtain at all
     skip_tour(page)
     page.evaluate("""() => {
       const box = document.createElement('div');
@@ -301,6 +302,9 @@ def long_name_checks(browser, errors):
     wide = 'document.documentElement.scrollWidth - document.documentElement.clientWidth'
     page = tracked(browser, errors, 'long-guest', viewport=PHONE)
     page.goto(f'{SITE}/?emu')
+    # The curtain parts on every load: taps go through it, and it's gone within two seconds.
+    assert page.evaluate("getComputedStyle(document.querySelector('.curtain')).pointerEvents") == 'none'
+    expect(page.locator('.curtain')).to_be_hidden(timeout=2500)
     skip_tour(page)
     expect(page.locator('#past .past-row .d', has_text=LONG)).to_have_count(1, timeout=10000)
     expect(page.locator('#rateBox .review .who span:first-child', has_text=LONG)).to_have_count(1)
