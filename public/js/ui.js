@@ -60,21 +60,72 @@ export function downloadFile(filename, text, type) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-// Plain-language message for a failed Firestore write.
-export function writeError(e) {
-  if (e?.code === 'permission-denied') return 'That didn’t go through. The host may have just locked or changed the night.';
+// Plain-language message for a failed Firestore write. `ctx` tailors the
+// permission-denied case ('owner' for the owner console).
+export function writeError(e, ctx = '') {
+  if (e?.code === 'permission-denied') {
+    return ctx === 'owner'
+      ? 'That was refused. Check the owner key: forget it and enter it again.'
+      : 'That didn’t go through. Someone may have just changed it; try again.';
+  }
   if (e?.code === 'unavailable') return 'You look offline. Try again in a moment.';
   return e?.message || 'Something went wrong. Try again.';
 }
 
-// Two-tap confirm for destructive buttons (no confirm() dialogs).
+// A stable key for a control, so it can be found again after a repaint.
+const KEY_ATTRS = ['data-action', 'data-id', 'data-day', 'data-sort', 'data-tag', 'data-star', 'data-tab',
+  'data-shield', 'data-remove', 'data-cancel', 'data-house-add', 'data-house-tag'];
+function keyOf(n) {
+  if (n.id) return `#${CSS.escape(n.id)}`;
+  const parts = KEY_ATTRS.filter((a) => n.hasAttribute(a)).map((a) => `[${a}="${CSS.escape(n.getAttribute(a))}"]`);
+  return parts.length ? parts.join('') : null;
+}
+
+// Two-tap confirm for destructive buttons (no confirm() dialogs). The armed
+// state lives here, not on the node, so a live repaint doesn't reset it.
+const armedUntil = new Map();
 export function armed(button, label = 'Tap again to confirm') {
-  if (button.dataset.armed === '1') { delete button.dataset.armed; button.textContent = button.dataset.label; return true; }
+  const key = keyOf(button) || button.textContent;
+  if ((armedUntil.get(key)?.until || 0) > Date.now()) { armedUntil.delete(key); return true; }
+  armedUntil.set(key, { until: Date.now() + 4000, label });
   button.dataset.label = button.textContent;
-  button.dataset.armed = '1';
   button.textContent = label;
   setTimeout(() => {
-    if (button.dataset.armed === '1') { delete button.dataset.armed; button.textContent = button.dataset.label; }
+    if (!armedUntil.has(key)) return;
+    armedUntil.delete(key);
+    document.querySelectorAll(key.startsWith('#') || key.startsWith('[') ? key : 'x-none').forEach((b) => { if (b.dataset.label) b.textContent = b.dataset.label; });
   }, 4000);
   return false;
+}
+function reapplyArmed(root) {
+  for (const [key, a] of armedUntil) {
+    if (a.until <= Date.now() || !(key.startsWith('#') || key.startsWith('['))) continue;
+    root.querySelectorAll(key).forEach((b) => { b.dataset.label = b.textContent; b.textContent = a.label; });
+  }
+}
+
+// Replace a container's HTML only when it changed, keeping what the person
+// is doing: typed values, the focused control, the caret, armed buttons.
+const lastHtml = new WeakMap();
+export function paint(el, html) {
+  if (!el || lastHtml.get(el) === html) return;
+  lastHtml.set(el, html);
+  const active = document.activeElement;
+  const focusKey = active && el.contains(active) ? keyOf(active) : null;
+  let caret = null;
+  try { if (focusKey && typeof active.selectionStart === 'number') caret = [active.selectionStart, active.selectionEnd]; } catch { /* not a text field */ }
+  const values = [...el.querySelectorAll('input[id], textarea[id], select[id]')].map((i) => [i.id, i.value]);
+  el.innerHTML = html;
+  for (const [id, v] of values) {
+    const n = el.querySelector(`#${CSS.escape(id)}`);
+    if (n && n.value !== v && (n.tagName !== 'SELECT' || [...n.options].some((o) => o.value === v))) n.value = v;
+  }
+  if (focusKey) {
+    const n = el.querySelector(focusKey);
+    if (n) {
+      n.focus({ preventScroll: true });
+      if (caret) try { n.setSelectionRange(...caret); } catch { /* fine */ }
+    }
+  }
+  reapplyArmed(el);
 }

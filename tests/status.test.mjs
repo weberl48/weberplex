@@ -4,7 +4,7 @@ import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction } from 'firebase/firestore';
+import { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction, updateDoc } from 'firebase/firestore';
 import { makeActions } from '../public/js/actions.js';
 import { buildStatus } from '../lib/status.js';
 import { tick } from '../lib/tick.js';
@@ -72,13 +72,30 @@ test('the clock locks a night a day out with the attendees\' favorite, and HA se
   assert.equal(s.warmup_at, new Date(start.getTime() - 30 * 60000).toISOString());
 });
 
+test('the clock never gives back-to-back nights the same movie', async () => {
+  const jo = await A.join('Jo');
+  await A.addMovie(jo, movie(1));
+  await A.addMovie(jo, movie(2));
+  const a = new Date(Date.now() + 10 * H);
+  const b = new Date(Date.now() + 20 * H);
+  await A.hostNight(jo, dayOf(a) === dayOf(b) ? dayOf(a) : dayOf(a), a);
+  if (dayOf(a) !== dayOf(b)) await A.hostNight(jo, dayOf(b), b);
+  else return; // both offsets fall on one calendar day right now; nothing to compare
+  const r = await tick(where);
+  const movies = r.actions.filter((x) => x.action === 'locked').map((x) => x.movie);
+  assert.equal(movies.length, 2);
+  assert.notEqual(movies[0], movies[1]);
+  assert.deepEqual((await tick(where)).actions, []);
+});
+
 test('the clock leaves far-off nights alone and files finished ones', async () => {
   const jo = await A.join('Jo');
   await A.addMovie(jo, movie(1));
   const far = new Date(Date.now() + 5 * 86400000);
   await A.hostNight(jo, dayOf(far), far);
   const past = new Date(Date.now() - 14 * H);
-  await A.hostNight(jo, dayOf(past), past);
+  await A.hostNight(jo, dayOf(past), new Date(Date.now() + H));
+  await env.withSecurityRulesDisabled(async (ctx) => { await updateDoc(doc(ctx.firestore(), 'nights', dayOf(past)), { startsAt: past }); });
   await A.lockNight(dayOf(past), { movie: movie(1), tie: [] });
   const r = await tick(where);
   assert.deepEqual(r.actions, [{ day: dayOf(past), action: 'done' }]);

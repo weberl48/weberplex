@@ -6,7 +6,9 @@ import { SITE_URL } from './config.js';
 import { makeActions } from './actions.js';
 import { watch, watchNights, watchDoc } from './store.js';
 import * as L from './logic.js';
-import { $, esc, posterImg, saveLocal, loadLocal, toast, writeError, armed } from './ui.js';
+import { $, esc, posterImg, saveLocal, loadLocal, toast, writeError as baseError, armed, paint } from './ui.js';
+
+const writeError = (e) => baseError(e, 'owner');
 import { searchMovies, movieMeta } from './cinemeta.js';
 import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 
@@ -56,20 +58,20 @@ function render() {
   const t = shelf();
   const upcoming = L.upcomingNights(S.nights);
   $('#boothSub').textContent = `${t.movies.length} movies on the shelf · ${upcoming.length} night${upcoming.length === 1 ? '' : 's'} planned`;
-  $('#nightsList').innerHTML = upcoming.length ? upcoming.map((n) => `
+  paint($('#nightsList'), upcoming.length ? upcoming.map((n) => `
     <li class="date-item"><span>${esc(L.showtimeLong(n.startsAt))} · at ${esc(L.placeLabel(n.host))}${n.status === 'locked' ? ` · ${esc(n.lockedMovie?.title || '')}` : ''}</span>
       <span class="row">${n.lockedMovie ? `<button class="mini" type="button" data-shield="${esc(n.lockedMovieId)}">Shield</button>` : ''}
-      <button class="mini" type="button" data-cancel="${esc(n.day)}">Cancel</button></span></li>`).join('')
-    : '<li class="empty">No nights planned. Guests plan them from the calendar.</li>';
+      ${n.startsAt.toDate() > new Date() ? `<button class="mini" type="button" data-cancel="${esc(n.day)}">Cancel</button>` : ''}</span></li>`).join('')
+    : '<li class="empty">No nights planned. Guests plan them from the calendar.</li>');
   $('#shelfCount').textContent = `${t.movies.length} movies`;
-  $('#shelfList').innerHTML = t.movies.map((m) => `
+  paint($('#shelfList'), t.movies.map((m) => `
     <div class="pick-opt" style="grid-template-columns:36px 1fr auto; cursor:default">
       ${posterImg(m.poster, m.title)}
       <span>${esc(m.title)} <span class="by">· ${esc(m.byName)}</span></span>
       <span class="row"><span class="v">${m.votes}</span>
         <button class="mini" type="button" data-shield="${esc(m.imdbId)}" aria-label="Show ${esc(m.title)} on the Shield">Shield</button>
         <button class="mini" type="button" data-remove="${esc(m.imdbId)}">Remove</button></span>
-    </div>`).join('') || '<p class="empty">The shelf is empty.</p>';
+    </div>`).join('') || '<p class="empty">The shelf is empty.</p>');
   renderHouseBrowse();
 }
 
@@ -190,9 +192,18 @@ async function addHouse(e) {
   try {
     const meta = (await movieMeta(id).catch(() => null)) || fromList;
     const movie = { ...L.movieFromMeta({ ...meta, poster: meta.poster || fromList?.poster }), shelf: [...houseTags] };
-    await A.addHousePicks(S.key, [movie], S.movies);
+    const added = await A.addHousePicks(S.key, [movie], S.movies);
+    if (!added.length) {
+      const on = S.movies.find((m) => m.imdbId === movie.imdbId);
+      $('#houseMsg').textContent = `${movie.title} is already on the shelf${on?.byName ? ` (added by ${on.byName})` : ''}.`;
+      $('#houseMsg').className = 'msg bad';
+      return;
+    }
     $('#houseMsg').textContent = `Added ${movie.title} as a house pick.`;
     $('#houseMsg').className = 'msg good';
+    houseTags.clear();
+    document.querySelectorAll('#houseTags [data-house-tag]').forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); });
+    renderHouseBrowse();
     $('#houseQ').value = '';
     $('#houseResults').hidden = true;
   } catch (err) {
@@ -206,6 +217,11 @@ $('#houseGrid').addEventListener('click', addHouse);
 // ---- key handling ------------------------------------------------------------
 $('#keyForm').addEventListener('submit', (e) => {
   e.preventDefault();
+  if (!$('#keyInput').value.trim()) {
+    $('#keyMsg').textContent = 'Type the owner key first.';
+    $('#keyMsg').className = 'msg bad';
+    return;
+  }
   S.key = $('#keyInput').value.trim();
   S.verified = false;
   saveLocal('ps.hostKey', S.key);

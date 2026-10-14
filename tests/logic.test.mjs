@@ -4,7 +4,7 @@ import {
   nameKey, cleanName, initials, countdownParts, countdownText, buildIcs, ticketNumber, reviewSummary, pickRandom,
   movieFromMeta, parseRuntime, tasteProfile, recommend, isForeign, ballotGenre, stremioUrl, placeLabel,
   watchedIds, tallyShelf, pickMovie, lockFields, lockDue, doneDue, lockAt, upcomingNights, pastNights, hostCounts,
-  dayKey, dayFromKey, calendarDays, tallyDays, sinceLastLook, shelfTags,
+  dayKey, dayFromKey, calendarDays, tallyDays, sinceLastLook, shelfTags, excludedFor,
 } from '../public/js/logic.js';
 
 const at = (ms) => new Date(ms);
@@ -17,6 +17,8 @@ test('names normalize to rule-safe keys', () => {
   assert.equal(nameKey('!!!'), '');
   assert.ok(nameKey('x'.repeat(31) + ' yy').length <= 32);
   assert.equal(initials('sam oneil'), 'SO');
+  assert.match(nameKey('Ольга'), /^u[a-z0-9]+$/);
+  assert.equal(nameKey('Ольга'), nameKey(' ольга '));
 });
 
 const movies = [
@@ -85,6 +87,11 @@ test('nights lock a day ahead and file the morning after', () => {
   assert.deepEqual(upcomingNights(list, now).map((x) => x.day), ['rolling', 'a', 'b']);
   assert.deepEqual(pastNights(nights).map((x) => x.day), ['2026-10-08', '2026-10-01']);
   assert.deepEqual(hostCounts(nights), [['Jo', 2]]);
+});
+
+test('a pick leaves out watched movies and movies other nights locked', () => {
+  const ex = excludedFor([...nights, { day: 'a', status: 'locked', lockedMovieId: 'tt1' }, { day: 'b', status: 'locked', lockedMovieId: 'tt2' }], 'b');
+  assert.deepEqual([...ex].sort(), ['tt1', 'tt4', 'tt9']);
 });
 
 test('calendar days and who is free', () => {

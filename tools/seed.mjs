@@ -39,10 +39,11 @@ console.log(`added ${added.length} house picks, skipped ${movies.length - added.
 
 if (seenAs) {
   const who = A.me(seenAs);
-  const rewatch = seed.picks.filter((p) => (p.tags || []).includes('Rewatch'));
+  const onShelf = new Set([...shelf.map((m) => m.imdbId), ...added]);
+  const rewatch = seed.picks.filter((p) => (p.tags || []).includes('Rewatch') && onShelf.has(p.imdb));
   for (const p of rewatch) {
     if ((await getDoc(doc(db, 'seen', `${p.imdb}__${who.nameKey}`))).exists()) continue;
-    await A.setSeen({ imdbId: p.imdb }, who, true);
+    try { await A.setSeen({ imdbId: p.imdb }, who, true); } catch (e) { console.warn(`  ! could not mark ${p.q}: ${e.message}`); }
   }
   console.log(`marked ${rewatch.length} as seen by ${who.name}`);
 }

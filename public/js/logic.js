@@ -22,7 +22,16 @@ export function cleanName(raw) {
 }
 
 // "Sam O'Neil" -> "sam-o-neil". Must satisfy validKey() in firestore.rules.
+// Names with no Latin letters or digits (e.g. "Ольга") get a stable hashed
+// key instead of being refused.
 export function nameKey(raw) {
+  const latin = latinKey(raw);
+  if (latin || !/[\p{L}\p{N}]/u.test(cleanName(raw))) return latin;
+  let h = 2166136261;
+  for (const ch of cleanName(raw).toLowerCase()) h = Math.imul(h ^ ch.codePointAt(0), 16777619) >>> 0;
+  return `u${h.toString(36)}`;
+}
+function latinKey(raw) {
   return cleanName(raw)
     .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
@@ -47,6 +56,14 @@ const toMs = (v) => toDate(v)?.getTime() ?? 0;
 // Every movie anyone added, minus the ones a finished night has shown.
 export function watchedIds(nights = []) {
   return new Set(nights.filter((n) => n.status === 'done' && n.lockedMovieId).map((n) => n.lockedMovieId));
+}
+
+// What a night's pick must leave out: everything watched, plus movies other
+// still-upcoming nights have already locked (so back-to-back nights differ).
+export function excludedFor(nights = [], day = null) {
+  const out = watchedIds(nights);
+  for (const n of nights) if (n.status === 'locked' && n.day !== day && n.lockedMovieId) out.add(n.lockedMovieId);
+  return out;
 }
 
 // Thumbs and "seen it" marks per movie, most wanted first.
@@ -154,7 +171,7 @@ export function tallyDays(days, { free = [], nights = [] }) {
     if (!freeBy.has(f.day)) freeBy.set(f.day, []);
     freeBy.get(f.day).push({ nameKey: f.nameKey, name: f.name });
   }
-  const nightBy = new Map(nights.filter((n) => n.status === 'planned' || n.status === 'locked').map((n) => [n.day, n]));
+  const nightBy = new Map(nights.filter((n) => ['planned', 'locked', 'done'].includes(n.status)).map((n) => [n.day, n]));
   return days.map((day) => {
     const people = (freeBy.get(day) || []).sort((a, b) => a.name.localeCompare(b.name));
     return { day, free: people, count: people.length, night: nightBy.get(day) || null };
@@ -176,7 +193,9 @@ const nameList = (names) => {
   return `${u.slice(0, 2).join(', ')} and ${u.length - 2} more`;
 };
 
-export function sinceLastLook({ nights = [], movies = [], votes = [], free = [], since, meKey = '' }) {
+export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [], free = [], since, meKey = '' }) {
+  const watched = watchedIds(nights);
+  const movies = allMovies.filter((m) => !watched.has(m.imdbId));
   const out = { items: [], movies: new Set(), votes: new Map(), days: new Set() };
   if (!since) return out;
   const fresh = (t) => toMs(t) > since;

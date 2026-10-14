@@ -15,9 +15,9 @@ shared shelf, and thumbs-up what they'd watch. The site picks the movie.
 
 | Part | What people do |
 | --- | --- |
-| **Calendar** | Four weeks of evenings. Tap the ones you're free. Anyone can pick a day, choose a start time and tap **I can host**: that puts a movie night on it (one per day; first volunteer hosts). |
-| **Up next** | The nearest night: when, whose house, who's coming, what *those people* have thumbed up, snacks. The host can change the time, lock early, unlock, mark it watched, or cancel. |
-| **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one". Thumbs-up ("I'd watch it") and **Seen it** are per person and carry over. Sort by most wanted, newest, fewest have seen, shortest; filter by tag, unseen by me, added by me. No cap. |
+| **Calendar** | Four weeks of evenings. Tap the ones you're free. Anyone can pick a day, choose a start time and tap **I can host**: that puts a movie night on it (one per day; first volunteer hosts; the start has to be in the future, and hosting less than a day out locks the movie right away). |
+| **Up next** | The nearest night: when, whose house, who's coming, what *those people* have thumbed up, snacks. The host can change the time, lock early, unlock (until a day before), mark it watched (once it's started), or cancel (until it starts). |
+| **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one". Thumbs-up ("I'd watch it") and **Seen it** are per person and carry over; every card shows who has seen it. Sort by most wanted, newest, fewest have seen, shortest; filter by tag, unseen by me, added by me. No cap. |
 | **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. |
 
 **The pick.** A day before each night, the movie locks itself: the most

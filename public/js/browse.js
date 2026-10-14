@@ -15,8 +15,8 @@ export function browseTabs(genre, forYouLabel = 'For you') {
 }
 
 export function tabsHtml(tabs, active) {
-  return tabs.map((t) => `<button class="chip${t.id === active ? ' on' : ''}" type="button" role="tab"
-    aria-selected="${t.id === active}" data-tab="${t.id}">${esc(t.label)}</button>`).join('');
+  return tabs.map((t) => `<button class="chip${t.id === active ? ' on' : ''}" type="button"
+    aria-pressed="${t.id === active}" data-tab="${t.id}">${esc(t.label)}</button>`).join('');
 }
 
 // Returns { items: [{ meta, reason? }], note } for a tab.
@@ -28,7 +28,7 @@ export async function loadTab(id, { genre, likedIds = [], exclude = new Set(), b
   if (id === 'new') return wrap(await newThisYear());
   if (id !== 'foryou') return { items: [], note: '' };
   const liked = (await Promise.all(likedIds.slice(0, 20).map((x) => movieMeta(x)))).filter(Boolean);
-  if (!liked.length) return { items: [], note: 'Thumbs-up a few movies on the ballot and come back for suggestions.' };
+  if (!liked.length) return { items: [], note: 'Thumbs-up a few movies on the shelf and come back for suggestions.' };
   const profile = L.tasteProfile(liked);
   const pool = await candidatePool(profile.topGenres.slice(0, 2));
   const items = L.recommend(profile, pool, exclude, 12).map((r) => ({ meta: r.meta, reason: r.reason }));
@@ -36,7 +36,7 @@ export async function loadTab(id, { genre, likedIds = [], exclude = new Set(), b
 }
 
 // Poster tiles. `addAttr` names the attribute the page listens for.
-export function tilesHtml(items, { taken = new Set(), addAttr = 'data-action="pick" data-id' } = {}) {
+export function tilesHtml(items, { taken = new Set(), watched = new Set(), addAttr = 'data-action="pick" data-id' } = {}) {
   if (!items.length) return '';
   return items.map(({ meta: m, reason }) => {
     const id = m.imdb_id || m.id;
@@ -50,7 +50,7 @@ export function tilesHtml(items, { taken = new Set(), addAttr = 'data-action="pi
           ${sub ? `<span class="tile-sub">${esc(sub)}</span>` : ''}
           ${reason ? `<span class="tile-why">${esc(reason)}</span>` : ''}
           <div class="tile-actions">
-            <button class="mini add" type="button" ${addAttr}="${esc(id)}"${on ? ' disabled' : ''}>${on ? 'On the ballot' : 'Add'}</button>
+            <button class="mini add" type="button" ${addAttr}="${esc(id)}"${on ? ' disabled' : ''}>${watched.has(id) ? 'Watched' : on ? 'On the shelf' : 'Add'}</button>
             <a class="mini" href="${esc(L.stremioUrl(id))}" target="_blank" rel="noopener">Stremio</a>
           </div>
         </div>

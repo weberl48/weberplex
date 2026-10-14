@@ -18,7 +18,7 @@ export class AlreadyOnShelfError extends Error {
 }
 
 export function makeActions(db, F) {
-  const { doc, collection, writeBatch, serverTimestamp, getDoc, runTransaction } = F;
+  const { doc, collection, writeBatch, serverTimestamp, getDoc, getDocs, runTransaction } = F;
   const night = (day) => doc(db, 'nights', day);
   const batched = async (fill) => { const b = writeBatch(db); fill(b); await b.commit(); };
 
@@ -65,10 +65,16 @@ export function makeActions(db, F) {
       const ref = doc(db, 'movies', movie.imdbId);
       const existing = await getDoc(ref);
       if (existing.exists()) throw new AlreadyOnShelfError(existing.data());
-      await batched((b) => {
-        b.set(ref, { ...movie, pitch: String(pitch).trim().slice(0, 140), by: who.nameKey, byName: who.name, at: serverTimestamp() });
-        b.set(doc(db, 'votes', `${movie.imdbId}__${who.nameKey}`), { movie: movie.imdbId, title: movie.title, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
-      });
+      try {
+        await batched((b) => {
+          b.set(ref, { ...movie, pitch: String(pitch).trim().slice(0, 140), by: who.nameKey, byName: who.name, at: serverTimestamp() });
+          b.set(doc(db, 'votes', `${movie.imdbId}__${who.nameKey}`), { movie: movie.imdbId, title: movie.title, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
+        });
+      } catch (e) {
+        const now = await getDoc(ref); // someone added it a moment ago
+        if (now.exists()) throw new AlreadyOnShelfError(now.data());
+        throw e;
+      }
     },
 
     // Takes a movie off the shelf with its thumbs and seen marks.
@@ -145,8 +151,13 @@ export function makeActions(db, F) {
       });
     },
 
+    // Cancelling also clears the night's snacks, so a re-hosted day starts fresh.
     async cancelNight(day) {
-      await batched((b) => b.update(night(day), { status: 'cancelled', finishedAt: serverTimestamp() }));
+      const snacks = await getDocs(collection(db, 'nights', day, 'snacks'));
+      await batched((b) => {
+        for (const s of snacks.docs) b.delete(s.ref);
+        b.update(night(day), { status: 'cancelled', finishedAt: serverTimestamp() });
+      });
     },
 
     async addSnack(day, who, rawItem) {

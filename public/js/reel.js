@@ -21,7 +21,10 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…', done 
         <p class="reel-result" aria-live="polite"></p>
         <div class="row" style="justify-content:center"><button class="btn btn-bulb" type="button" hidden>${esc(done)}</button></div>
       </div>`;
+    const prev = document.activeElement;
+    overlay.tabIndex = -1;
     document.body.append(overlay);
+    overlay.focus();
     const win = overlay.querySelector('.reel-window');
     const track = overlay.querySelector('.reel-track');
     const result = overlay.querySelector('.reel-result');
@@ -31,7 +34,13 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…', done 
       okBtn.hidden = false;
       okBtn.focus();
     };
-    okBtn.addEventListener('click', () => { overlay.remove(); resolve(winner); });
+    const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey, true); prev?.focus?.(); resolve(winner); };
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); if (okBtn.hidden) finish(); close(); }
+      if (e.key === 'Tab') { e.preventDefault(); (okBtn.hidden ? overlay : okBtn).focus(); }
+    }
+    document.addEventListener('keydown', onKey, true);
+    okBtn.addEventListener('click', close);
     // Step by the window's inner height and size every tile to match, or the
     // border width accumulates and the reel stops between two posters.
     const h = win.clientHeight;

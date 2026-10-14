@@ -91,6 +91,10 @@ service cloud.firestore {
         && request.resource.data.description is string && request.resource.data.description.size() <= 600
         && request.resource.data.poster is string && request.resource.data.poster.size() <= 300
         && request.resource.data.genres is list && request.resource.data.genres.size() <= 6
+        && request.resource.data.year is string && request.resource.data.year.size() <= 12
+        && request.resource.data.runtime is string && request.resource.data.runtime.size() <= 20
+        && request.resource.data.rating is string && request.resource.data.rating.size() <= 6
+        && request.resource.data.trailer is string && request.resource.data.trailer.matches('^[A-Za-z0-9_-]{0,32}$')
         && (!('pitch' in request.resource.data)
             || (request.resource.data.pitch is string && request.resource.data.pitch.size() <= 140))
         && (!('shelf' in request.resource.data)
@@ -150,7 +154,7 @@ service cloud.firestore {
       return validDay(day) && d.day == day
         && d.keys().hasOnly(['day', 'startsAt', 'host', 'hostKey', 'status', 'createdAt',
             'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt', 'finishedAt'])
-        && d.status == 'planned' && d.startsAt is timestamp
+        && d.status == 'planned' && d.startsAt is timestamp && d.startsAt > request.time
         && validName(d.host) && validKey(d.hostKey)
         && d.createdAt == request.time && d.lockedMovieId == null && d.lockedAt == null;
     }
@@ -159,7 +163,7 @@ service cloud.firestore {
       let after = request.resource.data;
       let changed = after.diff(before).affectedKeys();
       return (before.status == 'planned' && after.status == 'planned'
-            && changed.hasOnly(['startsAt']) && after.startsAt is timestamp)
+            && changed.hasOnly(['startsAt']) && after.startsAt is timestamp && after.startsAt > request.time)
         || (before.status == 'planned' && after.status == 'locked'
             && changed.hasOnly(['status', 'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt'])
             && after.lockedAt == request.time && movieExists(after.lockedMovieId))
@@ -168,7 +172,7 @@ service cloud.firestore {
             && after.lockedMovieId == null)
         || (before.status == 'locked' && after.status == 'done' && request.time > before.startsAt
             && changed.hasOnly(['status', 'finishedAt']) && after.finishedAt == request.time)
-        || (before.status in ['planned', 'locked'] && after.status == 'cancelled'
+        || (before.status in ['planned', 'locked'] && after.status == 'cancelled' && request.time < before.startsAt
             && changed.hasOnly(['status', 'finishedAt']))
         || (before.status == 'cancelled' && newNight(day));
     }

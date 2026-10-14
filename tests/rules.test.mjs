@@ -20,6 +20,13 @@ const movie = (n, extra = {}) => ({
   runtime: '120 min', rating: '7.0', genres: ['Drama'], trailer: '', description: '', ...extra,
 });
 const H = 3600 * 1000;
+
+// Nights can only be created in the future; tests move one into the past
+// with the rules switched off (as time passing would).
+async function pastNight(who, dayKey, startsAt) {
+  await A.hostNight(who, dayKey, new Date(Date.now() + 86400000));
+  await env.withSecurityRulesDisabled(async (ctx) => { await updateDoc(doc(ctx.firestore(), 'nights', dayKey), { startsAt }); });
+}
 const day = (offsetDays) => { const d = new Date(Date.now() + offsetDays * 86400000); return d.toISOString().slice(0, 10); };
 
 before(async () => {
@@ -128,7 +135,7 @@ test('locking: real movie only, once; unlock before showtime; done after', async
   await assertFails(updateDoc(doc(db, 'nights', d), { status: 'locked', lockedMovieId: 'tt9999999', lockedMovie: {}, lockedTie: [], lockedAt: serverTimestamp() }));
   // A night that already started can be filed.
   const past = day(-1);
-  await A.hostNight(sam, past, new Date(Date.now() - 3 * H));
+  await pastNight(sam, past, new Date(Date.now() - 3 * H));
   await A.lockNight(past, pick);
   await assertFails(A.unlockNight(past));
   assert.equal(await A.finishNight(past), true);
@@ -143,7 +150,7 @@ test('snacks while planned or locked; reviews after showtime', async () => {
   await assertSucceeds(A.addSnack(future, sam, 'Popcorn'));
   await assertFails(A.review(future, sam, 5));
   const past = day(-1);
-  await A.hostNight(sam, past, new Date(Date.now() - 3 * H));
+  await pastNight(sam, past, new Date(Date.now() - 3 * H));
   await A.lockNight(past, { movie: movie(1), tie: [] });
   await assertSucceeds(A.review(past, sam, 4, 'Great'));
   await A.finishNight(past);
@@ -155,6 +162,28 @@ test('only the owner can point the Shield at a movie', async () => {
   await assertSucceeds(A.showOnShield(KEY, movie(1)));
   await assertFails(A.showOnShield(BAD, movie(2)));
   await assertFails(A.showOnShield(KEY, { ...movie(3), imdbId: 'not-an-id' }));
+});
+
+test('bug-hunt fixes: caps, cancel rules, snacks cleared, past starts refused', async () => {
+  const sam = await A.join('Sam');
+  const big = writeBatch(db);
+  big.set(doc(db, 'movies', 'tt0000077'), { ...movie(77), imdbId: 'tt0000077', year: 'x'.repeat(500), by: 'sam', byName: 'Sam', at: serverTimestamp() });
+  await assertFails(big.commit());
+  const badTrailer = writeBatch(db);
+  badTrailer.set(doc(db, 'movies', 'tt0000078'), { ...movie(78), imdbId: 'tt0000078', trailer: '"><script>', by: 'sam', byName: 'Sam', at: serverTimestamp() });
+  await assertFails(badTrailer.commit());
+  await assert.rejects(A.hostNight(sam, day(-1), new Date(Date.now() - H)));
+  const d = day(6);
+  await A.hostNight(sam, d, new Date(Date.now() + 6 * 86400000));
+  await A.addSnack(d, sam, 'Chips');
+  await assertFails(A.setNightTime(d, new Date(Date.now() - H)));
+  await A.cancelNight(d);
+  assert.equal((await getDocs(collection(db, 'nights', d, 'snacks'))).size, 0, 'cancel clears snacks');
+  await A.hostNight(sam, d, new Date(Date.now() + 6 * 86400000));
+  const started = day(-2);
+  await A.addMovie(sam, movie(1));
+  await pastNight(sam, started, new Date(Date.now() - 2 * H));
+  await assertFails(A.cancelNight(started));
 });
 
 test('names are validated', async () => {
