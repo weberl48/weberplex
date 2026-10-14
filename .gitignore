@@ -7,3 +7,7 @@ firestore-debug.log
 
 .vercel
 e2e-shots/
+
+# improve-loop raw evidence and live-data backups (never committed)
+.improve/evidence/
+.improve/backups/
