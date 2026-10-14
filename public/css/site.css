@@ -257,6 +257,7 @@ h3.label, h4.label { margin: 0 0 6px; }
 .pass form .field { flex: 1 1 12rem; }
 .pass form .field-label { flex-basis: 100%; margin: 0; }
 .pass:focus { outline: none; }
+.pass { scroll-margin-top: 12px; }
 .pass.flash { animation: flash 900ms ease 2; }
 @keyframes flash { 50% { border-color: var(--bulb); box-shadow: 0 0 0 4px var(--bulb-soft); } }
 

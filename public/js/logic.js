@@ -236,13 +236,14 @@ export function tasteMatch(votes = [], meKey, { minThumbs = MIN_TASTE_THUMBS } =
   return rows.sort((a, b) => b.sim - a.sim || a.row.name.localeCompare(b.row.name)).map((x) => x.row);
 }
 
-// Whose shelf additions became the movie of a locked or watched night, most
-// first. Every house pick counts toward one "House".
+// Whose shelf additions became the movie of a watched night, most first. Every
+// house pick counts toward one "House". A locked night counts once it's
+// watched: before then, a new pick for someone would give the movie away.
 export function pickLeaders(nights = [], movies = []) {
   const byId = new Map(movies.map((m) => [m.imdbId, m]));
   const tally = new Map();
   for (const n of nights) {
-    if ((n.status !== 'locked' && n.status !== 'done') || !n.lockedMovieId) continue;
+    if (n.status !== 'done' || !n.lockedMovieId) continue;
     const m = byId.get(n.lockedMovieId);
     if (!m || (!isHouse(m) && !m.by)) continue;
     const key = isHouse(m) ? HOUSE : m.by;

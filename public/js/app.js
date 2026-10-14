@@ -1002,7 +1002,10 @@ function renderStats(shelf) {
   $('#topVoter').hidden = !r.topVoter;
   if (r.topVoter) $('#topVoter').textContent = `Most thumbs-ups: ${r.topVoter.name} (${r.topVoter.thumbs})`;
 
-  const wanted = L.mostWanted(shelf.movies);
+  // A movie booked for an upcoming night isn't "wanted" any more (and ranking
+  // it would give a face-down movie away).
+  const booked = new Set(L.upcomingNights(S.nights).filter((n) => n.status === 'locked').map((n) => n.lockedMovieId));
+  const wanted = L.mostWanted(shelf.movies.filter((m) => !booked.has(m.imdbId)));
   out('#topWanted').innerHTML = wanted.length
     ? `<ol class="leaders">${wanted.map((m) => `<li>${esc(m.title)} ${thumbs(m.votes)}</li>`).join('')}</ol>`
     : `<p class="hint">${r.thumbs === 0 ? 'No thumbs-ups yet. Tap the thumb on a movie you’d watch.' : 'Nothing on the shelf has a thumbs-up right now. Tap the thumb on a movie you’d watch.'}</p>`;
@@ -1031,6 +1034,9 @@ function renderStats(shelf) {
 // (the control is found again by its key, since the page repaints). `done`
 // says what happened, after the welcome.
 let pending = null;
+// The form comes to the top of the screen, heading first, and says why it's
+// there inside itself: a toast at the bottom would sit over the name field.
+let passShownAt = 0;
 function requireMe(el = null, done = '', { ticket = false } = {}) {
   if (S.me) return S.me;
   pending = el ? { key: keyOf(el), done, ticket } : null;
@@ -1039,9 +1045,12 @@ function requireMe(el = null, done = '', { ticket = false } = {}) {
   pass.classList.remove('flash');
   void pass.offsetWidth;
   pass.classList.add('flash');
-  pass.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  passShownAt = Date.now();
+  $('#passMsg').textContent = ticket ? 'One step left: your name, and you’re on the list.' : el ? 'Your name first, then that counts.' : 'Add your name first so it counts.';
+  $('#passMsg').className = 'msg';
+  $('#passMsg').hidden = false;
+  pass.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   focusPass();
-  toast(el ? 'Put your name down first. Then that counts.' : 'Add your name first so it counts.');
   return null;
 }
 // The name form. With names already on the list, focus lands on the form, not
@@ -1279,7 +1288,9 @@ document.addEventListener('click', (e) => {
   const day = el.dataset.day;
   const movie = () => shelfNow().movies.find((x) => x.imdbId === id);
   switch (el.dataset.action) {
-    case 'join': join(el.dataset.name); break;
+    // A second tap landing as the form arrives would pick whichever name slid
+    // under the thumb: names ignore taps for a moment.
+    case 'join': if (Date.now() - passShownAt > 700) join(el.dataset.name); break;
     case 'switch':
       if (!armed(el, 'Tap again to switch')) return;
       S.me = null; saveLocal('ps.me', null); prefsFor = null; S.since = null; S.walked = false; S.hostTime = '20:00'; closeSlip(); render();

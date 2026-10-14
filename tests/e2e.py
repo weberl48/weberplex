@@ -468,6 +468,16 @@ def reveal_ending_checks(browser, errors):
     expect(page.locator('.reveal-actions button')).to_have_text(['Count me in', 'Not this time'])
     page.click('.reveal-actions [data-r="in"]')
     expect(page.locator('#pass')).to_be_visible(timeout=10000)
+    # A second tap as the form arrives lands on no one's name.
+    page.evaluate("document.querySelector('#passChips button').click()")
+    # The form says why it's there inside itself (no toast over the field), and
+    # comes to the top of the screen, heading first, with the field in view.
+    expect(page.locator('#passMsg')).to_have_text('One step left: your name, and you’re on the list.')
+    page.wait_for_timeout(1200)
+    expect(page.locator('#pass')).to_be_visible()
+    expect(page.locator('#toast')).not_to_contain_text('Welcome')
+    box = page.evaluate("() => ({ top: document.querySelector('#pass').getBoundingClientRect().top, field: document.querySelector('#passName').getBoundingClientRect().bottom, h: innerHeight })")
+    assert 0 <= box['top'] <= 30 and box['field'] <= box['h'], box
     page.fill('#passName', 'Quentin')  # (not like any name on the list, or it asks 'Is that you?')
     page.click('#passForm button[type=submit]')
     expect(page.locator('#next .ticket')).to_be_focused(timeout=15000)
@@ -967,6 +977,8 @@ def main():
         fresh.keyboard.press('Escape')  # Esc before it turns is 'not now': it stays face down
         expect(fresh.locator('.reveal-overlay')).to_have_count(0)
         expect(fresh.locator('#board h1')).to_have_text('The movie is…')
+        # Stats don't give it away either: a booked movie isn't "Most wanted".
+        expect(fresh.locator('#topWanted')).not_to_contain_text(loser, ignore_case=True)
         fresh.click('#next [data-action="reveal-now"]')  # Reveal the movie
         fresh.click('.reveal-card')
         fresh.keyboard.press('Escape')  # once it has turned, Esc just closes it

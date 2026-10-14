@@ -216,7 +216,7 @@ test('taste match: how alike two people\'s thumbs are, most alike first', () => 
   assert.equal(third[0].pct, 38); // 3 of 8 movies, rounded
 });
 
-test('pick leaders: whose shelf additions became a night', () => {
+test('pick leaders: whose shelf additions became a watched night', () => {
   const shelf = [
     { imdbId: 'tt1', by: 'sam', byName: 'Sam' }, { imdbId: 'tt2', by: 'sam', byName: 'Sam' },
     { imdbId: 'tt3', by: 'jo', byName: 'Jo' }, { imdbId: 'tt4', by: '', byName: 'The house' },
@@ -231,8 +231,7 @@ test('pick leaders: whose shelf additions became a night', () => {
   assert.deepEqual(pickLeaders(list, shelf), [
     { nameKey: '', name: 'House', picks: 2 }, // tied with Sam: ties by name
     { nameKey: 'sam', name: 'Sam', picks: 2 },
-    { nameKey: 'jo', name: 'Jo', picks: 1 },
-  ]);
+  ]); // Jo's tt3 is locked, not watched yet: it would give the movie away
   assert.deepEqual(pickLeaders([], shelf), []);
   assert.deepEqual(pickLeaders(list), []);
 });
