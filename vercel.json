@@ -32,7 +32,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*([Ff][Aa][Cc][Ee][Bb][Oo][Oo][Kk][Ee][Xx][Tt][Ee][Rr][Nn][Aa][Ll][Hh][Ii][Tt]|[Ff][Aa][Cc][Ee][Bb][Oo][Tt]|[Tt][Ww][Ii][Tt][Tt][Ee][Rr][Bb][Oo][Tt]|[Ss][Ll][Aa][Cc][Kk][Bb][Oo][Tt]|[Dd][Ii][Ss][Cc][Oo][Rr][Dd][Bb][Oo][Tt]|[Ww][Hh][Aa][Tt][Ss][Aa][Pp][Pp]|[Tt][Ee][Ll][Ee][Gg][Rr][Aa][Mm][Bb][Oo][Tt]|[Ll][Ii][Nn][Kk][Ee][Dd][Ii][Nn][Bb][Oo][Tt]|[Ss][Kk][Yy][Pp][Ee][Uu][Rr][Ii][Pp][Rr][Ee][Vv][Ii][Ee][Ww]|[Aa][Pp][Pp][Ll][Ee][Bb][Oo][Tt]|[Rr][Ee][Dd][Dd][Ii][Tt][Bb][Oo][Tt]|[Ee][Mm][Bb][Ee][Dd][Ll][Yy]|[Vv][Kk][Ss][Hh][Aa][Rr][Ee]|[Pp][Ii][Nn][Tt][Ee][Rr][Ee][Ss][Tt]).*"
+          "value": ".*([Ff][Aa][Cc][Ee][Bb][Oo][Oo][Kk][Ee][Xx][Tt][Ee][Rr][Nn][Aa][Ll][Hh][Ii][Tt]|[Ff][Aa][Cc][Ee][Bb][Oo][Tt]|[Tt][Ww][Ii][Tt][Tt][Ee][Rr][Bb][Oo][Tt]|[Ss][Ll][Aa][Cc][Kk][Bb][Oo][Tt]|[Dd][Ii][Ss][Cc][Oo][Rr][Dd][Bb][Oo][Tt]|[Ww][Hh][Aa][Tt][Ss][Aa][Pp][Pp]|[Tt][Ee][Ll][Ee][Gg][Rr][Aa][Mm][Bb][Oo][Tt]|[Ll][Ii][Nn][Kk][Ee][Dd][Ii][Nn][Bb][Oo][Tt]|[Ss][Kk][Yy][Pp][Ee][Uu][Rr][Ii][Pp][Rr][Ee][Vv][Ii][Ee][Ww]|[Aa][Pp][Pp][Ll][Ee][Bb][Oo][Tt]|[Rr][Ee][Dd][Dd][Ii][Tt][Bb][Oo][Tt]|[Ee][Mm][Bb][Ee][Dd][Ll][Yy]|[Vv][Kk][Ss][Hh][Aa][Rr][Ee]).*"
         }
       ],
       "destination": "/api/preview",

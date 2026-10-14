@@ -233,7 +233,7 @@ test('vercel.json: calendar rewrite, bot-only preview redirect, and the old rule
     'Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)', 'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)',
     'WhatsApp/2.23.20.0 A', 'TelegramBot (like TwitterBot)', 'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)',
     'SkypeUriPreview Preview/0.5 skype-url-preview@microsoft.com', 'Mozilla/5.0 (Macintosh) Version/14 Safari/605.1.15 (Applebot/0.1; +http://www.apple.com/go/applebot)',
-    'redditbot/1.0', 'Mozilla/5.0 (compatible; Embedly/0.2; +http://support.embed.ly/)', 'vkShare; +http://vk.com/dev/Share', 'Pinterest/0.2 (+http://www.pinterest.com/bot.html)',
+    'redditbot/1.0', 'Mozilla/5.0 (compatible; Embedly/0.2; +http://support.embed.ly/)', 'vkShare; +http://vk.com/dev/Share',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15 facebookexternalhit/1.1 Facebot Twitterbot/1.0',
   ];
   for (const ua of bots) {
@@ -242,6 +242,8 @@ test('vercel.json: calendar rewrite, bot-only preview redirect, and the old rule
   const people = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+    // Pinterest's in-app browser says "Pinterest", so it's left out: people there get the site.
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [Pinterest/iOS]',
     'Mozilla/5.0 (Android 14; Mobile; rv:127.0) Gecko/127.0 Firefox/127.0', 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/126.0 Safari/537.36 Edg/126.0', '',
   ];
   for (const ua of people) assert.ok(!matches(ua), ua);
