@@ -293,44 +293,114 @@ export const placeLabel = (place) => (place ? `${place}'s` : '');
 
 // ---- "Since you last looked" ------------------------------------------------
 // What changed after `since` (ms), leaving out the viewer's own actions.
-// Returns banner lines plus the ids to badge.
+// Returns the updates (`items`, shown as walkthrough cards through `cards`)
+// plus the ids to badge. Each item: { kind, text (headline), detail, target,
+// and what its card draws: poster/title, names, theme, struck }.
+// Every kind it can produce is listed in NEWS_KINDS; tests/news.test.mjs fails
+// when a new kind of change is made without being announced here (or marked
+// quiet there), so the walkthrough stays complete as the site grows.
+export const NEWS_KINDS = ['night', 'cancelled', 'moved', 'theme', 'veto', 'locked', 'watched', 'movies', 'votes', 'free', 'snack', 'review'];
+export const MAX_NEWS_CARDS = 8;
+
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const nameList = (names) => {
   const u = [...new Set(names)];
   if (u.length <= 2) return u.join(' and ');
   return `${u.slice(0, 2).join(', ')} and ${u.length - 2} more`;
 };
+// "Friday" for a night's start (local time, like showtimeLong).
+const dayName = (when) => toDate(when).toLocaleDateString(undefined, { weekday: 'long' });
+const starsOf = (n) => '★'.repeat(Math.max(0, Math.min(5, n)));
 
-export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [], free = [], since, meKey = '' }) {
+// `subs`: day -> { snacks, reviews } for the nights the page follows.
+// `people`: for a veto owner's name (the host's own name is on the night).
+export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [], free = [], people = [], subs = new Map(), since, meKey = '' }) {
   const watched = watchedIds(nights);
   const movies = allMovies.filter((m) => !watched.has(m.imdbId));
-  const out = { items: [], movies: new Set(), votes: new Map(), days: new Set() };
+  const out = { items: [], cards: [], movies: new Set(), votes: new Map(), days: new Set() };
   if (!since) return out;
   const fresh = (t) => toMs(t) > since;
   const theirs = (k) => k !== meKey;
+  const push = (item) => out.items.push({ detail: '', ...item });
+  const titleOf = (id) => allMovies.find((m) => m.imdbId === id)?.title || 'a movie that left the shelf';
+  const nameOf = (n, key) => (key === n.hostKey ? n.host : people.find((p) => p.id === key)?.name || key);
   for (const n of nights) {
-    if (n.status !== 'planned' && n.status !== 'locked') continue;
-    if (fresh(n.createdAt) && theirs(n.hostKey)) {
-      out.days.add(n.day);
-      out.items.push({ kind: 'night', text: `${n.host} is hosting ${showtimeLong(n.startsAt)}`, target: '#nextSec' });
+    const dow = n.startsAt ? dayName(n.startsAt) : '';
+    const title = n.lockedMovie?.title || '';
+    const poster = n.lockedMovie?.poster || '';
+    if (n.status === 'cancelled') {
+      if (fresh(n.finishedAt) && theirs(n.hostKey)) push({ kind: 'cancelled', text: `${placeLabel(n.host)} ${dow} movie night is off`, detail: 'Pick another evening if you still want a movie night.', target: '#calSec' });
+      continue;
     }
-    if (n.status === 'locked' && fresh(n.lockedAt)) {
-      out.items.push({ kind: 'locked', text: `Locked for ${showtimeParts(n.startsAt).dow}: ${n.lockedMovie?.title || 'the movie'}`, target: '#nextSec' });
+    if (n.status === 'done') {
+      if (fresh(n.finishedAt)) push({ kind: 'watched', text: `${title || 'The movie'} is filed under Watched`, detail: 'Rate it while it is fresh.', target: '#watchedSec', title, poster });
+    } else {
+      if (fresh(n.createdAt) && theirs(n.hostKey)) {
+        out.days.add(n.day);
+        push({ kind: 'night', text: `${n.host} is hosting ${showtimeLong(n.startsAt)}`, detail: n.theme ? `Theme: ${n.theme}` : '', target: '#nextSec' });
+      }
+      if (n.status === 'locked' && fresh(n.lockedAt)) {
+        push({ kind: 'locked', text: `Locked for ${showtimeParts(n.startsAt).dow}: ${title || 'the movie'}`, detail: `${placeLabel(n.host)} ${dow} night, ${showtimeParts(n.startsAt).time}.`, target: '#nextSec', title, poster });
+      }
+      if (fresh(n.movedAt) && theirs(n.hostKey)) {
+        out.days.add(n.day);
+        push({ kind: 'moved', text: `${dow}'s night now starts at ${showtimeParts(n.startsAt).time}`, detail: `${placeLabel(n.host)} night, ${showtimeLong(n.startsAt)}.`, target: '#nextSec' });
+      }
+      if (fresh(n.themeAt) && theirs(n.hostKey)) {
+        out.days.add(n.day);
+        push(n.theme
+          ? { kind: 'theme', text: `${dow} is a ${n.theme} night now`, detail: 'The pick sticks to the theme when it can.', target: '#nextSec', theme: n.theme }
+          : { kind: 'theme', text: `${dow}'s theme was cleared`, detail: 'Anything on the shelf can be picked.', target: '#nextSec' });
+      }
+      const vetoed = Object.entries(n.vetoAt || {}).filter(([k, t]) => fresh(t) && theirs(k) && n.vetoes?.[k]);
+      if (vetoed.length) {
+        out.days.add(n.day);
+        const titles = vetoed.map(([k]) => titleOf(n.vetoes[k]));
+        push({
+          kind: 'veto', target: '#nextSec', struck: titles[0],
+          text: vetoed.length === 1 ? `${nameOf(n, vetoed[0][0])} vetoed ${titles[0]} for ${dow}` : `${plural(vetoed.length, 'veto')} for ${dow}`,
+          detail: vetoed.length === 1 ? 'A vetoed movie is out for that night.' : vetoed.map(([k], i) => `${nameOf(n, k)}: ${titles[i]}`).join(' · '),
+        });
+      }
     }
+    const sub = subs.get(n.day);
+    if (!sub) continue;
+    const snacks = (sub.snacks || []).filter((x) => fresh(x.at) && theirs(x.nameKey));
+    if (snacks.length) push({
+      kind: 'snack', target: '#nextSec',
+      text: snacks.length === 1 ? `${snacks[0].name} is bringing ${snacks[0].item} on ${dow}` : `${plural(snacks.length, 'new snack')} for ${dow}`,
+      detail: snacks.length === 1 ? 'Call yours too, so nobody doubles up.' : snacks.map((x) => `${x.name}: ${x.item}`).join(' · '),
+    });
+    const reviews = (sub.reviews || []).filter((x) => fresh(x.at) && theirs(x.nameKey));
+    if (reviews.length) push({
+      kind: 'review', target: '#watchedSec', title, poster,
+      text: reviews.length === 1 ? `${reviews[0].name} rated ${title || 'the movie'} ${starsOf(reviews[0].stars)}` : `${plural(reviews.length, 'new review')} of ${title || 'the movie'}`,
+      detail: reviews.length === 1 ? reviews[0].line || '' : reviews.map((x) => `${x.name} ${starsOf(x.stars)}`).join(' · '),
+    });
   }
   const added = movies.filter((m) => fresh(m.at) && theirs(m.by));
   for (const m of added) out.movies.add(m.imdbId);
   if (added.length) {
     const titles = added.slice(0, 3).map((m) => m.title).join(', ');
-    out.items.push({ kind: 'movies', text: `${plural(added.length, 'new movie')} on the shelf: ${titles}${added.length > 3 ? '…' : ''}`, target: '#shelfSec' });
+    push({ kind: 'movies', text: `${plural(added.length, 'new movie')} on the shelf: ${titles}${added.length > 3 ? '…' : ''}`, detail: 'Thumbs-up any you would watch.', target: '#shelfSec', title: added[0].title, poster: added[0].poster || '' });
   }
   const live = new Set(movies.map((m) => m.imdbId));
   const newVotes = votes.filter((v) => fresh(v.at) && theirs(v.nameKey) && live.has(v.movie));
   for (const v of newVotes) out.votes.set(v.movie, (out.votes.get(v.movie) || 0) + 1);
-  if (newVotes.length) out.items.push({ kind: 'votes', text: `${plural(newVotes.length, 'new thumbs-up', 'new thumbs-up')} on ${plural(out.votes.size, 'movie')}`, target: '#shelfSec' });
+  if (newVotes.length) {
+    const titles = [...out.votes.keys()].slice(0, 3).map(titleOf);
+    push({ kind: 'votes', text: `${plural(newVotes.length, 'new thumbs-up', 'new thumbs-up')} on ${plural(out.votes.size, 'movie')}`, detail: `${titles.join(', ')}${out.votes.size > 3 ? '…' : ''}`, target: '#shelfSec' });
+  }
   const marks = free.filter((f) => fresh(f.at) && theirs(f.nameKey));
   for (const f of marks) out.days.add(f.day);
-  if (marks.length) out.items.push({ kind: 'free', text: `${nameList(marks.map((f) => f.name))} marked free evenings`, target: '#calSec' });
+  if (marks.length) push({ kind: 'free', text: `${nameList(marks.map((f) => f.name))} marked free evenings`, detail: 'Their evenings show on the calendar.', target: '#calSec', names: [...new Set(marks.map((f) => f.name))] });
+  // At most MAX_NEWS_CARDS cards; the rest are counted on the last one.
+  out.cards = out.items.slice(0, MAX_NEWS_CARDS);
+  const extra = out.items.length - out.cards.length;
+  if (extra > 0) {
+    const last = out.cards[out.cards.length - 1];
+    out.cards[out.cards.length - 1] = { ...last, detail: [last.detail, `…and ${plural(extra, 'more thing')}.`].filter(Boolean).join(' ') };
+  }
   return out;
 }
 

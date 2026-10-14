@@ -362,17 +362,91 @@ test('a veto is one key per write, for a movie on the shelf, on a planned night'
   await assertFails(updateDoc(night(), { vetoes: 'everything' }));
   await assertFails(updateDoc(night(), { vetoes: { jo: id }, theme: 'Mixed in' }));
   // Vetoing in somebody else's name works only if they are free (name-only trust,
-  // as with thumbs), and still one key per write.
-  await assertSucceeds(updateDoc(night(), { vetoes: { sam: id } }));
-  await assertSucceeds(updateDoc(night(), { vetoes: { sam: id, jo: id } })); // the host's key is the one added
-  await assertFails(updateDoc(night(), { vetoes: {} })); // two removed at once
-  await assertFails(updateDoc(night(), { vetoes: { jo: id, al: id } })); // one swapped for another
-  await assertSucceeds(updateDoc(night(), { vetoes: { jo: id } })); // Sam's taken back
-  await assertSucceeds(updateDoc(night(), { vetoes: {} }));
+  // as with thumbs), and still one key per write (each with its vetoAt stamp).
+  const put = (k) => ({ [`vetoes.${k}`]: id, [`vetoAt.${k}`]: serverTimestamp() });
+  const take = (k) => ({ [`vetoes.${k}`]: deleteField(), [`vetoAt.${k}`]: deleteField() });
+  await assertSucceeds(updateDoc(night(), put('sam')));
+  await assertSucceeds(updateDoc(night(), put('jo'))); // the host's key is the one added
+  await assertFails(updateDoc(night(), { vetoes: {}, vetoAt: {} })); // two removed at once
+  await assertFails(updateDoc(night(), { ...take('jo'), ...put('al') })); // one swapped for another
+  await assertSucceeds(updateDoc(night(), take('sam'))); // Sam's taken back
+  await assertSucceeds(updateDoc(night(), take('jo')));
   // A locked night takes no more vetoes.
   await A.lockNight(d, { movie: movie(1), tie: [] });
   assert.equal(await A.setVeto(d, sam, id), false);
-  await assertFails(updateDoc(night(), { vetoes: { sam: id } }));
+  await assertFails(updateDoc(night(), put('sam')));
+});
+
+// A stamp from the client's clock is refused. Not `new Date()`: on a fast machine the
+// emulator can process the write in the same millisecond and the two times match.
+const minuteAgo = () => new Date(Date.now() - 60000);
+
+test('a veto and its vetoAt stamp move together, for the same key, at the server time', async () => {
+  const jo = await A.join('Jo');
+  const sam = await A.join('Sam');
+  await A.addMovie(jo, movie(1));
+  const d = day(4);
+  await A.hostNight(jo, d, new Date(Date.now() + 4 * 86400000));
+  await A.setFree(d, sam, true);
+  const night = () => doc(db, 'nights', d);
+  const id = movie(1).imdbId;
+  const stampsOf = async () => (await getDoc(night())).data().vetoAt || {};
+  // Setting: the stamp is required, it must be the server time, and only for that key.
+  await assertFails(updateDoc(night(), { 'vetoes.sam': id }));
+  await assertFails(updateDoc(night(), { 'vetoes.sam': id, 'vetoAt.sam': minuteAgo() }));
+  await assertFails(updateDoc(night(), { 'vetoes.sam': id, 'vetoAt.jo': serverTimestamp() }));
+  await assertFails(updateDoc(night(), { 'vetoes.sam': id, 'vetoAt.sam': serverTimestamp(), 'vetoAt.jo': serverTimestamp() }));
+  await assertFails(updateDoc(night(), { 'vetoAt.sam': serverTimestamp() })); // a stamp with no veto
+  assert.deepEqual(await stampsOf(), {});
+  assert.equal(await A.setVeto(d, sam, id), true);
+  assert.deepEqual(Object.keys(await stampsOf()), ['sam']);
+  assert.ok((await stampsOf()).sam.toMillis() > Date.now() - 60000);
+  assert.equal(await A.setVeto(d, jo, id), true);
+  assert.deepEqual(Object.keys(await stampsOf()).sort(), ['jo', 'sam']);
+  // Clearing: the veto's stamp goes with it, nobody else's does.
+  await assertFails(updateDoc(night(), { 'vetoes.sam': deleteField() })); // stamp left behind
+  await assertFails(updateDoc(night(), { 'vetoes.sam': deleteField(), 'vetoAt.jo': deleteField() })); // wrong stamp
+  await assertFails(updateDoc(night(), { 'vetoes.sam': deleteField(), 'vetoAt.sam': serverTimestamp() }));
+  assert.equal(await A.setVeto(d, sam, null), true);
+  assert.deepEqual(Object.keys(await stampsOf()), ['jo']);
+  // Dropping out takes the stamp along with the veto.
+  await A.setFree(d, jo, false);
+  assert.deepEqual(await stampsOf(), {});
+  assert.deepEqual(await vetoesOf(d), {});
+});
+
+test('moving the time and changing the theme stamp movedAt and themeAt at the server time', async () => {
+  const jo = await A.join('Jo');
+  const d = day(5);
+  const later = new Date(Date.now() + 5 * 86400000 + H);
+  await A.hostNight(jo, d, new Date(Date.now() + 5 * 86400000));
+  const night = () => doc(db, 'nights', d);
+  const data = async () => (await getDoc(night())).data();
+  assert.equal('movedAt' in await data(), false, 'a new night has neither stamp');
+  assert.equal('themeAt' in await data(), false);
+  await assertSucceeds(A.setNightTime(d, later));
+  assert.ok((await data()).movedAt.toMillis() > Date.now() - 60000);
+  await assertFails(updateDoc(night(), { startsAt: later, movedAt: minuteAgo() })); // not the server time
+  await assertFails(updateDoc(night(), { startsAt: later, movedAt: serverTimestamp(), host: 'Somebody else' }));
+  await assertFails(updateDoc(night(), { startsAt: new Date(later.getTime() + 2 * H), movedAt: serverTimestamp(), themeAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(night(), { startsAt: new Date(later.getTime() + H) })); // a stale page still works
+  await assertSucceeds(A.setTheme(d, 'Horror'));
+  assert.ok((await data()).themeAt.toMillis() > Date.now() - 60000);
+  await assertFails(updateDoc(night(), { theme: 'Drama', themeAt: minuteAgo() }));
+  await assertFails(updateDoc(night(), { theme: 'Drama', themeAt: serverTimestamp(), movedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(night(), { theme: 'Drama' }));
+  await assertSucceeds(A.setTheme(d, ''));
+  assert.equal((await data()).theme, '');
+  // Hosting writes none of them; a forged new night can't carry them.
+  const plain = await data();
+  assert.equal('vetoAt' in plain, false);
+  const forgedDay = day(7);
+  const start = new Date(Date.now() + 7 * 86400000);
+  const forged = (extra) => setDoc(doc(db, 'nights', forgedDay), { ...nightDoc(forgedDay, 'Jo', { startsAt: start }), createdAt: serverTimestamp(), theme: '', vetoes: {}, ...extra });
+  await assertFails(forged({ themeAt: serverTimestamp() }));
+  await assertFails(forged({ movedAt: serverTimestamp() }));
+  await assertFails(forged({ vetoAt: { jo: serverTimestamp() } }));
+  await assertSucceeds(forged({ themeAt: null, movedAt: null, vetoAt: {} }));
 });
 
 test('at most 30 vetoes on a night', async () => {
@@ -411,6 +485,11 @@ test('nights from before themes and vetoes still lock, unlock and finish', async
   const old3 = day(9);
   await asAdmin((admin) => setDoc(doc(admin, 'nights', old3), nightDoc(old3, 'Jo', { startsAt: new Date(Date.now() + 9 * 86400000) })));
   await assertSucceeds(A.setTheme(old3, 'Horror'));
+  // A veto set before vetoAt existed (no stamp) can still be taken back.
+  const old4 = day(10);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', old4), nightDoc(old4, 'Jo', { startsAt: new Date(Date.now() + 10 * 86400000), theme: '', vetoes: { jo: movie(1).imdbId } })));
+  assert.equal(await A.setVeto(old4, jo, null), true);
+  assert.deepEqual(await vetoesOf(old4), {});
 });
 
 test('cancelling and re-hosting starts a night clean: no old vetoes or theme', async () => {

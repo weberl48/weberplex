@@ -34,10 +34,21 @@ reel, which plays once on everyone's phone; a clear winner gets the **reveal**
 instead, a card that flips to the poster once per person. A watched movie leaves
 the shelf. The night files itself as watched the morning after.
 
-Also: a "since you last looked" banner (new nights, locks, movies, thumbs,
-free marks), a first-visit walkthrough (and **How it works** to replay it),
-tickets with an .ics invite, Stremio links on every card, and a season title
-on the marquee.
+Also: a first-visit walkthrough (and **How it works** to replay it), tickets
+with an .ics invite, Stremio links on every card, and a season title on the
+marquee.
+
+**Since you last looked.** When you come back and other people have done
+something, step-through cards open by themselves (same style as How it works):
+a night hosted, moved, themed, vetoed, cancelled, locked or filed as watched,
+new movies and thumbs-ups, free evenings, snacks and reviews. **Show me**
+jumps to the section; **Got it** (or Skip) marks it all seen. A slim bar keeps
+"Walk me through" to reopen them. The rule for developers: any new kind of
+change people can make must show up in these cards or be marked quiet, with a
+reason, in `tests/news.test.mjs`. That test fails on any action in
+`public/js/actions.js` (or server write in `lib/tick.js`) it hasn't been told
+about, and checks that every kind in `NEWS_KINDS` (`public/js/logic.js`) is
+produced by a fixture.
 
 **Keeping people in the loop.** **Subscribe** (in the calendar section) gives
 every night as a calendar feed, `/calendar.ics`: planned and locked nights
@@ -57,8 +68,8 @@ can't rename), and **`firestore.rules` is the backend**:
 
 - Guests are identified by name only (a deliberate choice: no accounts).
   The browser remembers only that name. Everything else about a person
-  lives on `people/{name}`: when they last looked (for the "since you last
-  looked" banner), whether they've seen the walkthrough, their usual start
+  lives on `people/{name}`: when they last looked (for "since you last
+  looked"), whether they've seen the walkthrough, their usual start
   time, and which tie reels and movie reveals they've watched. So it follows
   them to any phone.
 - `movies/{imdbId}`: the shelf. Guests add under their name; house picks

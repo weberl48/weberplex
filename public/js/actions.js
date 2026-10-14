@@ -44,6 +44,9 @@ export function makeActions(db, F) {
   // One person's key in a night's vetoes map, as a field path: the write
   // touches only that key, so it can't collide with anyone else's veto.
   const vetoPath = (who) => `vetoes.${who.nameKey}`;
+  // Its stamp rides in the same update (set with the veto, gone with it): the
+  // rules require both, and "Since you last looked" reads it.
+  const vetoAtPath = (who) => `vetoAt.${who.nameKey}`;
 
   return {
     me,
@@ -125,7 +128,7 @@ export function makeActions(db, F) {
       await batched((b) => {
         if (isFree) { b.set(ref, freeDoc(who, day)); return; }
         b.delete(ref);
-        if (vetoed) b.update(night(day), { [vetoPath(who)]: deleteField() });
+        if (vetoed) b.update(night(day), { [vetoPath(who)]: deleteField(), [vetoAtPath(who)]: deleteField() });
       });
     },
 
@@ -150,12 +153,12 @@ export function makeActions(db, F) {
     },
 
     async setNightTime(day, startsAt) {
-      await batched((b) => b.update(night(day), { startsAt }));
+      await batched((b) => b.update(night(day), { startsAt, movedAt: serverTimestamp() }));
     },
 
     // The night's theme ('' clears it); only while it is still planned.
     async setTheme(day, theme) {
-      await batched((b) => b.update(night(day), { theme: cleanTheme(theme) }));
+      await batched((b) => b.update(night(day), { theme: cleanTheme(theme), themeAt: serverTimestamp() }));
     },
 
     // Your one veto on a night (movieId = null takes it back). Writes only your
@@ -166,7 +169,10 @@ export function makeActions(db, F) {
       const snap = await getDoc(night(day));
       if (!snap.exists() || snap.data().status !== 'planned') return false;
       if (!movieId && !snap.data().vetoes?.[who.nameKey]) return true; // nothing to take back
-      await batched((b) => b.update(night(day), { [vetoPath(who)]: movieId || deleteField() }));
+      await batched((b) => b.update(night(day), {
+        [vetoPath(who)]: movieId || deleteField(),
+        [vetoAtPath(who)]: movieId ? serverTimestamp() : deleteField(),
+      }));
       return true;
     },
 

@@ -11,6 +11,7 @@ import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 import { spinReel } from './reel.js';
 import { revealMovie } from './reveal.js';
 import { openTour } from './tour.js';
+import { newsSteps } from './news.js';
 import * as L from './logic.js';
 import { $, esc, THUMB, faces, posterImg, saveLocal, loadLocal, dropLegacyLocal, toast, downloadFile, writeError, armed, paint } from './ui.js';
 
@@ -25,6 +26,7 @@ const S = {
   me: loadLocal('ps.me'),            // { name, nameKey }
   since: null,                       // "since you last looked" (ms), from your people doc
   news: null,
+  walked: false,                     // the "since you last looked" cards had their one chance this visit (on load)
   day: null,                         // calendar day shown in detail
   hostTime: '20:00',                 // your usual start time, from your people doc
   toured: !!legacy.toured,           // walkthrough done this visit (saved once you have a name)
@@ -33,6 +35,7 @@ const S = {
   tab: 'search', tabItems: [], tabNote: '', tabLoading: false,
   openPlots: new Set(), lastVotes: new Map(),
   nightSub: new Map(),               // day -> { snacks, reviews } for nights on screen
+  subLoaded: new Set(),              // `${day}:${collection}` once its first snapshot is in
   pastReviews: new Map(),
   stars: {},                         // day -> stars picked but not yet posted
 };
@@ -80,8 +83,9 @@ function syncNightSubs() {
     S.nightSub.set(day, { snacks: [], reviews: [] });
     subs.set(day, ['snacks', 'reviews'].map((c) => watch(db, F, `nights/${day}/${c}`, (rows) => {
       S.nightSub.get(day)[c] = rows;
+      S.subLoaded.add(`${day}:${c}`);
       render();
-    }, () => {})));
+    }, () => { S.subLoaded.add(`${day}:${c}`); render(); })));
   }
 }
 const recentDone = () => L.pastNights(S.nights).filter((n) => Date.now() - n.startsAt.toMillis() < 7 * 86400000);
@@ -179,11 +183,12 @@ const out = (sel) => ({ set innerHTML(html) { paint($(sel), html); } });function
     queued = false;
     const shelf = shelfNow();
     const upcoming = L.upcomingNights(S.nights);
-    S.news = L.sinceLastLook({ nights: S.nights, movies: S.movies, votes: S.votes, free: S.free, since: S.since, meKey: S.me?.nameKey });
+    S.news = L.sinceLastLook({ nights: S.nights, movies: S.movies, votes: S.votes, free: S.free, people: S.people, subs: S.nightSub, since: S.since, meKey: S.me?.nameKey });
     renderBoard(upcoming[0], shelf);
     renderWho();
     renderPass();
     renderNews();
+    maybeWalk();
     renderNext(upcoming, shelf);
     renderCalendar();
     renderShelf(shelf);
@@ -238,13 +243,42 @@ function renderPass() {
 }
 
 // ---- since you last looked ----------------------------------------------------
+// The news is a walkthrough (tour.js): it opens by itself once per visit, and
+// the slim bar keeps "Walk me through" for opening it again. Got it, Skip and
+// Esc mark everything seen; Show me closes the cards and scrolls to the section.
 function renderNews() {
   const items = S.news?.items || [];
   $('#news').hidden = !items.length;
   if (!items.length) return;
+  $('#newsCount').textContent = `${items.length} ${items.length === 1 ? 'update' : 'updates'}`;
   $('#newsWhen').textContent = `since ${new Date(S.since).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`;
-  out('#newsList').innerHTML = items.map((i) =>
-    `<li><button class="linkish" type="button" data-action="goto" data-target="${esc(i.target)}">${esc(i.text)}</button></li>`).join('');
+}
+const scrollToSection = (sel) => $(sel)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+function walkNews() {
+  const cards = S.news?.cards || [];
+  openTour({
+    steps: newsSteps(cards), label: 'Since you last looked', doneText: 'Got it',
+    onDone: ({ how, target }) => { if (how === 'show') scrollToSection(target); else markSeen(); },
+  });
+}
+// On load, once your settings and every list are in (snacks and reviews
+// included): if there is news the cards open, once per visit. They wait for
+// How it works, a reel or a reveal to finish, and those wait for them (the
+// cards' overlay is a .tour-overlay). News that arrives while you are on the
+// page only reaches the slim bar.
+let walkRetry = false;
+const subsLoaded = () => [...subs.keys()].every((day) => S.subLoaded.has(`${day}:snacks`) && S.subLoaded.has(`${day}:reviews`));
+function maybeWalk() {
+  if (S.walked || !ready() || !S.me || !myDoc() || !subsLoaded()) return;
+  if (!myDoc().toured && !S.toured) return; // How it works comes first
+  if (document.querySelector('.tour-overlay')) return;
+  if (!S.news?.cards.length) { S.walked = true; return; }
+  if (document.querySelector('.reel-overlay, .reveal-overlay')) {
+    if (!walkRetry) { walkRetry = true; setTimeout(() => { walkRetry = false; render(); }, 1500); }
+    return;
+  }
+  S.walked = true;
+  walkNews();
 }
 function markSeen() { S.since = Date.now(); savePrefs({ lastSeen: true }); render(); }
 // Leaving after a real look (4 s+) counts as seen; the next banner starts here.
@@ -733,10 +767,11 @@ document.addEventListener('click', (e) => {
   const movie = () => shelfNow().movies.find((x) => x.imdbId === id);
   switch (el.dataset.action) {
     case 'join': join(el.dataset.name); break;
-    case 'switch': S.me = null; saveLocal('ps.me', null); prefsFor = null; S.since = null; S.hostTime = '20:00'; render(); $('#passName').focus(); break;
+    case 'switch': S.me = null; saveLocal('ps.me', null); prefsFor = null; S.since = null; S.walked = false; S.hostTime = '20:00'; render(); $('#passName').focus(); break;
     case 'tour': startTour(); break;
     case 'news-seen': markSeen(); break;
-    case 'goto': $(el.dataset.target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); break;
+    case 'news-walk': walkNews(); break;
+    case 'goto': scrollToSection(el.dataset.target); break;
     case 'subscribe': {
       const panel = $('#subPanel');
       panel.hidden = !panel.hidden;

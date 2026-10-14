@@ -417,13 +417,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---- since you last looked ----------------------------------------------- */
 .news {
-  margin-top: 1.25rem; padding: 0.9rem 1rem; border-radius: var(--radius);
+  margin-top: 1.25rem; padding: 0.6rem 1rem; border-radius: var(--radius);
   background: var(--velvet-2); border: 1px solid var(--bulb);
 }
-.news .section-head { margin-bottom: 0.4rem; }
-.news .section-head h2 { font-size: var(--step-1); }
-.news-list { margin: 0 0 0.6rem; padding-left: 1.1rem; display: grid; gap: 4px; }
-.news-list .linkish { color: var(--screen); text-decoration-color: var(--bulb); text-align: left; vertical-align: top; }
+.news-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.news-bar p { margin: 0; color: var(--dim); }
+.news-bar b { color: var(--screen); font-weight: 600; }
+.news-poster, .tour-demo .noimg { width: 64px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 2px; background: var(--velvet-3); }
+.tour-demo .noimg { display: grid; place-items: center; padding: 4px; text-align: center; font: 400 0.7rem/1.1 var(--f-display); color: var(--faint); overflow: hidden; }
+.tour-demo .vetoes { margin: 0; }
 .new-chip {
   position: absolute; right: 6px; top: 6px; padding: 3px 7px; border-radius: 3px;
   background: var(--go); color: var(--board-ink); font: 700 10px/1 var(--f-body); letter-spacing: 0.16em; text-transform: uppercase;

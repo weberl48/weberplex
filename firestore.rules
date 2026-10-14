@@ -161,27 +161,35 @@ service cloud.firestore {
 
     // ---- nights ---------------------------------------------------------------
     // One per day, created by its volunteer host. Allowed changes:
-    //   planned -> planned   new start time, a theme, or one person's veto (set or cleared)
+    //   planned -> planned   new start time, a theme, or one person's veto (set or cleared),
+    //                        each with its own stamp for "Since you last looked"
     //   planned -> locked    the movie is picked (by a phone or the server clock)
     //   locked  -> planned   unlock before showtime
     //   locked  -> done      after showtime
     //   planned/locked -> cancelled, and cancelled -> planned (someone re-hosts)
     // A theme is free text (a shelf tag or genre); nights from before themes
     // and vetoes existed have neither field, so every rule reads them with get().
+    // Three server-stamped fields feed "Since you last looked": `movedAt` (the
+    // start time changed), `themeAt` (the theme changed) and `vetoAt` (when
+    // each person's veto was set), all equal to request.time when written.
     function validTheme(t) { return t is string && t.size() <= 40; }
     function newNight(day) {
       let d = request.resource.data;
       return validDay(day) && d.day == day
         && d.keys().hasOnly(['day', 'startsAt', 'host', 'hostKey', 'status', 'createdAt',
-            'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt', 'finishedAt', 'theme', 'vetoes'])
+            'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt', 'finishedAt', 'theme', 'vetoes',
+            'themeAt', 'movedAt', 'vetoAt'])
         && d.status == 'planned' && d.startsAt is timestamp && d.startsAt > request.time
         && validName(d.host) && validKey(d.hostKey)
         && d.createdAt == request.time && d.lockedMovieId == null && d.lockedAt == null
-        && validTheme(d.get('theme', '')) && d.get('vetoes', {}) == {};
+        && validTheme(d.get('theme', '')) && d.get('vetoes', {}) == {}
+        && d.get('themeAt', null) == null && d.get('movedAt', null) == null && d.get('vetoAt', {}) == {};
     }
     // One person's veto, set or cleared: exactly one key of `vetoes` appears or
     // disappears (nothing else moves), it belongs to the host or to someone free
     // that evening, and it names a movie on the shelf. At most 30 vetoes a night.
+    // `vetoAt` moves with it: that same key (and no other) is stamped with the
+    // request time when the veto is set, and removed when the veto is cleared.
     function vetoOk(day, before, after) {
       let was = before.get('vetoes', {});
       let added = after.vetoes.keys().removeAll(was.keys());
@@ -191,18 +199,23 @@ service cloud.firestore {
         && after.vetoes.diff(was).affectedKeys().size() == 1 && added.size() + gone.size() == 1
         && validKey(k)
         && (k == before.hostKey || exists(/databases/$(database)/documents/free/$(day + '__' + k)))
-        && (gone.size() == 1 || (after.vetoes[k] is string && movieExists(after.vetoes[k])));
+        && (gone.size() == 1 || (after.vetoes[k] is string && movieExists(after.vetoes[k])))
+        && after.get('vetoAt', {}) is map
+        && after.get('vetoAt', {}).diff(before.get('vetoAt', {})).affectedKeys().hasOnly([k])
+        && (gone.size() == 1 ? !(k in after.get('vetoAt', {})) : after.vetoAt[k] == request.time);
     }
     function nightChangeOk(day) {
       let before = resource.data;
       let after = request.resource.data;
       let changed = after.diff(before).affectedKeys();
       return (before.status == 'planned' && after.status == 'planned'
-            && changed.hasOnly(['startsAt']) && after.startsAt is timestamp && after.startsAt > request.time)
+            && changed.hasOnly(['startsAt', 'movedAt']) && after.startsAt is timestamp && after.startsAt > request.time
+            && (!('movedAt' in changed) || after.movedAt == request.time))
         || (before.status == 'planned' && after.status == 'planned'
-            && changed.hasOnly(['theme']) && validTheme(after.theme))
+            && changed.hasOnly(['theme', 'themeAt']) && validTheme(after.get('theme', ''))
+            && (!('themeAt' in changed) || after.themeAt == request.time))
         || (before.status == 'planned' && after.status == 'planned'
-            && changed.hasOnly(['vetoes']) && vetoOk(day, before, after))
+            && changed.hasOnly(['vetoes', 'vetoAt']) && vetoOk(day, before, after))
         || (before.status == 'planned' && after.status == 'locked'
             && changed.hasOnly(['status', 'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt'])
             && after.lockedAt == request.time && movieExists(after.lockedMovieId))

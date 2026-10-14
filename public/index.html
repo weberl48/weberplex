@@ -38,9 +38,13 @@
     </section>
 
     <section class="news" id="news" hidden aria-live="polite">
-      <div class="section-head"><h2>Since you last looked</h2><span class="aside" id="newsWhen"></span></div>
-      <ul class="news-list" id="newsList"></ul>
-      <div class="row"><button class="btn btn-ghost btn-small" type="button" data-action="news-seen">Got it</button></div>
+      <div class="news-bar">
+        <p><b id="newsCount"></b> <span id="newsWhen"></span></p>
+        <div class="row">
+          <button class="btn btn-ghost btn-small" type="button" data-action="news-walk">Walk me through</button>
+          <button class="btn btn-ghost btn-small" type="button" data-action="news-seen">Got it</button>
+        </div>
+      </div>
     </section>
 
     <section class="pass" id="pass" hidden>

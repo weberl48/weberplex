@@ -1,6 +1,9 @@
 // "How it works": a short card tour shown on a guest's first visit and from
 // the How it works link. Each card carries a small, inert example built from
-// the site's own styles.
+// the site's own styles. The same overlay also steps through any other list of
+// cards (openTour's `steps`): "Since you last looked" uses it. A step is
+// { title, body, demo?, target? } as trusted html; `target` adds a Show me
+// button. Whoever builds steps from other people's words must escape them.
 import { THUMB } from './ui.js';
 
 const STEPS = [
@@ -53,8 +56,9 @@ const STEPS = [
 
 let open = null;
 
-export function openTour({ onDone } = {}) {
-  if (open) return;
+// onDone({ how, target }): how is 'done' (last card), 'skip' (Skip or Esc) or 'show' (Show me).
+export function openTour({ onDone, steps = STEPS, label = 'How it works', doneText = "Let's go" } = {}) {
+  if (open || !steps.length) return;
   let i = 0;
   const prevFocus = document.activeElement;
   const overlay = document.createElement('div');
@@ -65,29 +69,30 @@ export function openTour({ onDone } = {}) {
   document.body.append(overlay);
   open = overlay;
 
-  const close = () => {
+  const close = (how = 'skip', target = '') => {
     overlay.remove();
     open = null;
     document.removeEventListener('keydown', onKey);
-    prevFocus?.focus?.();
-    onDone?.();
+    prevFocus?.focus?.({ preventScroll: how === 'show' });
+    onDone?.({ how, target });
   };
   const paint = () => {
-    const s = STEPS[i];
-    const last = i === STEPS.length - 1;
+    const s = steps[i];
+    const last = i === steps.length - 1;
     overlay.innerHTML = `
       <div class="tour-card">
         <div class="tour-top">
-          <span class="label">How it works · ${i + 1} of ${STEPS.length}</span>
+          <span class="label">${label} · ${i + 1} of ${steps.length}</span>
           <button class="linkish" type="button" data-tour="skip">Skip</button>
         </div>
-        <div class="tour-demo" aria-hidden="true" inert>${s.demo}</div>
+        ${s.demo ? `<div class="tour-demo" aria-hidden="true" inert>${s.demo}</div>` : ''}
         <h2 id="tourTitle">${s.title}</h2>
-        <p>${s.body}</p>
-        <div class="tour-dots" aria-hidden="true">${STEPS.map((_, k) => `<span class="${k === i ? 'on' : ''}"></span>`).join('')}</div>
+        ${s.body ? `<p>${s.body}</p>` : ''}
+        <div class="tour-dots" aria-hidden="true">${steps.map((_, k) => `<span class="${k === i ? 'on' : ''}"></span>`).join('')}</div>
         <div class="row tour-nav">
           ${i ? '<button class="btn btn-ghost" type="button" data-tour="back">Back</button>' : ''}
-          <button class="btn btn-bulb" type="button" data-tour="${last ? 'done' : 'next'}">${last ? "Let's go" : 'Next'}</button>
+          ${s.target ? '<button class="btn btn-ghost" type="button" data-tour="show">Show me</button>' : ''}
+          <button class="btn btn-bulb" type="button" data-tour="${last ? 'done' : 'next'}">${last ? doneText : 'Next'}</button>
         </div>
       </div>`;
     overlay.querySelector(`[data-tour="${last ? 'done' : 'next'}"]`).focus();
@@ -98,11 +103,12 @@ export function openTour({ onDone } = {}) {
     const a = b.dataset.tour;
     if (a === 'next') { i += 1; paint(); }
     if (a === 'back') { i -= 1; paint(); }
-    if (a === 'skip' || a === 'done') close();
+    if (a === 'show') close('show', steps[i].target);
+    if (a === 'skip' || a === 'done') close(a);
   });
   function onKey(e) {
-    if (e.key === 'Escape') { e.preventDefault(); close(); return; }
-    if (e.key === 'ArrowRight' && i < STEPS.length - 1) { i += 1; paint(); }
+    if (e.key === 'Escape') { e.preventDefault(); close('skip'); return; }
+    if (e.key === 'ArrowRight' && i < steps.length - 1) { i += 1; paint(); }
     if (e.key === 'ArrowLeft' && i > 0) { i -= 1; paint(); }
     if (e.key === 'Tab') {
       const f = [...overlay.querySelectorAll('button')];

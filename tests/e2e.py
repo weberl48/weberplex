@@ -68,6 +68,15 @@ def skip_tour(page):
         page.click('[data-tour="skip"]')
 
 
+def skip_cards(page):
+    """Dismiss the "Since you last looked" cards if they opened (they wait for the data, so give them a moment)."""
+    try:
+        page.locator('.tour-overlay').wait_for(timeout=2500)
+    except Exception:
+        return
+    page.click('[data-tour="skip"]')
+
+
 def join(page, name):
     page.goto(f'{SITE}/?emu')
     skip_tour(page)
@@ -134,6 +143,7 @@ def paint_checks(page):
     keyed chips keep focus, and a vanished control hands focus to its container."""
     page.goto(f'{SITE}/?emu')
     skip_tour(page)
+    skip_cards(page)
     r = page.evaluate("""async () => {
       const { paint } = await import('/js/ui.js');
       const el = document.createElement('div');
@@ -298,6 +308,80 @@ def long_name_checks(browser, errors):
     page.context.close()
 
 
+def as_person(browser, errors, label, name):
+    """A phone that is already signed in as `name` (like a returning guest)."""
+    ctx = browser.new_context(viewport=PHONE)
+    ctx.add_init_script("try { localStorage.setItem('ps.me', JSON.stringify({ name: '%s', nameKey: '%s' })); } catch (e) {}"
+                        % (name, name.lower()))
+    page = ctx.new_page()
+    page.on('pageerror', lambda e: errors.append(f'{label}: {e}'))
+    return page
+
+
+def news_cards_checks(browser, errors):
+    """Since you last looked, from another person's real actions: Hal (hosting) moves the time,
+    sets a theme, vetoes a movie and calls a snack; Wren, whose last look was just before, gets one card
+    for each when the page opens, in that order. Got it marks them seen: a reload shows none."""
+    now = datetime.now(timezone.utc)
+    old, looked = now - timedelta(hours=2), now
+    day = (now + timedelta(days=20)).strftime('%Y-%m-%d')
+    for key, name in (('hal', 'Hal'), ('wren', 'Wren')):
+        emu('PATCH', f'{DOCS}/people/{key}', {'fields': fields({
+            'name': name, 'at': old, 'toured': True, **({'lastSeen': looked} if key == 'wren' else {})})}, owner=True)
+    movie = {'year': '1999', 'poster': '', 'runtime': '', 'rating': '', 'genres': ['Drama'], 'trailer': '', 'description': '',
+             'pitch': '', 'shelf': [], 'by': 'hal', 'byName': 'Hal', 'at': old}
+    emu('PATCH', f'{DOCS}/movies/tt9990011', {'fields': fields({**movie, 'imdbId': 'tt9990011', 'title': 'Cards Movie'})}, owner=True)
+    emu('PATCH', f'{DOCS}/votes/tt9990011__hal', {'fields': fields({
+        'movie': 'tt9990011', 'title': 'Cards Movie', 'nameKey': 'hal', 'name': 'Hal', 'at': old})}, owner=True)
+    emu('PATCH', f'{DOCS}/free/{day}__hal', {'fields': fields({'day': day, 'nameKey': 'hal', 'name': 'Hal', 'at': old})}, owner=True)
+    emu('PATCH', f'{DOCS}/nights/{day}', {'fields': fields({
+        'day': day, 'startsAt': now + timedelta(days=20), 'host': 'Hal', 'hostKey': 'hal', 'status': 'planned', 'createdAt': old,
+        'lockedTie': [], 'theme': '', 'vetoes': {}})}, owner=True)
+
+    hal = as_person(browser, errors, 'hal', 'Hal')
+    hal.goto(f'{SITE}/?emu')
+    skip_cards(hal)
+    expect(hal.locator('#next .host-tools')).to_have_count(1, timeout=10000)
+    hal.select_option(f'#next #next-time-{day}', '21:00')
+    hal.click(f'#next [data-action="night-time"]')
+    expect(hal.locator('#toast')).to_contain_text('Moved to', timeout=10000)
+    hal.select_option('#next select[data-theme-day]', 'Drama')
+    expect(hal.locator('#toast')).to_contain_text('Theme: Drama', timeout=10000)
+    hal.click('#next [data-action="veto"]')
+    expect(hal.locator('#next .vetoes s')).to_have_text('Cards Movie', timeout=10000)
+    hal.click('#next [data-action="quick-snack"][data-item="Candy"]')
+    expect(hal.locator('#next .snack')).to_contain_text('Candy', timeout=10000)
+    hal.context.close()
+
+    wren = as_person(browser, errors, 'wren', 'Wren')
+    wren.goto(f'{SITE}/?emu')
+    walk = wren.locator('.tour-overlay')
+    expect(walk).to_be_visible(timeout=10000)
+    expect(walk.locator('.tour-top .label')).to_have_text('Since you last looked · 1 of 4')
+    for i, text in enumerate([re.compile(r"starts at 9:00\sPM"), 'is a Drama night now', 'Hal vetoed Cards Movie', 'Hal is bringing Candy']):
+        expect(walk.locator('#tourTitle')).to_contain_text(text)
+        if i == 2:
+            expect(walk.locator('.tour-demo s')).to_have_text('Cards Movie')  # the struck title
+            shot(wren, '02b-guest-news-veto')
+        if i < 3:
+            wren.click('[data-tour="next"]')
+    wren.click('[data-tour="done"]')
+    expect(walk).to_have_count(0)
+    expect(wren.locator('#news')).to_be_hidden()
+    wren.wait_for_timeout(1500)
+    wren.reload()
+    expect(wren.locator('#whoami')).to_contain_text('Wren', timeout=10000)
+    wren.wait_for_timeout(2000)
+    expect(wren.locator('.tour-overlay')).to_have_count(0)
+    expect(wren.locator('#news')).to_be_hidden()
+    # A change made while Wren is on the page only reaches the slim bar: no cards pop up mid-visit.
+    emu('PATCH', f'{DOCS}/nights/{day}?updateMask.fieldPaths=movedAt', {'fields': fields({'movedAt': datetime.now(timezone.utc)})}, owner=True)
+    expect(wren.locator('#news')).to_be_visible(timeout=10000)
+    expect(wren.locator('#newsCount')).to_have_text('1 update')
+    assert wren.locator('.tour-overlay').count() == 0
+    wren.context.close()
+
+
 def main():
     ensure_site()
     reset()
@@ -406,15 +490,48 @@ def main():
         card(jo, jaws).locator('.vote').click()
         paddington = add_by_search(jo, 'paddington')
         sam.goto(f'{SITE}/?emu')
-        expect(sam.locator('#news')).to_be_visible(timeout=10000)
-        expect(sam.locator('#newsList')).to_contain_text('new movie')
-        expect(sam.locator('#newsList')).to_contain_text('thumbs-up')
-        # A bullet sits on an item's first line, not the last line of a wrapped one.
-        assert sam.evaluate("getComputedStyle(document.querySelector('#newsList .linkish')).verticalAlign") == 'top'
+        # The news opens by itself as cards. Whether Jo's night is news too depends on when Sam's
+        # last look was saved (leaving a page races its write), so count the cards instead of
+        # assuming: the new movie, then the thumbs (and maybe the night before them).
+        walk = sam.locator('.tour-overlay')
+        label = walk.locator('.tour-top .label')
+        expect(walk).to_be_visible(timeout=10000)
+        expect(label).to_have_text(re.compile(r'^Since you last looked · 1 of [2-4]$'))
+        total = int(re.search(r'of (\d+)', label.text_content()).group(1))
+        titles = []
+        for _ in range(total):
+            titles.append(walk.locator('#tourTitle').inner_text())
+            if 'new movie' in titles[-1]:
+                assert paddington in titles[-1], titles
+                expect(walk.locator('.tour-demo .news-poster, .tour-demo .noimg')).to_have_count(1)  # the poster
+                shot(sam, '02-guest-news')
+            if 'thumbs-up' in titles[-1]:
+                break
+            sam.click('[data-tour="next"]')
+        assert any('new movie' in t for t in titles) and 'thumbs-up' in titles[-1], titles
+        # Show me closes the cards and scrolls to the shelf; the slim bar stays.
+        sam.click('[data-tour="show"]')
+        expect(walk).to_have_count(0)
+        sam.wait_for_function("() => { const r = document.querySelector('#shelfSec').getBoundingClientRect(); return r.top > -20 && r.top < 250; }")
+        expect(sam.locator('#news')).to_be_visible()
+        expect(sam.locator('#newsCount')).to_have_text(f'{total} updates')
         expect(card(sam, paddington).locator('.new-chip')).to_have_count(1)
         expect(card(sam, jaws).locator('.vote-new')).to_have_text('+1')
-        shot(sam, '02-guest-news')
-        sam.click('#news [data-action="news-seen"]')
+        # Walk me through reopens them; Got it on the last card marks everything seen.
+        sam.click('#news [data-action="news-walk"]')
+        expect(label).to_have_text(f'Since you last looked · 1 of {total}')
+        for _ in range(total - 1):
+            sam.click('[data-tour="next"]')
+        expect(walk.locator('[data-tour="done"]')).to_have_text('Got it')
+        sam.click('[data-tour="done"]')
+        expect(walk).to_have_count(0)
+        expect(sam.locator('#news')).to_be_hidden()
+        expect(card(sam, paddington).locator('.new-chip')).to_have_count(0)
+        sam.wait_for_timeout(1500)  # the lastSeen write lands
+        sam.reload()
+        expect(sam.locator('#whoami')).to_contain_text('Sam', timeout=10000)
+        sam.wait_for_timeout(2000)
+        expect(sam.locator('.tour-overlay')).to_have_count(0)  # nothing new: no cards
         expect(sam.locator('#news')).to_be_hidden()
 
         # The host locks the movie: the favorite of the people coming.
@@ -682,6 +799,7 @@ def main():
         expect(tour).to_have_count(0)
 
         paint_checks(newbie)
+        news_cards_checks(browser, errors)
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)
