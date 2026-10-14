@@ -74,3 +74,11 @@ night-specific changes for the same night may share a card) and capped at
   - server-side writes (`lib/tick.js`: lock, done) map to `locked` / `watched`.
 - README: a short "Since you last looked" paragraph stating the rule: any new
   kind of change must show up here or be marked quiet in `tests/news.test.mjs`.
+
+## Decided while testing
+- Locks and nights filed as watched show to everyone, including whoever caused them:
+  both usually happen automatically (a phone's clock or the server), so nobody is
+  recorded as the actor, and a host should hear that their night locked.
+- Only Got it, Skip or Esc mark news seen. The old 4-second "real look" timer and
+  the write on leaving the page skip while there is unread news.
+- The cards open on load only; news that arrives mid-visit goes to the slim bar.

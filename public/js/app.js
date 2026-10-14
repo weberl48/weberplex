@@ -57,7 +57,9 @@ function applyPrefs() {
   if (d.hostTime) S.hostTime = d.hostTime;
   // A real look (4 s+) counts as seen. Saved now, while the page is surely
   // alive; the write on leaving below may not land if the tab is closing.
-  setTimeout(() => { if (document.visibilityState === 'visible' && prefsFor === d.id) savePrefs({ lastSeen: true }); }, 4000);
+  // Not while there's news you haven't been through: only Got it, Skip or Esc
+  // mark that seen.
+  setTimeout(() => { if (document.visibilityState === 'visible' && prefsFor === d.id && !unreadNews()) savePrefs({ lastSeen: true }); }, 4000);
   if (!d.toured && S.toured) savePrefs({ toured: true });
   else if (!d.toured && !document.querySelector('.tour-overlay')) startTour();
 }
@@ -258,7 +260,19 @@ function walkNews() {
   const cards = S.news?.cards || [];
   openTour({
     steps: newsSteps(cards), label: 'Since you last looked', doneText: 'Got it',
-    onDone: ({ how, target }) => { if (how === 'show') scrollToSection(target); else markSeen(); },
+    onDone: ({ how, target }) => {
+      if (how === 'show') { scrollToSection(target); render(); return; }
+      markSeen();
+      // Got it hides the bar, and with it the Walk me through button that had
+      // focus: keep the place in the page instead of dropping to <body>.
+      setTimeout(() => {
+        const a = document.activeElement;
+        if (a && a !== document.body && a.offsetParent) return;
+        const sec = $('#nextSec');
+        sec.setAttribute('tabindex', '-1');
+        sec.focus({ preventScroll: true });
+      }, 0);
+    },
   });
 }
 // On load, once your settings and every list are in (snacks and reviews
@@ -268,6 +282,9 @@ function walkNews() {
 // page only reaches the slim bar.
 let walkRetry = false;
 const subsLoaded = () => [...subs.keys()].every((day) => S.subLoaded.has(`${day}:snacks`) && S.subLoaded.has(`${day}:reviews`));
+// The walkthrough is owed until maybeWalk has opened it or found nothing to
+// show; the reel and the reveal wait for it.
+const walkOwed = () => !!S.me && !S.walked;
 function maybeWalk() {
   if (S.walked || !ready() || !S.me || !myDoc() || !subsLoaded()) return;
   if (!myDoc().toured && !S.toured) return; // How it works comes first
@@ -283,7 +300,8 @@ function maybeWalk() {
 function markSeen() { S.since = Date.now(); savePrefs({ lastSeen: true }); render(); }
 // Leaving after a real look (4 s+) counts as seen; the next banner starts here.
 let visibleAt = Date.now();
-const leaving = () => { if (Date.now() - visibleAt >= 4000) { visibleAt = Date.now(); savePrefs({ lastSeen: true }); } };
+const unreadNews = () => !!S.news?.items.length || !!document.querySelector('.tour-overlay');
+const leaving = () => { if (Date.now() - visibleAt >= 4000 && !unreadNews()) { visibleAt = Date.now(); savePrefs({ lastSeen: true }); } };
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leaving(); else visibleAt = Date.now(); });
 window.addEventListener('pagehide', leaving);
 
@@ -420,7 +438,7 @@ function maybeRevealTie(n) {
   if (n?.status !== 'locked' || !(n.lockedTie?.length > 1)) return;
   if (S.me && !myDoc()) return; // wait until we know which reels you've seen
   const key = `${n.day}.${n.lockedMovieId}`;
-  if (S.reelsSeen.has(seenKey(key)) || myDoc()?.reels?.includes(key) || document.querySelector('.tour-overlay')) return;
+  if (S.reelsSeen.has(seenKey(key)) || myDoc()?.reels?.includes(key) || walkOwed() || document.querySelector('.tour-overlay')) return;
   const pool = n.lockedTie.map((id) => S.movies.find((m) => m.imdbId === id)).filter(Boolean);
   const winner = pool.find((m) => m.imdbId === n.lockedMovieId);
   if (pool.length < 2 || !winner) return;
@@ -436,7 +454,7 @@ function maybeRevealMovie(n) {
   if (n?.status !== 'locked' || !n.lockedMovie || n.lockedTie?.length > 1 || started(n)) return;
   if (S.me && !myDoc()) return; // wait until we know which reveals you've seen
   const key = `r:${n.day}.${n.lockedMovieId}`;
-  if (S.reelsSeen.has(seenKey(key)) || myDoc()?.reels?.includes(key) || document.querySelector('.tour-overlay, .reel-overlay, .reveal-overlay')) return;
+  if (S.reelsSeen.has(seenKey(key)) || myDoc()?.reels?.includes(key) || walkOwed() || document.querySelector('.tour-overlay, .reel-overlay, .reveal-overlay')) return;
   S.reelsSeen.add(seenKey(key));
   savePrefs({ reels: [...(myDoc()?.reels || []), key] });
   revealMovie(n.lockedMovie, { when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host) });

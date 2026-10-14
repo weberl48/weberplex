@@ -349,7 +349,7 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
       if (fresh(n.themeAt) && theirs(n.hostKey)) {
         out.days.add(n.day);
         push(n.theme
-          ? { kind: 'theme', text: `${dow} is a ${n.theme} night now`, detail: 'The pick sticks to the theme when it can.', target: '#nextSec', theme: n.theme }
+          ? { kind: 'theme', text: `${dow} is ${/^[aeiou]/i.test(n.theme) ? 'an' : 'a'} ${n.theme} night now`, detail: 'The pick sticks to the theme when it can.', target: '#nextSec', theme: n.theme }
           : { kind: 'theme', text: `${dow}'s theme was cleared`, detail: 'Anything on the shelf can be picked.', target: '#nextSec' });
       }
       const vetoed = Object.entries(n.vetoAt || {}).filter(([k, t]) => fresh(t) && theirs(k) && n.vetoes?.[k]);

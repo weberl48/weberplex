@@ -358,6 +358,11 @@ def news_cards_checks(browser, errors):
     walk = wren.locator('.tour-overlay')
     expect(walk).to_be_visible(timeout=10000)
     expect(walk.locator('.tour-top .label')).to_have_text('Since you last looked · 1 of 4')
+    # Lingering past the 4 s "real look" doesn't count as seen while the cards are unread.
+    wren.wait_for_timeout(5000)
+    wren.reload()
+    expect(walk).to_be_visible(timeout=10000)
+    expect(walk.locator('.tour-top .label')).to_have_text('Since you last looked · 1 of 4')
     for i, text in enumerate([re.compile(r"starts at 9:00\sPM"), 'is a Drama night now', 'Hal vetoed Cards Movie', 'Hal is bringing Candy']):
         expect(walk.locator('#tourTitle')).to_contain_text(text)
         if i == 2:
@@ -379,6 +384,13 @@ def news_cards_checks(browser, errors):
     expect(wren.locator('#news')).to_be_visible(timeout=10000)
     expect(wren.locator('#newsCount')).to_have_text('1 update')
     assert wren.locator('.tour-overlay').count() == 0
+    # Leaving with that update unread keeps it: the next visit opens with it.
+    wren.wait_for_timeout(4500)
+    wren.reload()
+    expect(wren.locator('.tour-overlay #tourTitle')).to_contain_text('starts at', timeout=10000)
+    wren.keyboard.press('Escape')
+    expect(wren.locator('#news')).to_be_hidden()
+    assert wren.evaluate('document.activeElement && document.activeElement !== document.body'), 'focus kept after the bar hides'
     wren.context.close()
 
 
@@ -685,6 +697,7 @@ def main():
         expect(sam.locator('#board h1')).to_contain_text(loser, ignore_case=True, timeout=10000)
         sam.wait_for_timeout(1500)
         expect(sam.locator('.reveal-overlay')).to_have_count(0)
+        skip_cards(sam)  # Sam never pressed Got it, so the unread news opens again
         reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/sam'))['fields']['reels']['arrayValue']['values']]
         assert any(r.startswith(f'r:{day2}.') for r in reels), reels
         # Someone new gets the walkthrough first; the reveal waits for it to close.

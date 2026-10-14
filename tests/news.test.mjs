@@ -139,6 +139,7 @@ test('what each new kind says', () => {
   assert.match(text('cancelled').text, /^Jo's \w+ movie night is off$/);
   assert.match(text('moved').text, /^\w+'s night now starts at 8:00\sPM$/);
   assert.match(text('theme').text, /^\w+ is a Foreign night now$/);
+  assert.match(sinceLastLook({ ...base, nights: [night({ theme: 'Action', themeAt: at(2000) })] }).items[0].text, /^\w+ is an Action night now$/);
   assert.match(text('veto').text, /^Sam vetoed Jaws for \w+$/);
   assert.equal(text('veto').struck, 'Jaws');
   assert.match(text('watched').text, /^Alien is filed under Watched$/);
