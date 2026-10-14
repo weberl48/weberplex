@@ -248,6 +248,23 @@ def frames(phone, prefix, seconds=1.8, every=0.12):
     return out
 
 
+def curtain(phone, prefix, times=(0, 300, 550, 800, 1050, 1300, 1550)):
+    """The curtain that opens every load, seeked frame by frame (a screenshot is too slow to
+    film it live): the page behind is as it was when the first card showed."""
+    page = phone.page
+    page.evaluate("""() => { window.__c = document.getAnimations().filter((a) => a.effect?.target?.closest?.('.curtain'));
+      window.__c.forEach((a) => a.pause()); }""")
+    out = []
+    for t in times:
+        page.evaluate('(t) => window.__c.forEach((a) => { a.currentTime = t; })', t)
+        fn = f'{phone.who}-{prefix}-{t:04d}ms.png'
+        page.screenshot(path=str(OUT / 'frames' / fn))
+        out.append(fn)
+    page.evaluate('() => window.__c.forEach((a) => a.finish())')
+    transcript.append(f'- frames `{prefix}` (seeked, ms from when the curtain starts): {", ".join(out)}')
+    return out
+
+
 def visible(page, sel, timeout=20000):
     return lambda: page.locator(sel).first.wait_for(state='visible', timeout=timeout)
 
@@ -262,6 +279,7 @@ def newcomer(browser, facts):
     g = Phone(browser, 'gma', 360, 800, 3)
     p = g.page
     g.step('open link to first card', lambda: p.goto(f'{SITE}/?emu'), visible(p, '.tour-overlay'))
+    curtain(g, 'curtain')
     g.shot('first-screen', 'The first thing she sees: the walkthrough sheet over the marquee.')
     for i in range(4):
         g.step(f'tour next {i + 1}', lambda: p.click('[data-tour="next"]'), lambda: p.wait_for_timeout(50))
@@ -306,8 +324,9 @@ def newcomer(browser, facts):
         z.page.wait_for_timeout(1500)
         z.shot('reveal', 'The reveal turned, at 200%.')
         z.page.click('.reveal-actions button')
-    except Exception:
-        pass
+    except Exception as e:  # recorded, so an empty console never hides a skipped step
+        transcript.append(f'- (200% reveal walk failed: {e.__class__.__name__}: {str(e)[:200]})')
+        console.append({'who': 'gma200', 'type': 'scenario-failure', 'text': str(e)[:500]})
     z.page.wait_for_selector('#shelf .card', timeout=20000)
     z.shot('page-top', 'The page at 200%.')
     z.ctx.close()
@@ -337,6 +356,7 @@ def regular(browser, facts):
         j.step('news got it', lambda: p.click('[data-tour="done"]'), lambda: p.locator('.tour-overlay').wait_for(state='detached'))
     except Exception as e:
         transcript.append(f'- (no news cards: {e.__class__.__name__})')
+        console.append({'who': 'jo', 'type': 'scenario-failure', 'text': f'news walk: {str(e)[:500]}'})
     j.shot('page-top', 'Jo\'s page after the cards.')
     j.shot('page-full', 'Jo\'s whole page.', full=True)
     j.ctx.close()

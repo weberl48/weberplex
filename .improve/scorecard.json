@@ -1,5 +1,5 @@
 {
- "iteration": 4,
+ "iteration": 5,
  "branch": "improve-loop",
  "shipped_commit": "dae16fd",
  "impeccable_scores": [
@@ -104,6 +104,25 @@
     4,
     3
    ]
+  },
+  {
+   "run": "iter-05",
+   "commit": "9d5a270",
+   "score": 29,
+   "max": 40,
+   "per_heuristic": [
+    3,
+    3,
+    3,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3
+   ],
+   "note": "down 2 from iter-04 (31); H4 consistency at 2: two host-tool commit models, two amber calls per block, copy contradictions, --rule-strong 2.96:1"
   }
  ],
  "tests": [
@@ -134,6 +153,13 @@
    "emulator": "41/41",
    "e2e": "PASS (new: crown and face-down, Next under the note, name step unsent, Esc keeps the bar, attendee-only rating)",
    "scenario_runs": "4/4 clean"
+  },
+  {
+   "iteration": 5,
+   "unit": "35/35",
+   "emulator": "41/41",
+   "e2e": "PASS (new: Esc keeps it face down, no news after back, reveal and reel people lines, reel endings, Stats face-down, name step at the top with no toast, chip tap guard, curtain taps through and reduced motion)",
+   "scenario_runs": "4/4 clean (and no swallowed failure: gma200-04 present, no 'no news cards')"
   }
  ],
  "timings": [
@@ -153,6 +179,11 @@
   {
    "iteration": 4,
    "source": ".improve/evidence/iter-04/timings.md"
+  },
+  {
+   "iteration": 5,
+   "source": ".improve/evidence/iter-05/timings.md",
+   "note": "write steps 100-650 ms slower than iter-04; same-hour A/B shows faf2b0d equally slow (849/875 vs 868/946 ms name-to-ticket); emulator at 15 GB; same code drifted 433->712 ms between two run sets. Environment, not a regression."
   }
  ],
  "production_counts": {
@@ -265,7 +296,7 @@
     "gma-01..gma-05",
     "the title first appears in gma-06"
    ],
-   "note": "iter-04 impeccable A: signed-out visitors replay the walkthrough every visit"
+   "note": "iter-05 newcomer N1, connoisseur C4: five dense cards before the reveal; card 5 spoils the turn and says \"A day before, the movie locks\" over a locked marquee (N6); operator O14: signed out, it replays on every load"
   },
   {
    "id": "P-023",
@@ -306,7 +337,7 @@
     "assess-a6 out-360-deferred-reveal.png",
     "app.js:494-519"
    ],
-   "note": "iter-02 impeccable A P2 again"
+   "note": "iter-05 impeccable A: the locked-night card for someone not coming is still plain velvet, no poster"
   },
   {
    "id": "P-002",
@@ -434,7 +465,7 @@
     "lib/tick.js:28-30,38-40",
     "app.js:57,77,82,84,130"
    ],
-   "note": "iter-02 operator O5: tick errors recorded as skipped, /api/tick returns 200, nothing logged"
+   "note": "iter-05 operator O6, O9: listener errors end the listener for good; quota reads as a connection problem; the tick report is discarded"
   },
   {
    "id": "P-036",
@@ -447,7 +478,7 @@
     "app.js:113-133",
     "actions.js:181-188"
    ],
-   "note": "iter-04 operator O1 again: transaction re-checks only status; retries reuse the stale pick"
+   "note": "iter-05 operator O2: the automatic clock still picks from votes and free marks it may hold stale (wake > 5 s, reconnect without hiding, own unsent marks); the transaction checks only vetoes and theme; nothing records who locked from what"
   },
   {
    "id": "P-037",
@@ -503,12 +534,13 @@
   {
    "id": "P-003",
    "title": "At 200% text the sheet is mostly footer; tour text cut mid-sentence with no sign it scrolls",
-   "severity": "Minor",
+   "severity": "Major",
    "status": "open",
    "found": "critique #5, iter-01 newcomer N10",
    "evidence": [
     "gma200-01, gma200-02"
-   ]
+   ],
+   "note": "iter-05 impeccable A P2-C raised it: at 200% the sticky foot takes ~40% of the card and card 3 is cut (scrollHeight 582 vs 383); newcomer N9. Rating raised to the critic's."
   },
   {
    "id": "P-004",
@@ -718,12 +750,13 @@
    "id": "P-047",
    "title": "After a nameless thumbs-up the page jumps to the guest list and a name chip lands under her finger; a second tap signs her in as someone else",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-02 newcomer N2",
    "evidence": [
     "gma-09 -> gma-10 chip under the tap point",
     "second-tap outcome is a GUESS"
-   ]
+   ],
+   "fixed_in": "b0220b6"
   },
   {
    "id": "P-048",
@@ -850,13 +883,14 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-03 impeccable A P2",
    "evidence": [
     "assess-a8 reel_fran412_end.png",
     "reel.js"
    ],
-   "note": "iter-04 impeccable A P2 again: \"It's Jaws.\" in body text, \"Nice\""
+   "note": "iter-05: reel lands like the reveal; no fairness receipt -> P-084",
+   "fixed_in": "8f29764"
   },
   {
    "id": "P-062",
@@ -914,13 +948,14 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-03 connoisseur C2, C3",
    "evidence": [
     "jo-01, kim-01, gma-06",
     "jo-02: ticket at y 800-1195 under '8 updates'"
    ],
-   "note": "iter-04 connoisseur C2, C3: no people or reason on the landed reveal; ticket lands under the news box"
+   "note": "iter-05: people and why shown, ticket to the top; the why names nobody -> P-083",
+   "fixed_in": "8f29764"
   },
   {
    "id": "P-067",
@@ -981,12 +1016,13 @@
    "id": "P-072",
    "title": "When the name step fails, the 'Not sent yet' note flips to 'Sent.' (done() in finally); one global latch means later taps in the same outage never warn",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-04 operator O2, O5",
    "evidence": [
     "app.js join() finally done()",
     "app.js sending() warned latch"
-   ]
+   ],
+   "fixed_in": "b228528"
   },
   {
    "id": "P-073",
@@ -995,34 +1031,38 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-04 connoisseur C1",
    "evidence": [
     "jo-reveal-wait-0000ms already dark",
     "poster legible at turn-0268ms; title at 699 ms"
-   ]
+   ],
+   "fixed_in": "8f29764",
+   "note": "iter-05: lights-down shipped; the order with the new load curtain is wrong (curtain, page, lights down) -> P-081"
   },
   {
    "id": "P-074",
    "title": "Esc on the face-down card turns it and files it as seen; back on the card still raises the news sheet",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-04 impeccable A H3, P2",
    "evidence": [
     "reveal.js onKey Escape",
     "app.js maybeWalk after a deferred reveal"
-   ]
+   ],
+   "fixed_in": "8f29764"
   },
   {
    "id": "P-075",
    "title": "Face down leaks: Stats 'Picks that made it' counts a locked night; Most wanted ranks the locked movie first while 'Leading' points elsewhere",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-04 impeccable A P2",
    "evidence": [
     "logic.js:241-245",
     "app.js:976-979"
-   ]
+   ],
+   "fixed_in": "b0220b6"
   },
   {
    "id": "P-076",
@@ -1033,7 +1073,7 @@
    "evidence": [
     "gma200-04 -> gma200-05"
    ],
-   "note": "the chip's amber edge may be sticky hover; the double-tap outcome is a GUESS"
+   "note": "iter-05: heading at the top and no toast (e2e at 412); NOT met at 200%: gma200-05 shows only name chips, the field is off screen (newcomer N2: the names come before her own box, and a chip joins as that person at once)"
   },
   {
    "id": "P-077",
@@ -1044,7 +1084,7 @@
    "evidence": [
     "gma-12"
    ],
-   "note": "toast lifetime vs the harness's speed is a GUESS"
+   "note": "iter-05 newcomer N7, connoisseur C8: welcome toast lingers across 4 screens, over I'm free that evening"
   },
   {
    "id": "P-078",
@@ -1055,7 +1095,8 @@
    "evidence": [
     "app.js:331 with tour.js:103",
     "app.js:543-544"
-   ]
+   ],
+   "note": "iter-05 impeccable A H4 again"
   },
   {
    "id": "P-079",
@@ -1065,7 +1106,8 @@
    "found": "iter-04 impeccable A P2, connoisseur C8",
    "evidence": [
     "logic.js:325-328, 422"
-   ]
+   ],
+   "note": "iter-05 connoisseur C7: 9 cards for 8 updates, anonymous items"
   },
   {
    "id": "P-080",
@@ -1076,6 +1118,258 @@
    "evidence": [
     "app.js:723",
     "index.html:106-110"
+   ],
+   "note": "iter-05 impeccable A H1, connoisseur C13: no today mark; green dot not in the key; at 200% the dot sits on the numerals"
+  },
+  {
+   "id": "P-081",
+   "title": "The load curtain parts onto the page (or a tour/news sheet already up), then the lights go down for the reveal: curtain, page, lights down instead of lights down, curtain, picture; taps pass blind through the closed panels; two 'The movie is…' headings overlap mid-fade",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-05 connoisseur C1, C12; impeccable A P2-D; newcomer N11",
+   "evidence": [
+    "gma-curtain-0000..1550",
+    "jo-reveal-wait-0000..0989",
+    "curtain-out-360-sheet 600-850 ms",
+    "jo-reveal-wait-0715 overlapping headings"
+   ]
+  },
+  {
+   "id": "P-082",
+   "title": "The reveal's tap has no build: a 450 ms flip, then heading, title, when, who, why and button all land in one frame, then stillness; 'The movie is…' is replaced by 'Friday's feature' instead of finishing as '…Alien'",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-05 connoisseur C2; newcomer N13 (ring dims as the title lands)",
+   "evidence": [
+    "jo-reveal-turn-0465..0634, 0822..1568 static",
+    "gma reveal-turn-0789..1515"
+   ]
+  },
+  {
+   "id": "P-083",
+   "title": "The reveal's why is a grey fraction ('3 of the 4 coming thumbed it up'): names nobody who wanted it, no faces",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-05 connoisseur C3",
+   "evidence": [
+    "jo-01",
+    "run-s2/jo-01",
+    "gma-06"
+   ]
+  },
+  {
+   "id": "P-084",
+   "title": "The reel lands without a fairness receipt: the tie heading is replaced and nothing names what it beat",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 impeccable A P3-E, H1, H6",
+   "evidence": [
+    "tie-360-landed",
+    "reel.js finish()"
+   ]
+  },
+  {
+   "id": "P-087",
+   "title": "A signed-out thumbs-up strands the person: after they give a name the page sits at the top while the pressed vote is ~2,450 px below",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-05 impeccable A P2-A",
+   "evidence": [
+    "s8.json scrollY 2715 -> 325 -> 0, vote top 3257 at innerHeight 800",
+    "app.js join() focus preventScroll"
+   ]
+  },
+  {
+   "id": "P-088",
+   "title": "Shelf card actions wrap into 3-4 rows of pills at 360 (Stremio next to Plot); the shelf has no cap, so Watched and Stats sink",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-05 impeccable A P2-B",
+   "evidence": [
+    "shelf-plot-viewport",
+    "~600 CSS px per two-card row"
+   ],
+   "note": "the one-sided card is a user decision (2026-10-14); this is its execution"
+  },
+  {
+   "id": "P-089",
+   "title": "At 200% the marquee title computes to 16px, under 24px section heads; the ticket title too",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-05 impeccable A P2-C",
+   "evidence": [
+    "s7.json font sizes",
+    "site.css:146 clamp(1rem, 10.5cqi, 3rem)"
+   ]
+  },
+  {
+   "id": "P-090",
+   "title": "A phone that opens on a flaky connection may stay on 'Can't reach the box office' until reloaded when a query is genuinely empty (the first cached empty snapshot is dropped; no includeMetadataChanges)",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-05 operator O1",
+   "evidence": [
+    "app.js:52-60,270",
+    "store.js:16-18"
+   ],
+   "note": "rests on an untested SDK assumption; the cheap experiment is in the operator's file"
+  },
+  {
+   "id": "P-091",
+   "title": "The ticket and the pressed thumb come from the local echo while the write sits in a memory-only cache; a tab discarded before it lands loses it with no warning for 4 s",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-05 operator O3",
+   "evidence": [
+    "62 / 79 ms vs 712 ms server-confirmed",
+    "app.js:528-541,1091",
+    "firebase.js:10"
+   ],
+   "note": "that Android discard skips beforeunload is a GUESS"
+  },
+  {
+   "id": "P-092",
+   "title": "'Not sent yet… goes through when your connection is back' is false for actions that read first (name, host, unmark, veto, add, cancel): they fail, not queue",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 operator O4",
+   "evidence": [
+    "app.js:1081,1201",
+    "actions.js:57,82,125,139,144,169,209"
+   ]
+  },
+  {
+   "id": "P-093",
+   "title": "Unreachable at load: the calendar shows empty and tappable, the shelf says 0 movies",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 operator O5",
+   "evidence": [
+    "app.js:740-792, 843"
+   ]
+  },
+  {
+   "id": "P-095",
+   "title": "Read paths grow with history (status reads all done nights and votes every 30 min; calendar feed every done night; uncapped listeners); HA's control/shield poll interval unknown",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 operator O7, O8",
+   "evidence": [
+    "lib/status.js:12-14,64,71",
+    "lib/calendar.js:46",
+    "firestore.rules:66"
+   ],
+   "note": "projection and HA interval are GUESSes; confirm in the Firebase console"
+  },
+  {
+   "id": "P-097",
+   "title": "A phone holding a name with no people doc dead-ends: no reveal, no Reveal the movie, face down forever",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 operator O11",
+   "evidence": [
+    "app.js:254,261,548,710,722",
+    "firestore.rules:80-81"
+   ],
+   "note": "trigger is a GUESS (a name saved before people docs existed)"
+  },
+  {
+   "id": "P-098",
+   "title": "The name step shows no progress for two serial round trips (843 ms locally)",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 operator O12, connoisseur C5",
+   "evidence": [
+    "app.js:1108-1125",
+    "actions.js:54-66"
+   ]
+  },
+  {
+   "id": "P-099",
+   "title": "Copy that isn't true: the slip says 'goes up on the marquee for everyone' when an earlier night holds it; Sam's own panel says 'Sam is hosting'; a new night's news says 'Changes to a night you're not on the list for'",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 impeccable A H2",
+   "evidence": [
+    "app.js:819,782",
+    "logic.js:462"
+   ]
+  },
+  {
+   "id": "P-100",
+   "title": "Host tools mix two commit models (time needs Change time; theme saves on change, no undo); --rule-strong is 2.96:1 on velvet-3",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 impeccable A H4, H5",
+   "evidence": [
+    "app.js:163-166 vs 1230-1253"
+   ]
+  },
+  {
+   "id": "P-101",
+   "title": "The locked movie sits on the shelf with no 'Showing Fri' stamp, so people keep thumbing it and think their thumb counts for Friday",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 newcomer N12, impeccable A H6",
+   "evidence": [
+    "gma-10, gma-11"
+   ]
+  },
+  {
+   "id": "P-102",
+   "title": "After the turn only the title is in the live region; the heading, when, who and why aren't announced before focus jumps to the button",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 impeccable A (Sam persona)",
+   "evidence": [
+    "reveal.js live region on .reveal-title only"
+   ]
+  },
+  {
+   "id": "P-103",
+   "title": "The card turns at 650 ms without waiting for the medium poster; a 404 shows a text tile",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-05 operator O15",
+   "evidence": [
+    "reveal.js:9,32,64-75"
+   ],
+   "note": "GUESS; confirm with a throttled run"
+  },
+  {
+   "id": "P-104",
+   "title": "The scenario swallowed failures on the 200% walk (bare except: pass)",
+   "severity": "Minor",
+   "status": "fixed",
+   "fixed_in": "scenario.py (tooling, iter-05)",
+   "found": "iter-05 operator O16",
+   "evidence": [
+    "scenario.py:319-328"
+   ],
+   "note": "no failure was swallowed in the iter-05 runs: all four have gma200-04 and no 'no news cards' line"
+  },
+  {
+   "id": "P-105",
+   "title": "Polish from iteration 5: three serial round trips on Put it on the marquee; a Cinemeta hiccup on add is permanent; news card says You're in before the write lands; news demo chips not centred; 'Download the invite' 20px tall; amber edge on the news bar; marquee countdown wraps to 3 lines at 360",
+   "severity": "Polish",
+   "status": "open",
+   "found": "iter-05 operator O13, O17, O18; impeccable A minor observations",
+   "evidence": [
+    "actions.js:139-145",
+    "app.js:1506",
+    "tour.js:117-126",
+    "news.js:215",
+    "app.js:550",
+    "site.css:454"
    ]
   }
  ],
@@ -1091,6 +1385,16 @@
   {
    "finding": "newcomer N8 part: 'The shark still holds up' on Alien",
    "reason": "seed artifact (random pitches); pitches no longer name a movie"
+  },
+  {
+   "id": "iter-05 N3",
+   "title": "Tapping 'You're in ✓' quietly un-counts her",
+   "why": "killed by code: a first tap only arms 'Tap again: can't make it' (app.js:1337)"
+  },
+  {
+   "id": "iter-05 N10",
+   "title": "On a second device the reveal lists Gma and still asks Count me in",
+   "why": "the 200% walk is a different signed-out visitor, not Gma; listing Gma and offering that visitor Count me in is correct"
   }
  ],
  "pivots": [
@@ -1334,7 +1638,13 @@
     "P-022 walkthrough replay",
     "P-025 locked night without a ticket",
     "P-067 host tools"
-   ]
+   ],
+   "results": {
+    "PV-5a": "kept; met: e2e unreachable name step never says Sent.; emulator test refuses a lock whose theme changed; gap: the automatic clock can still pick from stale votes and free marks (P-036, operator O2)",
+    "PV-5b": "kept; met: lights-down 0.9 s (frames), landed reveal shows N coming + why, e2e Esc keeps it face down with no news sheet, e2e tie ends with a feature heading and Count me in; new: order clashes with the load curtain (P-081)",
+    "PV-5c": "kept; met: e2e Stats leave the face-down movie out, e2e chip tap ignored within 700 ms, e2e name step at the top with the field in view at 412; NOT met at 200%: the field is below six chips (P-076)",
+    "user request": "kept: the house curtain on every load (a47e8a7), taps through, none with reduced motion; critics: right idea, wrong order (P-081)"
+   }
   }
  ]
 }
