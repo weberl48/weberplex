@@ -38,7 +38,7 @@ const STEPS = [
   },
   {
     title: 'Thumbs-up what you would watch',
-    body: 'Vote for as many as you like; your thumbs carry over from night to night. Mark the ones you have seen so everyone can spot what is new to the group.',
+    body: 'Vote for as many as you like; your thumbs carry over from night to night. Tap Seen it on anything the group has already watched, so new-to-us movies stand out.',
     demo: `<div class="tour-row"><span class="vote on">${THUMB}<span class="n">4</span></span><span class="mini on">Seen ✓</span>
       <span class="tag-chip" data-tag="Foreign">Foreign</span><span class="mini">Trailer</span></div>`,
   },

@@ -6,8 +6,8 @@ rules_version = '2';
 // proves the key by writing a fresh `hostops/{op}` doc carrying it in the same
 // batch as the change; the key doc itself is never readable.
 //
-// Data: a shelf of movies (top-level, it only grows), thumbs and "seen it"
-// marks per person, free evenings per person, and nights (one doc per day,
+// Data: a shelf of movies (top-level, it only grows), thumbs per person, a
+// shared "seen" mark per movie, free evenings per person, and nights (one doc per day,
 // created by whoever volunteers to host it).
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -102,7 +102,8 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // Thumbs-up ("I'd watch it") and "seen it": one doc per person per movie.
+    // Thumbs-up ("I'd watch it"): one doc per person per movie. "Seen": one
+    // shared doc per movie (id = movie); first to mark it wins, anyone clears it.
     match /votes/{id} {
       allow read: if true;
       allow create: if request.resource.data.keys().hasOnly(['movie', 'title', 'nameKey', 'name', 'at'])
@@ -120,7 +121,7 @@ service cloud.firestore {
       allow create: if request.resource.data.keys().hasOnly(['movie', 'nameKey', 'name', 'at'])
         && validKey(request.resource.data.nameKey) && validName(request.resource.data.name)
         && request.resource.data.movie is string
-        && id == request.resource.data.movie + '__' + request.resource.data.nameKey
+        && id == request.resource.data.movie
         && movieExists(request.resource.data.movie) && stamped(request.resource.data);
       allow delete: if true;
       allow update: if false;

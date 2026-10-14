@@ -97,7 +97,7 @@ document.addEventListener('click', async (e) => {
   if (rm) {
     if (!armed(rm, 'Tap to confirm')) return;
     const m = shelf().movies.find((x) => x.imdbId === rm.dataset.remove);
-    try { await A.ownerRemoveMovie(S.key, m, m.voters.map((v) => v.nameKey), m.seenBy.map((v) => v.nameKey)); toast(`Removed ${m.title}.`); } catch (err) { toast(writeError(err), true); }
+    try { await A.ownerRemoveMovie(S.key, m, m.voters.map((v) => v.nameKey)); toast(`Removed ${m.title}.`); } catch (err) { toast(writeError(err), true); }
     return;
   }
   const cancel = e.target.closest('[data-cancel]');

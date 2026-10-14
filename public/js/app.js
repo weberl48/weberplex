@@ -349,16 +349,16 @@ function renderCalendar() {
 }
 
 // ---- the shelf ------------------------------------------------------------------
-const SORTS = [['wanted', 'Most wanted'], ['new', 'Newest'], ['unseen', 'Fewest have seen'], ['short', 'Shortest']];
+const SORTS = [['wanted', 'Most wanted'], ['new', 'Newest'], ['unseen', 'Not seen first'], ['short', 'Shortest']];
 function sorted(list) {
   const out = [...list];
   if (S.sort === 'new') out.sort((a, b) => (b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0));
-  if (S.sort === 'unseen') out.sort((a, b) => a.seenBy.length - b.seenBy.length || b.votes - a.votes);
+  if (S.sort === 'unseen') out.sort((a, b) => Number(!!a.seen) - Number(!!b.seen) || b.votes - a.votes);
   if (S.sort === 'short') out.sort((a, b) => (L.parseRuntime(a.runtime) || 999) - (L.parseRuntime(b.runtime) || 999));
   return out;
 }
 const matches = (m) => S.filter === 'All'
-  || (S.filter === 'Unseen by me' ? !m.seenBy.some((x) => x.nameKey === S.me?.nameKey)
+  || (S.filter === 'Not seen' ? !m.seen
     : S.filter === 'Added by me' ? m.by === S.me?.nameKey
       : (m.shelf || []).includes(S.filter));
 
@@ -376,7 +376,7 @@ function renderShelf(shelf) {
   if (!searching) $('#browseGrid').innerHTML = tilesHtml(S.tabItems, { taken });
 
   $('#sortChips').innerHTML = SORTS.map(([k, label]) => `<button class="chip${S.sort === k ? ' on' : ''}" type="button" data-action="sort" data-sort="${k}" aria-pressed="${S.sort === k}">${label}</button>`).join('');
-  const filters = ['All', ...(S.me ? ['Unseen by me', 'Added by me'] : []), ...L.shelfTags(shelf.movies)];
+  const filters = ['All', 'Not seen', ...(S.me ? ['Added by me'] : []), ...L.shelfTags(shelf.movies)];
   if (!filters.includes(S.filter)) S.filter = 'All';
   $('#shelfChips').innerHTML = filters.map((f) => `<button class="chip${S.filter === f ? ' on' : ''}" type="button" data-action="filter" data-tag="${esc(f)}" aria-pressed="${S.filter === f}">${esc(f)}</button>`).join('');
 
@@ -390,7 +390,6 @@ function renderShelf(shelf) {
   $('#shelf').innerHTML = list.map((m) => {
     const mine = S.me && m.by === S.me.nameKey;
     const voted = S.me && m.voters.some((v) => v.nameKey === S.me.nameKey);
-    const iSaw = S.me && m.seenBy.some((v) => v.nameKey === S.me.nameKey);
     const prev = S.lastVotes.get(m.imdbId);
     const bump = prev != null && m.votes > prev;
     S.lastVotes.set(m.imdbId, m.votes);
@@ -411,14 +410,14 @@ function renderShelf(shelf) {
           <div class="card-actions">
             <button class="vote${voted ? ' on' : ''}${bump ? ' bump' : ''}" type="button" data-action="vote" data-id="${esc(m.imdbId)}"
               aria-pressed="${!!voted}" aria-label="I'd watch ${esc(m.title)} (${m.votes})">${THUMB}<span class="n">${m.votes}</span>${newVotes ? `<span class="vote-new">+${newVotes}</span>` : ''}</button>
-            <button class="mini${iSaw ? ' on' : ''}" type="button" data-action="seen" data-id="${esc(m.imdbId)}" aria-pressed="${!!iSaw}">${iSaw ? 'Seen ✓' : 'Seen it'}</button>
+            <button class="mini${m.seen ? ' on' : ''}" type="button" data-action="seen" data-id="${esc(m.imdbId)}" aria-pressed="${!!m.seen}" aria-label="${m.seen ? `Seen (marked by ${esc(m.seen.name)}). Tap to clear` : 'Mark as seen'}">${m.seen ? 'Seen ✓' : 'Seen it'}</button>
             ${m.trailer ? `<a class="mini" href="https://www.youtube.com/watch?v=${esc(m.trailer)}" target="_blank" rel="noopener">Trailer</a>` : ''}
             <a class="mini" href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener" aria-label="Open ${esc(m.title)} in Stremio">Stremio</a>
             ${m.description ? `<button class="mini" type="button" data-action="plot" data-id="${esc(m.imdbId)}" aria-expanded="${S.openPlots.has(m.imdbId)}">Plot</button>` : ''}
             ${mine ? `<button class="mini" type="button" data-action="remove-movie" data-id="${esc(m.imdbId)}">Remove</button>` : ''}
           </div>
           <p class="plot"${S.openPlots.has(m.imdbId) ? '' : ' hidden'}>${esc(m.description)}</p>
-          <p class="seen-line">${m.seenBy.length ? `Seen by ${esc(m.seenBy.map((x) => x.name).join(', '))}` : 'Nobody has marked it seen'}</p>
+          <p class="seen-line">${m.seen ? `Seen · marked by ${esc(m.seen.name)}` : 'Not seen yet'}</p>
           <div class="voters">${faces(m.voters, S.me?.nameKey, 6)}</div>
         </div>
       </article>`;
@@ -575,7 +574,7 @@ document.addEventListener('click', (e) => {
     case 'cancel-night': if (armed(el)) once(`cancel:${day}`, async () => { await A.cancelNight(day); toast('Night cancelled. Someone else can host that day.'); }); break;
     case 'seen': {
       const me = requireMe(); const m = movie(); if (!me || !m) return;
-      once(`seen:${id}`, () => A.setSeen(m, me, !m.seenBy.some((x) => x.nameKey === me.nameKey)));
+      once(`seen:${id}`, () => A.setSeen(m, me, !m.seen));
       break;
     }
     case 'vote': {
@@ -585,7 +584,7 @@ document.addEventListener('click', (e) => {
     }
     case 'remove-movie': {
       const m = movie(); if (!m || !armed(el, 'Tap to confirm')) return;
-      once(`rm:${id}`, async () => { await A.removeMovie(m, m.voters.map((v) => v.nameKey), m.seenBy.map((v) => v.nameKey)); toast(`Took ${m.title} off the shelf.`); });
+      once(`rm:${id}`, async () => { await A.removeMovie(m, m.voters.map((v) => v.nameKey)); toast(`Took ${m.title} off the shelf.`); });
       break;
     }
     case 'sort': S.sort = el.dataset.sort; render(); break;

@@ -85,8 +85,11 @@ test('thumbs and seen marks: one per person, only on real movies', async () => {
   await assertSucceeds(A.setVote(movie(1), jo, false));
   await assertFails(A.setVote(movie(5), jo, true));
   await assertSucceeds(A.setSeen(movie(1), jo, true));
+  await assertFails(A.setSeen(movie(1), sam, true)); // already marked: one shared mark
+  assert.equal((await getDoc(doc(db, 'seen', movie(1).imdbId))).data().name, 'Jo');
   await assertFails(A.setSeen(movie(5), jo, true));
-  await assertSucceeds(A.setSeen(movie(1), jo, false));
+  await assertSucceeds(A.setSeen(movie(1), sam, false)); // anyone can clear it
+  await assertSucceeds(A.setSeen(movie(1), sam, true));
 });
 
 test('free evenings and volunteering to host', async () => {
