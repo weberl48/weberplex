@@ -235,6 +235,8 @@ test('vercel.json: calendar rewrite, bot-only preview redirect, and the old rule
     'SkypeUriPreview Preview/0.5 skype-url-preview@microsoft.com', 'Mozilla/5.0 (Macintosh) Version/14 Safari/605.1.15 (Applebot/0.1; +http://www.apple.com/go/applebot)',
     'redditbot/1.0', 'Mozilla/5.0 (compatible; Embedly/0.2; +http://support.embed.ly/)', 'vkShare; +http://vk.com/dev/Share',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15 facebookexternalhit/1.1 Facebot Twitterbot/1.0',
+    // Google Messages (the group texts, since everyone is on Android) fetches previews as a bare token.
+    'GoogleMessages',
   ];
   for (const ua of bots) {
     for (const v of [ua, ua.toUpperCase(), ua.toLowerCase()]) assert.ok(matches(v), v);
@@ -245,6 +247,9 @@ test('vercel.json: calendar rewrite, bot-only preview redirect, and the old rule
     // Pinterest's in-app browser says "Pinterest", so it's left out: people there get the site.
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [Pinterest/iOS]',
     'Mozilla/5.0 (Android 14; Mobile; rv:127.0) Gecko/127.0 Firefox/127.0', 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/126.0 Safari/537.36 Edg/126.0', '',
+    // Android phones: Chrome (also what Google Messages opens links in) and Samsung Internet.
+    'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+    'Mozilla/5.0 (Linux; Android 14; SM-S926U) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0.0.0 Mobile Safari/537.36',
   ];
   for (const ua of people) assert.ok(!matches(ua), ua);
 });

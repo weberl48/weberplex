@@ -53,10 +53,15 @@ produced by a fixture.
 **Keeping people in the loop.** **Subscribe** (in the calendar section) gives
 every night as a calendar feed, `/calendar.ics`: planned and locked nights
 plus the last month's watched ones, with who's coming, the movie and a
-reminder two hours before. Cancelled nights drop out of it. Apple calendars
-take the `webcal://` link; Google wants the https link pasted into *Other
-calendars → From URL* and refreshes slowly. Pasting the site into a group text
-shows a link preview (the next night, or the poster once it's locked), built
+reminder two hours before. Cancelled nights drop out of it. Everyone who uses
+the site is on Android, so the panel is built for Google Calendar: Android
+ignores `webcal://` links and the Calendar app can't add a calendar by URL, so
+**Add to Google Calendar** is Google's web subscribe link
+(`calendar.google.com/calendar/render?cid=webcal://…`), which asks to add the
+feed and then syncs it to the app. The fallback is the https link pasted into
+*Other calendars → From URL* on the web (Chrome's *Desktop site* on a phone).
+Google refreshes subscribed calendars slowly. Pasting the site into a group
+text (Google Messages included) shows a link preview (the next night, or the poster once it's locked), built
 from the same data for link-preview bots only (`/api/preview`); people always
 get the normal page.
 

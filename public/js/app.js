@@ -759,11 +759,14 @@ document.addEventListener('submit', (e) => {
   if (v.trim()) addSnack(form.dataset.day, v);
 });
 
-// Calendar subscription (the Subscribe panel in the calendar section). The
+// Calendar subscription (the Subscribe panel in the calendar section). Everyone
+// is on Android, where webcal:// links do nothing and the Google Calendar app
+// can't add a calendar by URL, so the button is Google's web subscribe link
+// (render?cid=): Google asks to add the feed and the app picks it up. The
 // links come from SITE_URL, so a local copy of the site still points at the
 // real feed.
 const feed = new URL('/calendar.ics', SITE_URL);
-$('#subApple').href = `webcal://${feed.host}${feed.pathname}`;
+$('#subGoogle').href = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(`webcal://${feed.host}${feed.pathname}`)}`;
 $('#subUrl').value = feed.href;
 async function copyFeed() {
   const field = $('#subUrl');
@@ -772,7 +775,7 @@ async function copyFeed() {
     field.select();
     if (!document.execCommand('copy')) { toast('Press and hold the link to copy it.', true); return; }
   }
-  toast('Link copied. In Google Calendar: Other calendars → From URL.');
+  toast('Link copied. Paste it in Google Calendar under Other calendars → From URL.');
 }
 
 document.addEventListener('click', (e) => {

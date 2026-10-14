@@ -77,15 +77,19 @@
         </div>
       </div>
       <div class="sub-panel" id="subPanel" hidden>
-        <p class="label">Every night, in your own calendar</p>
-        <div class="row"><a class="btn btn-bulb btn-small" id="subApple">Add to iPhone or Mac calendar</a></div>
-        <p class="hint" style="margin-top:0"><b>Google Calendar:</b> copy this link, then in Google Calendar choose <i>Other calendars → From URL</i> and paste it.</p>
+        <p class="label">Every night, in your phone's calendar</p>
+        <div class="row"><a class="btn btn-bulb btn-small" id="subGoogle" target="_blank" rel="noopener">Add to Google Calendar</a></div>
+        <ol class="hint sub-steps">
+          <li>Tap the button. When Google asks to add <i>Weberplex</i>, tap <b>Add</b>.</li>
+          <li>Weberplex appears in the Calendar app by itself (and in Samsung Calendar, if your Google account syncs there). Not there after a few minutes? In the app, go to <i>☰ → Settings → Weberplex</i> and turn on <b>Sync</b>.</li>
+        </ol>
+        <p class="hint" style="margin-top:0"><b>No Add button?</b> Copy the link and open calendar.google.com in Chrome. Tap <i>⋮ → Desktop site</i>, then the <b>+</b> next to <i>Other calendars</i>, choose <i>From URL</i> and paste it.</p>
         <div class="row">
           <label class="sr-only" for="subUrl">Calendar link</label>
           <input class="field" id="subUrl" readonly>
           <button class="btn btn-ghost btn-small" type="button" data-action="copy-feed">Copy</button>
         </div>
-        <p class="hint" style="margin-top:0">New nights, locked movies and cancellations show up on their own. Google refreshes subscribed calendars slowly, sometimes not for a day.</p>
+        <p class="hint" style="margin-top:0">New nights, locked movies and cancellations show up on their own, but Google only checks for changes now and then, sometimes not for a day.</p>
       </div>
       <p class="hint" style="margin-top:0">Tap every evening you could do. The last day you tapped shows below; that is where you can host it.</p>
       <div class="cal" id="calendar"></div>

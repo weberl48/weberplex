@@ -431,14 +431,16 @@ def main():
         expect(sam.locator('#shelf .card')).to_have_count(1)
         expect(sam.locator('#shelf .card').first).to_contain_text('House pick')
 
-        # Subscribe: the calendar section's panel has an Apple link and a Google link
+        # Subscribe: the calendar section's panel leads with Google's subscribe link
+        # (everyone is on Android, which ignores webcal://) and has the https link
         # with a Copy button; the page also carries a static link-preview card.
         ctx['sam'].grant_permissions(['clipboard-read', 'clipboard-write'])
         expect(sam.locator('#subPanel')).to_be_hidden()
         sam.click('[data-action="subscribe"]')
         expect(sam.locator('#subPanel')).to_be_visible()
         expect(sam.locator('[data-action="subscribe"]')).to_have_attribute('aria-expanded', 'true')
-        expect(sam.locator('#subApple')).to_have_attribute('href', re.compile(r'^webcal://[^/]+/calendar\.ics$'))
+        expect(sam.locator('#subGoogle')).to_have_attribute('href', re.compile(r'^https://calendar\.google\.com/calendar/render\?cid=webcal%3A%2F%2F[^%]+%2Fcalendar\.ics$'))
+        expect(sam.locator('#subGoogle')).to_have_attribute('target', '_blank')
         expect(sam.locator('#subUrl')).to_have_value(re.compile(r'^https://[^/]+/calendar\.ics$'))
         sam.click('#subPanel [data-action="copy-feed"]')
         expect(sam.locator('#toast')).to_contain_text('Link copied')
