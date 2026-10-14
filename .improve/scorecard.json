@@ -1,7 +1,7 @@
 {
- "iteration": 2,
+ "iteration": 3,
  "branch": "improve-loop",
- "shipped_commit": "1f5d93c",
+ "shipped_commit": "c58d5a5",
  "impeccable_scores": [
   {
    "run": "2026-10-14T14-06-45Z",
@@ -68,6 +68,24 @@
     3,
     3
    ]
+  },
+  {
+   "run": "iter-03",
+   "commit": "38b6de4",
+   "score": 30,
+   "max": 40,
+   "per_heuristic": [
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3
+   ]
   }
  ],
  "tests": [
@@ -84,6 +102,13 @@
    "emulator": "41/41",
    "e2e": "PASS (new checks: honest sending, reveal invite; lock race fixed)",
    "scenario_runs": "4/4 clean"
+  },
+  {
+   "iteration": 3,
+   "unit": "35/35",
+   "emulator": "41/41",
+   "e2e": "PASS (new checks: drop-out unsent, unreachable at load, signed-out reveal RSVP, no spoiler after backing out)",
+   "scenario_runs": "4/4 clean"
   }
  ],
  "timings": [
@@ -94,6 +119,11 @@
   {
    "iteration": 2,
    "source": ".improve/evidence/iter-02/timings.md"
+  },
+  {
+   "iteration": 3,
+   "source": ".improve/evidence/iter-03/timings.md",
+   "note": "tap-to-title 682-699 ms (was ~1050); Gma: reveal Count me in to name form 45, name to ticket 328"
   }
  ],
  "production_counts": {
@@ -122,15 +152,17 @@
    "id": "P-017",
    "title": "A tap on a dead or lie-fi connection looks saved and can vanish: the replayed thumbs-up after a name says 'counts' before it is sent; a retap while pending is silently ignored; the warning only fires on the browser offline event; the write queue is memory only",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-01 operator O2",
    "evidence": [
     "app.js:986-987 toast('Welcome... counts') right after el.click(), before any ack",
     "app.js:955-959 once() ignores retaps while busy, silently",
     "app.js:1042 offline toast only on the 'offline' event",
-    "firebase.js:10 getFirestore with the default memory cache"
+    "firebase.js:10 getFirestore with the default memory cache",
+    "e2e: dropping out with writes blocked shows the note"
    ],
-   "note": "iter-02: confirmations wait for the server and a watchdog warns, but the watchdog misses writes that start with a read (drop-out, veto): operator O2, actions.js:121-127,168-175"
+   "note": "iter-02: confirmations wait for the server and a watchdog warns, but the watchdog misses writes that start with a read (drop-out, veto): operator O2, actions.js:121-127,168-175",
+   "fixed_in": "a5085d1"
   },
   {
    "id": "P-018",
@@ -204,19 +236,21 @@
     "gma-01..gma-05",
     "the title first appears in gma-06"
    ],
-   "note": "iter-02 newcomer N4, connoisseur C3: still about 7 taps before the page"
+   "note": "iter-03: still 5 cards; newcomer N5 Minor, connoisseur C4 Major (taste)"
   },
   {
    "id": "P-023",
    "title": "At 200% text the ticket's details column collapses to one letter per line and the ticket runs two screens tall",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-01 impeccable A issue 2",
    "evidence": [
     "assess-a6 big-sam-full-a.png",
-    "site.css ticket grid 1fr 74px and dl auto 1fr"
+    "site.css ticket grid 1fr 74px and dl auto 1fr",
+    "206 px: value column 138 px, ticket 294 px tall, titles on one line"
    ],
-   "note": "iter-02 impeccable A P1: 0px value column at 206 px; Limelight titles split mid-word (BAR/BARI/AN)"
+   "note": "iter-02 impeccable A P1: 0px value column at 206 px; Limelight titles split mid-word (BAR/BARI/AN)",
+   "fixed_in": "d6e0cf0"
   },
   {
    "id": "P-024",
@@ -254,7 +288,8 @@
    "evidence": [
     "tour.js backCloses(() => close('skip'))",
     "app.js walkNews onDone: markSeen() for anything but Show me"
-   ]
+   ],
+   "note": "iter-03 impeccable A H3 again"
   },
   {
    "id": "P-026",
@@ -316,12 +351,13 @@
   {
    "id": "P-031",
    "title": "Anyone can rate any night older than yesterday, so Kim is asked 'How was Paddington?' for a night she didn't attend",
-   "severity": "Minor",
+   "severity": "Major",
    "status": "open",
    "found": "iter-01 impeccable A H5",
    "evidence": [
     "app.js:561-564 canRateNight"
-   ]
+   ],
+   "note": "iter-03 impeccable A H5: Sam asked \"How was Paddington?\" for a night he missed"
   },
   {
    "id": "P-032",
@@ -380,7 +416,7 @@
     "app.js:113-133",
     "actions.js:181-188"
    ],
-   "note": "iter-02 operator O4: a stale tab can lock a just-vetoed movie; no Unlock after lock time"
+   "note": "iter-03 operator O3: phone lock picks from page memory; server lock does it right"
   },
   {
    "id": "P-037",
@@ -607,24 +643,28 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-02 connoisseur C1",
    "evidence": [
     "frame diffs: wait frames change 55,632 px, turn frames 0 px",
-    "jo-01-reveal-landed.png"
-   ]
+    "jo-01-reveal-landed.png",
+    "iter-03 frames: bulbs flash and hold, heading resolves to \"Friday's feature\""
+   ],
+   "fixed_in": "6085e44"
   },
   {
    "id": "P-045",
    "title": "Backing out of the face-down card opens the news, which names the locked movie and shows its poster",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-02 impeccable A P1",
    "evidence": [
     "assess-a7 d_first.png",
     "app.js maybeWalk lets a deferred reveal through",
-    "logic.js the locked item always names the title"
-   ]
+    "logic.js the locked item always names the title",
+    "e2e reveal_ending_checks: no news line names a face-down lock"
+   ],
+   "fixed_in": "6085e44"
   },
   {
    "id": "P-046",
@@ -633,12 +673,14 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-02 newcomer N1, connoisseur C4, impeccable A P2",
    "evidence": [
     "gma-06-reveal-landed.png",
-    "app.js inviteFor requires S.me"
-   ]
+    "app.js inviteFor requires S.me",
+    "iter-03 gma-06: Count me in / Not this time; name -> ticket 328 ms"
+   ],
+   "fixed_in": "6085e44"
   },
   {
    "id": "P-047",
@@ -666,45 +708,50 @@
    "id": "P-050",
    "title": "Opening on a dead or lie-fi connection is never named: the page can say 'No night planned' and 'The shelf is empty' from empty cache snapshots",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-02 operator O3",
    "evidence": [
     "store.js drops fromCache",
-    "app.js ready()"
+    "app.js ready()",
+    "e2e: Firestore unreachable at load shows \"can't reach the box office\""
    ],
-   "note": "which outcome happens is a GUESS"
+   "note": "which outcome happens is a GUESS",
+   "fixed_in": "a5085d1"
   },
   {
    "id": "P-053",
    "title": "The toast only gets half the screen to size itself, so 'Not sent yet' is a five-line red column at 360",
    "severity": "Minor",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-02 impeccable A P2",
    "evidence": [
     "site.css toast left:50%",
     "measured 180 px of a 331 px max"
-   ]
+   ],
+   "fixed_in": "d6e0cf0"
   },
   {
    "id": "P-054",
    "title": "Off-scale values from iteration 2: .tour-cal .d-num 1.05rem; .reveal-stage radius 12px",
    "severity": "Polish",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-02 detector",
    "evidence": [
     "site.css:553",
     "site.css:714"
-   ]
+   ],
+   "fixed_in": "d6e0cf0"
   },
   {
    "id": "P-055",
    "title": "The ticket and 'You're in ✓' show before the server has the RSVP; on lie-fi only the 4 s note corrects it",
-   "severity": "Minor",
+   "severity": "Major",
    "status": "open",
    "found": "iter-02 operator O1",
    "evidence": [
     "ticket at 61 ms vs server-confirmed toast at 327 ms"
-   ]
+   ],
+   "note": "iter-03 operator O2: ticket at 54 ms vs 348 ms server ack; Android may not fire beforeunload"
   },
   {
    "id": "P-056",
@@ -720,22 +767,25 @@
    "id": "P-057",
    "title": "Scenario evidence gaps: no frames during the flip; 'name to thumbs-up confirmed' stops at the join toast",
    "severity": "Minor",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-02 connoisseur C6, newcomer N14, operator O10",
    "evidence": [
     "scenario.py reveal()"
-   ]
+   ],
+   "fixed_in": "iter-03 scenario",
+   "note": "turn filmed every ~150 ms; thumbs-up timed by its own pressed state"
   },
   {
    "id": "P-058",
    "title": "After 'Not this time' focus drops to <body>; the news is held back after any reveal, even for people with no ticket",
    "severity": "Minor",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-02 impeccable A",
    "evidence": [
     "reveal.js close()",
     "app.js play() S.walked = true"
-   ]
+   ],
+   "fixed_in": "6085e44"
   },
   {
    "id": "P-059",
@@ -746,6 +796,145 @@
    "evidence": [
     "jo-12",
     "jo-04"
+   ]
+  },
+  {
+   "id": "P-060",
+   "title": "When the nearest night is locked, the shelf crown lands on the locked movie (which can't win any open night) and no open night shows its projected pick; for someone face down, the crown and a news detail still name the locked movie",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-03 impeccable A P1",
+   "evidence": [
+    "app.js renderShelf uses upcomingNights()[0]",
+    "logic.js excludedFor",
+    "assess-a8 sam360_back_news2.png, sam360_back_upnext.png"
+   ]
+  },
+  {
+   "id": "P-061",
+   "title": "The tie reel ends flat ('It's Psycho.' + 'Nice'): no feature heading, display title, when/where, or Count me in",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-03 impeccable A P2",
+   "evidence": [
+    "assess-a8 reel_fran412_end.png",
+    "reel.js"
+   ]
+  },
+  {
+   "id": "P-062",
+   "title": "The sticky 'Not sent yet' toast (z 50, taps on) sits over the walkthrough/news sheet foot (z 45) and swallows taps on Next",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-03 impeccable A P2",
+   "evidence": [
+    "assess-a8 sam412_news1.png: '#toast intercepts pointer events'",
+    "site.css toast z-index 50; .tour-overlay 45"
+   ]
+  },
+  {
+   "id": "P-063",
+   "title": "The name step has no busy guard or 'Not sent yet' watchdog: a stalled 'That's me' hangs silently; a second tap may save the name before the server has the person",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-03 operator O1",
+   "evidence": [
+    "app.js join()",
+    "actions.js join"
+   ],
+   "note": "double-submit outcome is a GUESS"
+  },
+  {
+   "id": "P-064",
+   "title": "The walkthrough's sample ticket answers the newcomer's question wrongly (THE WITCH · Fri · 8:00 PM · Ava's) while the real marquee hides the title",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-03 newcomer N1",
+   "evidence": [
+    "gma-05-tour-5.png",
+    "gma-01-first-screen.png"
+   ]
+  },
+  {
+   "id": "P-065",
+   "title": "'Also planned' rows carry an amber Count me in right under the ticket (a second Friday), inviting an unintended RSVP; 3-4 amber Count me in buttons stack signed out",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-03 newcomer N3, impeccable A H8",
+   "evidence": [
+    "gma-09-page-full.png",
+    "assess-a8 so360_back_upnext.png"
+   ]
+  },
+  {
+   "id": "P-066",
+   "title": "The landed reveal has no why and no who (no guest count or faces); See my ticket hard-cuts to the dashboard with the ticket under the news bar",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-03 connoisseur C2, C3",
+   "evidence": [
+    "jo-01, kim-01, gma-06",
+    "jo-02: ticket at y 800-1195 under '8 updates'"
+   ]
+  },
+  {
+   "id": "P-067",
+   "title": "The host tools are an unstructured wrapping row with mixed commit models (time needs Change time, theme saves on change) and Cancel beside Lock at the same weight",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-03 impeccable A P2",
+   "evidence": [
+    "app.js hostTools",
+    "assess-a8 pl_hal360_nextsec_p1.png"
+   ]
+  },
+  {
+   "id": "P-068",
+   "title": "The link preview and calendar feed name the locked movie",
+   "severity": "Major",
+   "status": "wontfix",
+   "found": "iter-03 operator O4",
+   "evidence": [
+    "lib/preview.js:51-56",
+    "lib/calendar.js:20,31"
+   ],
+   "note": "user decision in critique #1 (2026-10-14): keep the poster in link previews (README: 'The link preview in a group text still shows the poster once the night locks')"
+  },
+  {
+   "id": "P-069",
+   "title": "While Firestore is unreachable, the calendar and shelf still show false empties ('Nobody has said they're free yet', '0 movies')",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-03 operator O7",
+   "evidence": [
+    "app.js renderCalendar/renderShelf run before ready()"
+   ]
+  },
+  {
+   "id": "P-070",
+   "title": "One toast slot: 'Back online.' or any toast replaces 'Not sent yet', and 'Sent.' never shows",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-03 operator O10",
+   "evidence": [
+    "ui.js toast"
+   ]
+  },
+  {
+   "id": "P-071",
+   "title": "The reveal turns whether or not the poster has loaded (larger poster fetched fresh); on a slow link it can land on a placeholder",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-03 operator O11, newcomer N12",
+   "evidence": [
+    "reveal.js",
+    "frames gma-reveal-turn-0768 (soft) vs 1110 (crisp)"
    ]
   }
  ],
@@ -877,6 +1066,69 @@
     "P-002 back on news",
     "P-036 stale-tab lock",
     "P-035 server clock logging"
+   ],
+   "results": {
+    "PV-3a": "kept; met: e2e no spoiler after backing out; signed-out Count me in -> name -> ticket; frames show the bulbs flash and the heading resolve",
+    "PV-3b": "kept; met: e2e drop-out with writes blocked shows the note; unreachable at load shows the message",
+    "PV-3c": "kept; met: 206 px value column 138 px, titles unsplit; toast 328 px at 360; detector only sanctioned findings"
+   }
+  },
+  {
+   "iteration": 4,
+   "changes": [
+    {
+     "id": "PV-4a",
+     "fixes": [
+      "P-060",
+      "P-043"
+     ],
+     "what": "The next open night stays alive while the nearest is locked: the shelf crown and 'Leading' ribbon follow the next planned night; a planned night's day panel and its Also planned row show what would win; nothing names a face-down movie (no crown on it, no title in any news line).",
+     "proof": [
+      "e2e: with the nearest night locked and another planned, the crown reads 'Leading <date of the planned night>' and is not on the locked movie",
+      "e2e: after backing out, no news text or crown names the locked movie"
+     ],
+     "risk": "the shelf crown changing meaning; more on the day panel"
+    },
+    {
+     "id": "PV-4b",
+     "fixes": [
+      "P-062",
+      "P-063",
+      "P-002",
+      "P-070"
+     ],
+     "what": "Honest everywhere: the name step gets the busy guard and the watchdog; toasts dock above an open sheet instead of covering its buttons; back on the news means later (the bar stays); 'Sent.' follows the note even if another toast came between.",
+     "proof": [
+      "e2e: with writes blocked, 'That's me' shows 'Not sent yet' and a second tap says it's still sending",
+      "e2e: with the note showing, the sheet's Next still takes the tap",
+      "e2e: Android back on the news keeps the bar and its count"
+     ],
+     "risk": "toast placement on small screens"
+    },
+    {
+     "id": "PV-4c",
+     "fixes": [
+      "P-064",
+      "P-065",
+      "P-031"
+     ],
+     "what": "First contact and amber discipline: the walkthrough's sample ticket can't answer 'what movie' (face down, 'The movie is…'); Also planned rows get a ghost Count me in with the full date; only people who were there are asked to rate a night.",
+     "proof": [
+      "scenario: tour card 5 shows no movie title",
+      "e2e: Also planned Count me in is a ghost button",
+      "e2e: someone who wasn't free that evening sees reviews but no 'How was …?'"
+     ],
+     "risk": "fewer ratings"
+    }
+   ],
+   "deferred": [
+    "P-061 tie reel ending",
+    "P-066 why/who on the landed reveal",
+    "P-055 ticket before the server",
+    "P-036 stale-tab lock",
+    "P-022 tour length",
+    "P-025 locked night without a ticket",
+    "P-067 host tools"
    ]
   }
  ]

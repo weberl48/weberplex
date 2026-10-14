@@ -224,9 +224,13 @@ class Phone:
 def reveal(phone, prefix):
     """The signature moment: frames while the card waits, then the tap, then the turn."""
     frames(phone, f'{prefix}-wait', seconds=1.2)
-    phone.step('turn the card to title', lambda: phone.page.click('.reveal-card'),
-               lambda: phone.page.wait_for_function("() => document.querySelector('.reveal-title')?.textContent.length > 0", timeout=5000))
-    frames(phone, f'{prefix}-turn', seconds=0.6, every=0.1)
+    # The tap, then frames straight away so the turn itself is on film; the
+    # timing is the tap to the title, measured from the page's own clock.
+    phone.page.evaluate("() => { window.__tap = performance.now(); new MutationObserver((m, o) => { if (document.querySelector('.reveal-title')?.textContent) { window.__titled = performance.now(); o.disconnect(); } }).observe(document.body, { subtree: true, childList: true, characterData: true }); }")
+    phone.page.click('.reveal-card')
+    frames(phone, f'{prefix}-turn', seconds=1.6, every=0.05)
+    phone.page.wait_for_function("() => window.__titled", timeout=5000)
+    timings.append({'who': phone.who, 'step': 'turn the card to title', 'ms': round(phone.page.evaluate('window.__titled - window.__tap'))})
     transcript.append(f'- reveal buttons: {phone.page.locator(".reveal-actions button").all_text_contents()}')
 
 
@@ -264,28 +268,27 @@ def newcomer(browser, facts):
         g.shot(f'tour-{i + 2}', f'Walkthrough card {i + 2} of 5.')
     g.step('tour done to reveal', lambda: p.click('[data-tour="done"]'), visible(p, '.reveal-overlay'))
     reveal(g, 'reveal')
-    g.shot('reveal-landed', 'The reveal after it lands (signed out, once per phone).')
-    g.step('reveal ok', lambda: p.click('.reveal-actions button'), lambda: p.locator('.reveal-overlay').wait_for(state='detached'))
-    p.wait_for_selector('#shelf .card', timeout=20000)
-    g.shot('page-top', 'The page after the reveal: marquee, Up next.')
-    g.shot('page-full', 'The whole page as she lands.', full=True)
-    vote = p.locator('#shelf .card .vote').first
+    g.shot('reveal-landed', 'The reveal after it lands (signed out, once per phone): its ending.')
+    # Count me in, right there: the name form, then her ticket.
+    g.step('count me in from the reveal to the name form', lambda: p.click('.reveal-actions [data-r="in"]'), visible(p, '#pass'))
+    g.shot('name-form', 'Count me in asks her name first.')
+    p.fill('#passName', 'Gma')
+    g.step('name to her ticket', lambda: p.click('#passForm button[type=submit]'), visible(p, '#next .ticket'))
+    p.wait_for_timeout(600)
+    g.shot('ticket', 'After her name: counted in, on her ticket.')
+    g.shot('page-full', 'The whole page once she is in.', full=True)
+    vote = p.locator('#shelf .card .vote:not(.on)').first
+    mid = vote.get_attribute('data-id')
     vote.scroll_into_view_if_needed()
     g.shot('shelf', 'The shelf, before her first thumbs-up.')
-    g.step('thumbs-up asks for a name', lambda: vote.click(), visible(p, '#pass'))
-    g.shot('name-form', 'Her first thumbs-up brings up the name form.')
-    p.fill('#passName', 'Gma')
-    g.step('name to thumbs-up counted', lambda: p.click('#passForm button[type=submit]'), text_in(p, '#toast', 'Welcome, Gma.'))
-    g.shot('after-name', 'After she types her name: the thumbs-up went through.')
-    cell = p.locator(f'#calendar .day[data-day="{facts["locked_day"]}"]')
-    cell.scroll_into_view_if_needed()
-    g.step('tap the night on the calendar', lambda: cell.click(), visible(p, '#dayDetail [data-action="free"]'))
-    g.shot('day-panel', 'She taps the movie night on the calendar: the day panel.')
-    g.step('count me in', lambda: p.click('#dayDetail [data-action="free"]'), text_in(p, '#toast', 'in for'))
-    g.shot('counted-in', 'After Count me in.')
-    p.locator('#nextSec').scroll_into_view_if_needed()
-    p.wait_for_timeout(400)
-    g.shot('up-next', 'Up next once she is on the list.')
+    g.step('thumbs-up counted', lambda: vote.click(), visible(p, f'#shelf .vote[data-id="{mid}"][aria-pressed="true"]'))
+    g.shot('after-vote', 'Her first thumbs-up.')
+    free = p.locator('#calendar .day:not(.lead):not(.on)').nth(3)
+    free.scroll_into_view_if_needed()
+    g.step('tap an open evening on the calendar', lambda: free.click(), visible(p, '#dayDetail [data-action="free"]'))
+    g.shot('day-panel', 'An open evening in the day panel.')
+    g.step('i am free that evening', lambda: p.click('#dayDetail [data-action="free"]'), text_in(p, '#toast', 'If someone hosts'))
+    g.shot('free-marked', "After I'm free that evening.")
     g.ctx.close()
 
     transcript.append('\n## Gma at 200% text (simulated as a 206 px viewport)')

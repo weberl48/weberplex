@@ -11,3 +11,9 @@
 - All three Pivot criteria met; kept. Impeccable 29/40 (unchanged). Critics: the payoff is duller than the wait, back on the card spoils it through the news, signed-out ends on OK, the send watchdog misses read-first writes, the ticket breaks at 200%.
 - Learned: watching the write queue misses actions that read first; watch the action. A deferred reveal still lets the news through.
 - Next: the reveal end to end, honest sending fixed, big text and the toast. Deferred: the name gate, tour length.
+
+## Iteration 3 (2026-10-14)
+- Kept: the honest-sending fix (a5085d1), the reveal end to end (6085e44), big text and the toast (d6e0cf0), the title at 650 ms (38b6de4). Impeccable 30/40 (up from 29).
+- The scenario now films the turn and walks Gma through the reveal's Count me in; earlier "name to counted" numbers were measuring a leftover toast.
+- Critics: no Blockers. Next: keep the next open night alive while the nearest is locked, the name step's guard and toast placement, the sample ticket and amber discipline.
+- Not acted on: link previews name the locked movie (user chose to keep the poster, critique #1).
