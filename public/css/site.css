@@ -139,11 +139,13 @@ button, input, select, textarea { font: inherit; color: inherit; accent-color: v
   letter-spacing: 0.32em; text-transform: uppercase; color: #7d1b35;
   margin: 0 0 10px;
 }
+/* the title follows the board's width, so big text shrinks a word instead of splitting it */
+.board { container-type: inline-size; }
 .board h1 {
   margin: 0;
-  font: 400 clamp(1.4rem, 7.5vw, 3rem)/1.05 var(--f-display);
+  font: 400 clamp(1rem, 10.5cqi, 3rem)/1.05 var(--f-display);
   letter-spacing: 0.03em; text-transform: uppercase;
-  text-wrap: balance; overflow-wrap: anywhere;
+  text-wrap: balance; overflow-wrap: break-word;
 }
 .board .sub {
   margin: 12px 0 0;
@@ -378,9 +380,9 @@ h3.label, h4.label { margin: 0 0 6px; }
           mask: radial-gradient(circle 11px at calc(100% - 74px) 0, transparent 98%, #000) top / 100% 51% no-repeat,
                 radial-gradient(circle 11px at calc(100% - 74px) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
 }
-.ticket-main { padding: 18px 18px 16px; min-width: 0; }
+.ticket-main { padding: 18px 18px 16px; min-width: 0; container-type: inline-size; }
 .admit { margin: 0; font: 700 11px/1 var(--f-body); letter-spacing: 0.38em; color: var(--admit-red); }
-.ticket h3 { margin: 8px 0 6px; font: 400 clamp(1.4rem, 5vw, 2rem)/1.05 var(--f-display); text-transform: uppercase; overflow-wrap: anywhere; }
+.ticket h3 { margin: 8px 0 6px; font: 400 clamp(1rem, 10cqi, 2rem)/1.05 var(--f-display); text-transform: uppercase; overflow-wrap: break-word; }
 .ticket dl { margin: 10px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: var(--step--1); }
 .ticket dt { font: 700 11px/1.8 var(--f-body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ticket-label); }
 .ticket dd { margin: 0; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
@@ -389,6 +391,15 @@ h3.label, h4.label { margin: 0 0 6px; }
   display: grid; place-items: center;
 }
 .ticket-stub span { writing-mode: vertical-rl; transform: rotate(180deg); font: 700 13px/1 var(--f-mono); letter-spacing: 0.2em; }
+/* Big text (or a very narrow phone): each label over its value, and the stub
+   becomes a strip along the bottom behind a horizontal perforation. */
+@media (max-width: 340px) {
+  .ticket { grid-template-columns: minmax(0, 1fr); -webkit-mask: none; mask: none; }
+  .ticket dl { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .ticket dt { margin-top: 6px; line-height: 1.4; }
+  .ticket-stub { border-left: 0; border-top: 2px dashed rgba(44, 23, 18, 0.35); padding: 8px 18px; place-items: center start; }
+  .ticket-stub span { writing-mode: horizontal-tb; transform: none; }
+}
 .ticket-actions { margin-top: 12px; }
 .links-row { margin-top: 8px; }
 
@@ -550,7 +561,7 @@ h3.label, h4.label { margin: 0 0 6px; }
 .tour-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .tour-field { display: flex; align-items: center; flex: 1 1 8rem; }
 .tour-cal { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.tour-cal .d-num { font-size: 1.05rem; }
+.tour-cal .d-num { font-size: var(--step-0); }
 /* How it works shows samples, stamped so, with no real dates or names */
 .tour-slot { display: contents; }
 .tour-demo.sample { position: relative; margin-top: 8px; }
@@ -668,14 +679,16 @@ h4 .veto-note { margin-left: 6px; }
 .day.sel:focus-visible, .day:focus-visible { outline: 3px solid var(--bulb); outline-offset: 2px; }
 
 /* ---- toast ------------------------------------------------------------- */
+/* left and right both set, so a long message wraps across the screen, not half of it */
 .toast {
-  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px);
-  max-width: min(92vw, 30rem); padding: 12px 16px; border-radius: var(--radius);
+  position: fixed; left: 16px; right: 16px; margin-inline: auto; width: fit-content;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateY(20px);
+  max-width: 30rem; padding: 12px 16px; border-radius: var(--radius);
   background: var(--board); color: var(--board-ink); font-weight: 600; font-size: var(--step--1);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none;
   transition: opacity 180ms ease, transform 180ms ease; z-index: 50;
 }
-.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.show { opacity: 1; transform: translateY(0); }
 .toast.bad { background: var(--bad); }
 .toast.bad.show { pointer-events: auto; cursor: pointer; }
 /* nothing talks over the reel or the reveal */
@@ -711,9 +724,9 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 .reveal-box { width: min(19rem, 100%); text-align: center; }
 .reveal-box h2 { margin: 0 0 14px; font: 400 var(--step-2)/1.1 var(--f-display); color: var(--bulb); }
 /* The card waits in a ring of bulbs, chasing like the marquee's until you turn it. */
-.reveal-stage { position: relative; isolation: isolate; width: fit-content; margin: 0 auto; padding: 16px; border-radius: 12px; perspective: 1100px; }
+.reveal-stage { position: relative; isolation: isolate; width: fit-content; margin: 0 auto; padding: 16px; border-radius: 10px; perspective: 1100px; }
 .reveal-stage::before, .reveal-stage::after {
-  content: ''; position: absolute; inset: 0; border-radius: 12px; z-index: -1;
+  content: ''; position: absolute; inset: 0; border-radius: 10px; z-index: -1;
   --b: radial-gradient(circle, #fff3d1 0 2.2px, var(--bulb) 3px, rgba(255, 199, 110, 0) 6px);
   background:
     var(--b) 0 0 / 18px 12px repeat-x,
