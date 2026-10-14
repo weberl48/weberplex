@@ -141,8 +141,8 @@ in `public/js/config.js` is public by design.
 - Read budget: Spark allows 50k reads a day and going over breaks the site
   until the daily reset. Page loads read the whole shelf, thumbs, seen marks
   and upcoming free marks; HA's status poll reads every thumbs-up while a
-  night is planned (and the whole shelf too while that night has a theme:
-  matching a theme needs each movie's tags). Vetoes and themes live on the
+  night is planned (and the whole shelf too while that night has a theme or
+  any veto, so its leader follows the same rule as the lock). Vetoes and themes live on the
   night doc, so the clock needs no extra reads for them. Watch usage in the
   Firebase console as the shelf grows. `/calendar.ics` (nights plus the last month's free marks) is cached 15
   minutes and `/api/preview` (the same reads as the status poll) 5 minutes.
