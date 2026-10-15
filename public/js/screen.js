@@ -38,7 +38,7 @@ export function playTrailer({ id, title = '', year = '' }) {
     // still counts as the go-ahead for sound).
     const roll = setTimeout(() => {
       overlay.querySelector('.screen-picture').innerHTML = `<iframe src="${embed(id)}" title="Trailer: ${esc(title)}"
-        allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+        allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
       overlay.classList.add('rolling');
     }, reduce ? 0 : 700);
     const end = () => {

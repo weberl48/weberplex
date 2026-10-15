@@ -113,7 +113,7 @@ def seed_group(rng):
         by_key, by_name = PEOPLE[i % len(PEOPLE)]
         put(f'movies/{imdb}', {
             'imdbId': imdb, 'title': title, 'year': year, 'runtime': runtime, 'rating': rating, 'genres': genres,
-            'poster': f'https://images.metahub.space/poster/small/{imdb}/img', 'trailer': '',
+            'poster': f'https://images.metahub.space/poster/small/{imdb}/img', 'trailer': f'standin{imdb[-4:]}',
             'description': f'{title} ({year}). A film the group keeps talking about.',
             'pitch': rng.choice(PITCHES), 'shelf': ['Foreign'] if imdb in ('tt6751668', 'tt0245429') else [],
             'by': by_key, 'byName': by_name, 'at': yesterday + timedelta(hours=2) if i == 6 else week})
@@ -134,7 +134,7 @@ def seed_group(rng):
         'day': lday, 'startsAt': lstart, 'host': 'Hal', 'hostKey': 'hal', 'status': 'locked', 'createdAt': week,
         'theme': '', 'vetoes': {}, 'lockedTie': [], 'lockedMovieId': lmovie[0], 'lockedAt': now - timedelta(hours=3),
         'lockedMovie': {'imdbId': lmovie[0], 'title': lmovie[1], 'year': lmovie[2], 'poster': f'https://images.metahub.space/poster/small/{lmovie[0]}/img',
-                        'runtime': lmovie[3], 'rating': lmovie[4], 'genres': lmovie[5], 'trailer': ''}})
+                        'runtime': lmovie[3], 'rating': lmovie[4], 'genres': lmovie[5], 'trailer': f'standin{lmovie[0][-4:]}'}})
     put(f'nights/{lday}/snacks/hal', {'item': 'Popcorn', 'nameKey': 'hal', 'name': 'Hal', 'at': yesterday + timedelta(hours=3)})
     # A planned night nine days out, hosted by Sam, maybe themed; created after Jo last looked.
     pday, pstart = day_at(9)
@@ -260,6 +260,10 @@ def frames(phone, prefix, seconds=1.8, every=0.12):
         time.sleep(every)
     transcript.append(f'- frames `{prefix}`: {", ".join(out)}')
     return out
+
+
+STANDIN = ('<body style="margin:0;height:100vh;display:grid;place-items:center;background:#111;color:#bbb;font:16px sans-serif">'
+           '<div style="text-align:center">&#9654;<br>trailer plays here<br><small>(stand-in for the YouTube player)</small></div></body>')
 
 
 def film(phone, prefix, act, seconds=4.2, every=0.15):
@@ -401,6 +405,16 @@ def regular(browser, facts):
         console.append({'who': 'jo', 'type': 'scenario-failure', 'text': f'news walk: {str(e)[:500]}'})
     j.shot('page-top', 'Jo\'s page after the cards.')
     j.shot('page-full', 'Jo\'s whole page.', full=True)
+    # A trailer, in the screening room. The harness doesn't call YouTube: the player on the
+    # screen is a stand-in page (the room around it is the product's).
+    j.ctx.route('**/www.youtube-nocookie.com/**', lambda r: r.fulfill(status=200, content_type='text/html', body=STANDIN))
+    btn = p.locator('#shelf [data-action="trailer"]').first
+    btn.scroll_into_view_if_needed()
+    p.wait_for_timeout(400)
+    film(j, 'trailer', lambda: btn.click(), seconds=3.0)
+    j.shot('trailer', 'A shelf card\'s Trailer, playing in the screening room (stand-in player).')
+    p.keyboard.press('Escape')
+    p.wait_for_timeout(500)
     j.ctx.close()
 
 
