@@ -705,22 +705,25 @@ h4 .veto-note { margin-left: 6px; }
 .day.sel:focus-visible, .day:focus-visible { outline: 3px solid var(--bulb); outline-offset: 2px; }
 
 /* ---- toast ------------------------------------------------------------- */
-/* left and right both set, so a long message wraps across the screen, not half of it */
+/* Good news drops in at the top of the screen, never under the thumb where the
+   next button is, and taps go through it. A problem (an error, "Not sent yet")
+   sits at the bottom until it's tapped away. Left and right both set, so a long
+   message wraps across the screen, not half of it. */
 .toast {
   position: fixed; left: 16px; right: 16px; margin-inline: auto; width: fit-content;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateY(20px);
+  top: calc(12px + env(safe-area-inset-top, 0px)); transform: translateY(-20px);
   max-width: 30rem; padding: 12px 16px; border-radius: var(--radius);
   background: var(--board); color: var(--board-ink); font-weight: 600; font-size: var(--step--1);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none;
   transition: opacity 180ms ease, transform 180ms ease; z-index: 50;
 }
 .toast.show { opacity: 1; transform: translateY(0); }
-.toast.bad { background: var(--bad); }
-.toast.bad.show { pointer-events: auto; cursor: pointer; }
-/* over a walkthrough or news sheet, a toast sits at the top and lets taps
+.toast.bad { background: var(--bad); top: auto; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateY(20px); }
+.toast.bad.show { pointer-events: auto; cursor: pointer; transform: translateY(0); }
+/* over a walkthrough or news sheet a problem goes to the top too, and lets taps
    through, so it never covers the sheet's buttons */
-body:has(.tour-overlay) .toast { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; transform: translateY(-20px); pointer-events: none; }
-body:has(.tour-overlay) .toast.show { transform: translateY(0); }
+body:has(.tour-overlay) .toast.bad { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; transform: translateY(-20px); }
+body:has(.tour-overlay) .toast.bad.show { pointer-events: none; transform: translateY(0); }
 /* nothing talks over the reel or the reveal */
 body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 

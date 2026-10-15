@@ -68,7 +68,7 @@ export function toast(message, bad = false, { stay = false } = {}) {
   el.classList.add('show');
   el.onclick = () => el.classList.remove('show');
   clearTimeout(toastTimer);
-  if (!stay) toastTimer = setTimeout(() => el.classList.remove('show'), bad ? 12000 : 3200);
+  if (!stay) toastTimer = setTimeout(() => el.classList.remove('show'), bad ? 12000 : 2600);
 }
 
 // Android's back gesture closes whatever overlay is on top instead of

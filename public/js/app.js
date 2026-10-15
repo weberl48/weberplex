@@ -483,6 +483,9 @@ const timeSelect = (id, value) => `<label class="sr-only" for="${id}">Start time
 // `quiet`: a ghost button, for a night further down the page than the one
 // that has the main call (one amber call per block).
 const rsvp = (n, extra = '', { quiet = false } = {}) => {
+  // The guest list is up for this night (Count me in, no name yet): one thing
+  // to do, so this button steps aside until the name is in.
+  if (!S.me && pending?.ticket && pending.day === n.day) return '<p class="hint">Your name first, just above.</p>';
   const going = imFree(n.day);
   return `<button class="btn btn-rsvp ${going ? 'btn-ghost on' : quiet ? 'btn-ghost' : 'btn-bulb'}${extra}" type="button" data-action="free" data-day="${n.day}" data-night="1" aria-pressed="${going}">${going ? `You’re in ${CHECK}` : 'Count me in'}</button>`;
 };
@@ -1123,7 +1126,7 @@ let pending = null;
 let passShownAt = 0;
 function requireMe(el = null, done = '', { ticket = false } = {}) {
   if (S.me) return S.me;
-  pending = el ? { key: keyOf(el), done, ticket } : null;
+  pending = el ? { key: keyOf(el), done, ticket, day: el.dataset.day } : null;
   const pass = $('#pass');
   pass.hidden = false;
   pass.classList.remove('flash');
@@ -1135,6 +1138,7 @@ function requireMe(el = null, done = '', { ticket = false } = {}) {
   $('#passMsg').hidden = false;
   pass.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   focusPass();
+  render(); // the night's own Count me in steps aside while the form is up
   return null;
 }
 // The name form. With names already on the list, focus lands on the form, not

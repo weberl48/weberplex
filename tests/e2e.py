@@ -458,6 +458,9 @@ def reveal_invite_checks(browser, errors):
     page.click('.reveal-actions [data-r="in"]')
     expect(page.locator('#next .ticket')).to_be_focused(timeout=10000)
     expect(page.locator('#toast')).to_contain_text('in for', timeout=10000)
+    # The toast drops in at the top, never over the buttons under the thumb.
+    toast_box = page.locator('#toast').bounding_box()
+    assert toast_box and toast_box['y'] < 80, toast_box
     page.wait_for_timeout(900)  # the scroll to the ticket settles under its heading
     top = page.evaluate("document.querySelector('#nextSec h2').getBoundingClientRect().top")
     assert 0 <= top <= 40, top
@@ -493,6 +496,9 @@ def reveal_ending_checks(browser, errors):
     # The form says why it's there inside itself (no toast over the field), and
     # comes to the top of the screen, heading first, with the field in view.
     expect(page.locator('#passMsg')).to_have_text('One step left: your name, and you’re on the list.')
+    # One thing to do: the night's own Count me in steps aside until the name is in.
+    expect(page.locator(f'#next [data-action="free"][data-day="{day}"]')).to_have_count(0)
+    expect(page.locator('#next')).to_contain_text('Your name first, just above.')
     page.wait_for_timeout(1200)
     expect(page.locator('#pass')).to_be_visible()
     expect(page.locator('#toast')).not_to_contain_text('Welcome')

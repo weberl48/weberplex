@@ -77,7 +77,10 @@ the marquee, and jump links under it to each section (they scroll without
 adding history). Android's back gesture closes whichever card, overlay or
 hosting slip is open instead of leaving the site. A reveal closed with back
 before it turns stays face down that visit: the card back on its night in Up
-next (**Tap to turn it over**) plays it when you're ready. Errors stay on screen until tapped away. A tap counts once the server
+next (**Tap to turn it over**) plays it when you're ready. Good news drops in at the top of the screen for a
+moment (never over the button you need next); errors sit at the bottom until
+tapped away. With the guest list up for a night, that night's own Count me in
+steps aside until your name is in. A tap counts once the server
 has it: anything still unsent after a few seconds says **Not sent yet** (even
 when the phone thinks it's online), then **Sent.**, and leaving the page with
 something unsent asks first (dropping out and vetoes too, which read the night
