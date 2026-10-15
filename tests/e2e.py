@@ -569,6 +569,63 @@ def reveal_ending_checks(browser, errors):
         emu('PATCH', f'{DOCS}/nights/{d}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
 
 
+def stale_lock_checks(browser, errors):
+    """A phone whose lists are only its own copy (the live connection dropped, as on a tab that
+    has just woken up) doesn't lock a night from them; once the server's word is back, it does.
+    The night is due only on this phone, whose clock is moved past the deadline."""
+    now = datetime.now(timezone.utc)
+    starts = now + timedelta(hours=30)
+    day = starts.astimezone(ZoneInfo('America/New_York')).strftime('%Y-%m-%d')
+    emu('PATCH', f'{DOCS}/people/vic', {'fields': fields({'name': 'Vic', 'at': now - timedelta(days=3), 'toured': True, 'lastSeen': now})}, owner=True)
+    emu('PATCH', f'{DOCS}/nights/{day}', {'fields': fields({
+        'day': day, 'startsAt': starts, 'host': 'Hal', 'hostKey': 'hal', 'status': 'planned', 'createdAt': now - timedelta(days=2),
+        'theme': '', 'vetoes': {}, 'lockedTie': []})}, owner=True)
+    status = lambda: json.loads(emu('GET', f'{DOCS}/nights/{day}', owner=True))['fields']['status']['stringValue']
+    page = as_person(browser, errors, 'vic', 'Vic')
+    page.add_init_script("""(() => { window.__off = 0; const D = Date;
+      class Moved extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + window.__off); } static now() { return D.now() + window.__off; } }
+      window.Date = Moved; })();""")
+    page.goto(f'{SITE}/?emu')
+    expect(page.locator('#shelf .card').first).to_be_visible(timeout=15000)
+    # The connection drops (the lists become this phone's own copy), then comes back with the
+    # live lists still quiet: what a tab sees in the moments after it wakes up.
+    cdp = page.context.new_cdp_session(page)
+    cdp.send('Network.enable')
+    net = lambda off: cdp.send('Network.emulateNetworkConditions', {'offline': off, 'latency': 0, 'downloadThroughput': -1, 'uploadThroughput': -1})
+    net(True)
+    page.wait_for_timeout(5000)
+    block = lambda r: r.abort()
+    page.context.route('**/google.firestore.v1.Firestore/Listen/**', block)
+    net(False)
+    page.evaluate('window.__off = 8 * 3600e3')  # past the deadline, on this phone only
+    page.wait_for_timeout(35000)  # the clock's next pass
+    assert status() == 'planned', 'no lock from a cached copy'
+    page.context.unroute('**/google.firestore.v1.Firestore/Listen/**', block)
+    for _ in range(40):  # the server's word is back: now it locks
+        if status() == 'locked':
+            break
+        page.wait_for_timeout(1000)
+    assert status() == 'locked', status()
+    page.context.close()
+    # Past the deadline, the host still has Unlock and re-pick (until showtime, as the rules allow).
+    hal = as_person(browser, errors, 'hal', 'Hal')
+    hal.add_init_script("""(() => { const off = 8 * 3600e3, D = Date;
+      class Moved extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + off); } static now() { return D.now() + off; } }
+      window.Date = Moved; })();""")
+    hal.goto(f'{SITE}/?emu')
+    expect(hal.locator('#shelf .card').first).to_be_visible(timeout=15000)
+    hal.wait_for_timeout(3000)
+    for _ in range(3):  # any reveal or reel of another night waits for later
+        if hal.locator('.reveal-overlay, .reel-overlay').count():
+            hal.keyboard.press('Escape')
+        hal.wait_for_timeout(500)
+    skip_cards(hal)
+    hal.locator(f'#calendar .day[data-day="{day}"]').click()
+    expect(hal.locator('#dayDetail [data-action="unlock-night"]')).to_be_visible(timeout=10000)
+    hal.context.close()
+    emu('PATCH', f'{DOCS}/nights/{day}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
+
+
 def flaky_start_checks(browser, errors):
     """A phone that opens with Firestore out of reach catches up by itself once the connection is
     back, even when some of its lists are genuinely empty (no free marks, nothing seen): the server's
@@ -1269,6 +1326,7 @@ def main():
         locking_phone_checks(browser, errors)
         big_text_checks(browser, errors)
         flaky_start_checks(browser, errors)
+        stale_lock_checks(browser, errors)
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)

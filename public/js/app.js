@@ -22,6 +22,7 @@ const legacy = { since: loadLocal('ps.lastSeen'), toured: loadLocal('ps.toured')
 dropLegacyLocal();
 const S = {
   loaded: new Set(),
+  cached: new Set(),                // lists showing only this phone's copy, not yet the server's word
   nights: [], movies: [], votes: [], seen: [], free: [], people: [], season: null,
   me: loadLocal('ps.me'),            // { name, nameKey }
   since: null,                       // "since you last looked" (ms), from your people doc
@@ -54,7 +55,9 @@ const ready = () => ['nights', 'movies', 'votes', 'seen', 'free'].every((k) => S
 // the house is empty: wait for the server's answer before calling it loaded.
 const got = (key) => (rows, fromCache) => {
   if (fromCache && !rows.length && !S.loaded.has(key)) return;
-  S[key] = rows; S.loaded.add(key); render(); clock();
+  S[key] = rows; S.loaded.add(key);
+  if (fromCache) S.cached.add(key); else S.cached.delete(key);
+  render(); clock();
 };
 // Still nothing after a while: say the box office can't be reached yet.
 setTimeout(() => { if (!ready()) { S.unreachable = true; render(); } }, 8000);
@@ -156,6 +159,10 @@ async function clock() {
   if (Date.now() - wokeAt < 5000) { setTimeout(clock, 5000); return; }
   const due = S.nights.some((n) => L.lockDue(n) || L.doneDue(n));
   if (!due && Date.now() - lastClock < 60000) return;
+  // Never from this phone's own copy: every list the pick reads has the
+  // server's word, and none of this phone's taps are still on their way (a
+  // woken tab or a dropped connection waits; the next snapshot runs it again).
+  if (S.cached.size || unsent) return;
   clockRunning = true;
   lastClock = Date.now();
   try {
@@ -198,7 +205,8 @@ function hostTools(n, scope) {
       `<button class="btn btn-ghost btn-small" type="button" data-action="lock-now" data-day="${n.day}">Lock the movie now</button>`);
   }
   if (n.status === 'locked' && showing(n)) tools.push(`<button class="btn btn-primary btn-small" type="button" data-action="finish-night" data-day="${n.day}">We watched it</button>`);
-  if (n.status === 'locked' && new Date() < L.lockAt(n)) tools.push(`<button class="btn btn-ghost btn-small" type="button" data-action="unlock-night" data-day="${n.day}">Unlock and re-pick</button>`);
+  // Until showtime, as the rules allow: past the deadline the clock re-picks at once.
+  if (n.status === 'locked' && !started(n)) tools.push(`<button class="btn btn-ghost btn-small" type="button" data-action="unlock-night" data-day="${n.day}">Unlock and re-pick</button>`);
   if (!started(n)) tools.push(`<button class="btn btn-ghost btn-small" type="button" data-action="cancel-night" data-day="${n.day}">Cancel night</button>`);
   return tools.length ? `<div class="row host-tools"><span class="label">You’re hosting</span>${tools.join('')}</div>` : '';
 }
