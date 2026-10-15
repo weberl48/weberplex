@@ -585,6 +585,9 @@ button.ticket-back { width: 84px; min-height: 0; cursor: pointer; grid-template-
 /* news headlines are sentences: the body face, with a movie's name in marquee letters */
 .tour-card.news h2 { font: 600 var(--step-1)/1.3 var(--f-body); color: var(--screen); }
 .news-name { font: 400 1.05em/1 var(--f-display); color: var(--bulb); }
+/* names on a news card: inert tags with a face, not buttons */
+.name-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 999px; background: var(--velvet-3); color: var(--screen); font-size: var(--step--1); }
+.name-tag .faces .face { margin-left: 0; }
 .tour-card > p { margin: 0; color: var(--dim); }
 .tour-foot {
   /* -18px, not 0: a sticky box stops at the card's padding edge, so 0 would

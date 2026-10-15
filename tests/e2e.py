@@ -811,6 +811,7 @@ def news_cards_checks(browser, errors):
     expect(walk.locator('.tour-demo s')).to_have_text('Cards Movie')  # the struck title
     expect(walk.locator('.tour-demo .tag-chip')).to_have_text('Drama')
     expect(walk.locator('.tour-card [data-action="free"]')).to_have_text('Count me in')  # Wren isn't on that night's list
+    expect(walk.locator('.btn-bulb')).to_have_count(1)  # one amber call: Count me in; Next steps back to a ghost
     shot(wren, '02b-guest-news-veto')
     wren.click('[data-tour="next"]')
     expect(walk.locator('#tourTitle')).to_contain_text('Hal is bringing Candy')
@@ -992,10 +993,10 @@ def main():
                 assert paddington in titles[-1], titles
                 expect(walk.locator('.tour-demo .news-poster, .tour-demo .noimg')).to_have_count(1)  # the poster
                 shot(sam, '02-guest-news')
-            if 'thumbs-up' in titles[-1]:
+            if 'thumbed up' in titles[-1]:
                 break
             sam.click('[data-tour="next"]')
-        assert any('new movie' in t for t in titles) and 'thumbs-up' in titles[-1], titles
+        assert any('new movie' in t for t in titles) and 'thumbed up' in titles[-1], titles  # who thumbed up what, in names
         # Show me closes the cards and scrolls to the shelf; the slim bar stays.
         sam.click('[data-tour="show"]')
         expect(walk).to_have_count(0)

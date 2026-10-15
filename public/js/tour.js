@@ -95,7 +95,7 @@ export function openTour({ onDone, steps = STEPS, label = 'How it works', doneTe
             ${i ? '<button class="btn btn-ghost" type="button" data-tour="back">Back</button>' : ''}
             ${s.target ? '<button class="btn btn-ghost" type="button" data-tour="show">Show me</button>' : ''}
             ${s.doneHere && !last ? `<button class="btn btn-ghost" type="button" data-tour="done">${doneText}</button>` : ''}
-            <button class="btn btn-bulb" type="button" data-tour="${last ? 'done' : 'next'}">${last ? doneText : s.nextText || 'Next'}</button>
+            <button class="btn ${/btn-bulb|class="vote/.test(s.after || '') ? 'btn-ghost' : 'btn-bulb'}" type="button" data-tour="${last ? 'done' : 'next'}">${last ? doneText : s.nextText || 'Next'}</button>
           </div>
         </div>
       </div>`;

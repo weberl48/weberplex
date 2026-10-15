@@ -106,8 +106,11 @@ thumbs-ups, free evenings, then snacks and reviews. A night you're not coming
 to gets one card for all its changes ("Hal's Tuesday: now 9:00 PM · a Drama
 night · Cards Movie vetoed"), and a **Count me in** if it's still ahead. On a
 phone the cards rise from the bottom, so the marquee stays in view, and Next
-stays in reach on a long card. Headlines are set as sentences, with a movie's
-name in marquee letters. The bar counts what the cards say, the way a person
+stays in reach on a long card. Headlines are set as sentences in people's names
+("Gma and Hal thumbed up Alien and Jaws", "Gma, Kim and Hal marked free
+evenings"), with a movie's name in marquee letters; names show as tags with
+faces, and a card that carries its own amber call (Count me in, a thumbs-up)
+makes Next a ghost, so each card has one. The bar counts what the cards say, the way a person
 says when ("since 12:28 PM today"). With five or more updates the first card
 is a playbill listing them, with **Got it** right there. A new-movies card has a working
 thumbs-up for each movie. There are at most eight cards; the last one lists

@@ -179,7 +179,8 @@ test('since you last looked: what changed, minus your own doing', () => {
   assert.match(text[0], /^Locked for .*: Smile$/); // your own night comes first
   assert.equal(text[1], '1 new movie on the shelf: New'); // then what needs your tap
   assert.match(text[2], /^Jo is hosting /);
-  assert.deepEqual(text.slice(3), ['1 new thumbs-up on 1 movie', 'Al marked free evenings']);
+  assert.match(text[3], /^\S+ thumbed up \S/); // who and what, in names (not "1 new thumbs-up on 1 movie")
+  assert.equal(text[4], 'Al marked free evenings');
   assert.deepEqual([...n.movies], ['tt2']);
   assert.equal(n.votes.get('tt1'), 1);
   assert.ok(n.days.has('2026-10-17') && n.days.has('2026-10-20'));

@@ -361,6 +361,7 @@ Solid and theater-plain. The direction is to give them cinema material, not more
 ### Chips
 - **Filter chip:** a raised-velvet pill with an aisle-edge border, 40px tall, body-small. Hover shows an amber border. Chosen, it's printed on admit-one paper with ticket ink at weight 600, and its count sits in Courier at 11px. The row carries a short label to its left ("Show"). Browse tabs work the same way.
 - **Sort menu:** the shelf's order is a field-styled menu labeled "Sort" (Most wanted, Newest, Least seen, Shortest), not a chip row, so only the filters read as chips.
+- **Name tag (news):** an inert name on a news card: a velvet-3 pill with the person's initial in a face circle, no border (so it doesn't read as a button), text centred.
 - **Guest-list tag:** the names on the name form (under the name box: a newcomer's own box comes first), 44px pills with the person's initial in a face circle. A name that looks like the one being typed gets an amber edge and haze.
 - **Vote pill:** plush velvet, 40px, bold, a 16px thumb icon and a tabular tally. Your vote is an amber fill. The tally bumps (scale 1.45 over 360ms) when it changes.
 - **Mini action:** a transparent pill, 36px, 12px dim text, for Seen it, Trailer, Stremio, Veto, Remove and the browse tiles' Add. A done state ("Seen ✓") fills concession green.
