@@ -406,15 +406,16 @@ h3.label, h4.label { margin: 0 0 6px; }
 .ticket { scroll-margin-top: 16px; }
 #nextSec { scroll-margin-top: 12px; }
 /* the ticket's art: the poster once you've seen it, a card back while it's face down */
-.ticket-art { float: right; width: 64px; aspect-ratio: 2 / 3; margin: 0 0 8px 12px; border-radius: 3px; overflow: hidden; box-shadow: 0 6px 14px rgba(10, 4, 7, 0.35); }
+.ticket-main dl { clear: both; } /* the details run the full width under the art */
+.ticket-art { float: right; width: 56px; aspect-ratio: 2 / 3; margin: 0 0 8px 12px; border-radius: 3px; overflow: hidden; box-shadow: 0 6px 14px rgba(10, 4, 7, 0.35); }
 .ticket-art img, .ticket-art .noimg { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ticket-back {
   display: grid; place-items: center; padding: 0; border: 2px solid var(--bulb); background: var(--curtain); color: var(--bulb);
   font: 400 2rem/1 var(--f-display); box-shadow: inset 0 0 0 3px var(--curtain), inset 0 0 0 4px rgba(255, 199, 110, 0.5), 0 6px 14px rgba(10, 4, 7, 0.35);
 }
-button.ticket-back { width: 76px; min-height: 0; cursor: pointer; grid-template-rows: 1fr auto; padding: 6px 4px 5px; }
-.ticket-back .tap { font: 700 9px/1.2 var(--f-body); font-stretch: 75%; letter-spacing: 0.12em; text-transform: uppercase; }
-.night-face { display: flow-root; } /* not a grid: the art floats beside the heading */
+button.ticket-back { width: 84px; min-height: 0; cursor: pointer; grid-template-rows: 1fr auto; padding: 6px 4px 6px; }
+.ticket-back .tap { font: 700 11px/1.15 var(--f-body); font-stretch: 75%; letter-spacing: 0.06em; text-transform: uppercase; }
+.host-card.night-face { display: flow-root; } /* not a grid: the art floats beside the heading */
 .night-face > :is(.hint, .row) { margin-top: 10px; }
 .night-face h3 { font: 400 var(--step-1)/1.15 var(--f-display); color: var(--bulb); } /* the night's title in marquee letters, like the ticket's */
 .ticket.printed { animation: printed 0.5s ease-out both; }
@@ -845,6 +846,13 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
   .reveal-overlay .reveal-hint[hidden] { display: none !important; } /* no room to hold its place */
 }
 
+/* the curtain's oxblood pleats (the house curtain and the screen's) */
+:root {
+  --pleats:
+    linear-gradient(180deg, rgba(10, 4, 7, 0.35), transparent 22%, transparent 70%, rgba(10, 4, 7, 0.6)),
+    repeating-linear-gradient(90deg, #3e0a19 0, var(--curtain) 1.6rem, var(--curtain-hi) 2.3rem, var(--curtain) 3rem, #3e0a19 4.4rem);
+}
+
 /* ---- the house curtain ---------------------------------------------------
    Every load opens on the curtain: two oxblood panels, pleated in light and
    shadow under a fringed valance. It stays closed while the page loads (app.js
@@ -854,16 +862,15 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
    app.js it opens by itself at 2.5 s. With reduced motion there's no curtain. */
 .curtain {
   position: fixed; inset: 0; z-index: 90; display: flex; overflow: hidden;
-  animation: curtain-gone 0s linear 3.9s forwards;
+  animation: curtain-gone 0s linear 5.4s forwards;
 }
 .curtain.open { pointer-events: none; animation-name: curtain-gone-open; animation-delay: 1.3s; }
+.curtain.parting { pointer-events: none; } /* already parting on its own: let it finish */
 .curtain-l, .curtain-r {
   flex: 1 1 50%; height: 100%; will-change: transform, opacity, filter;
-  background:
-    linear-gradient(180deg, rgba(10, 4, 7, 0.35), transparent 22%, transparent 70%, rgba(10, 4, 7, 0.6)),
-    repeating-linear-gradient(90deg, #3e0a19 0, var(--curtain) 1.6rem, var(--curtain-hi) 2.3rem, var(--curtain) 3rem, #3e0a19 4.4rem);
+  background: var(--pleats);
   /* the house lights go down while the page loads, then it parts */
-  animation: house-dims 0.7s ease-in 0.35s both, curtain-part 1.25s cubic-bezier(.7, 0, .2, 1) 2.5s both;
+  animation: house-dims 0.7s ease-in 0.35s both, curtain-part 1.25s cubic-bezier(.7, 0, .2, 1) 4s both;
 }
 .curtain.open :is(.curtain-l, .curtain-r) { animation-name: house-dims, curtain-part-now; animation-delay: 0.35s, 0s; }
 /* footlights: a warm glow on the curtain's hem that goes out with the house lights */
@@ -884,7 +891,7 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
     linear-gradient(#c99a3e, #c99a3e) 0 calc(100% - 8px) / 100% 3px no-repeat,
     repeating-linear-gradient(90deg, #3e0a19 0, var(--curtain) 0.8rem, var(--curtain-hi) 1.2rem, var(--curtain) 1.6rem, #3e0a19 2.2rem) 0 0 / 100% calc(100% - 8px) no-repeat;
   box-shadow: 0 6px 14px rgba(10, 4, 7, 0.6);
-  animation: valance-lift 0.5s cubic-bezier(.5, 0, .75, 0) 3.4s both;
+  animation: valance-lift 0.5s cubic-bezier(.5, 0, .75, 0) 4.9s both;
 }
 .curtain.open::before { animation-name: valance-lift-now; animation-delay: 0.9s; }
 /* the same moves under a second name, so .open starts them fresh */
@@ -894,6 +901,55 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 @keyframes valance-lift-now { to { transform: translateY(-110%); } }
 @keyframes curtain-gone { to { visibility: hidden; } }
 @keyframes curtain-gone-open { to { visibility: hidden; } }
+
+/* ---- the screening room (trailers) ------------------------------------------
+   A trailer plays on the house screen: the lights go down, the room comes up
+   out of the dark, the screen's own curtain parts as the projector starts, and
+   the screen glows faintly once it's rolling. Seat backs line the bottom. */
+.screen-overlay {
+  position: fixed; inset: 0; z-index: 44; display: grid; place-items: center; padding: 16px 16px 76px;
+  background: #050203; overflow-y: auto; overscroll-behavior: contain;
+  animation: lights-down 0.6s ease-in both;
+}
+.screen-room {
+  position: relative; z-index: 1; /* over the seats */
+  width: min(60rem, 100%, calc((100dvh - 210px) * 16 / 9)); display: grid; gap: 14px; justify-items: center;
+  animation: comes-up 0.5s ease-out 0.3s both;
+}
+.screen-marquee { margin: 0; display: grid; justify-items: center; gap: 4px; text-align: center; }
+.screen-now { font: 700 11px/1 var(--f-body); font-stretch: 75%; letter-spacing: 0.32em; text-transform: uppercase; color: var(--dim); }
+.screen-title { font: 400 var(--step-2)/1.1 var(--f-display); color: var(--bulb); text-wrap: balance; overflow-wrap: break-word; text-shadow: 0 0 18px rgba(255, 199, 110, 0.35); }
+.screen-year { font-size: 0.6em; color: var(--dim); text-shadow: none; }
+/* the screen: 16:9 in a gilt frame, lit from the booth once it rolls */
+.screen-frame {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+  border: 6px solid #c99a3e; border-radius: 4px; background: #000;
+  box-shadow: inset 0 0 0 2px #050203, 0 0 0 1px rgba(255, 199, 110, 0.35), 0 20px 50px rgba(0, 0, 0, 0.7);
+  transition: box-shadow 1.2s ease-out;
+}
+.screen-overlay.rolling .screen-frame {
+  box-shadow: inset 0 0 0 2px #050203, 0 0 0 1px rgba(255, 199, 110, 0.35), 0 0 80px rgba(200, 215, 255, 0.16), 0 20px 50px rgba(0, 0, 0, 0.7);
+}
+.screen-picture, .screen-picture iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.screen-curtain { position: absolute; inset: 0; display: flex; pointer-events: none; }
+.screen-curtain span { flex: 1 1 50%; background: var(--pleats); animation: curtain-part-now 1.1s cubic-bezier(.7, 0, .2, 1) 0.6s both; }
+.screen-curtain span:first-child { transform-origin: left center; }
+.screen-curtain span:last-child { transform-origin: right center; }
+.screen-actions { justify-content: center; align-items: center; gap: 10px 18px; }
+/* the house: two rows of seat backs along the bottom of the dark */
+.screen-seats {
+  position: fixed; inset: auto 0 0; height: 60px; pointer-events: none;
+  background:
+    radial-gradient(ellipse 44% 100% at 50% 100%, #1c0b12 0 97%, transparent 100%) 0 100% / 56px 34px repeat-x,
+    radial-gradient(ellipse 44% 100% at 50% 100%, #10060a 0 97%, transparent 100%) 28px 100% / 56px 56px repeat-x;
+}
+/* a landscape phone: a smaller room so the Close button stays on screen */
+@media (max-height: 520px) {
+  .screen-overlay { padding: 8px 8px 34px; }
+  .screen-room { width: min(100%, calc((100dvh - 120px) * 16 / 9)); gap: 6px; }
+  .screen-title { font-size: var(--step-1); }
+  .screen-seats { height: 30px; }
+}
 
 /* ---- host console ------------------------------------------------------- */
 .host-card { padding: 1rem; border-radius: var(--radius); background: var(--velvet-2); border: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; } /* the column never outgrows the card */
@@ -945,6 +1001,8 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .curtain { display: none; }
+  .screen-curtain { display: none; }
+  .screen-overlay, .screen-room { animation: none; }
   .reveal-overlay, .reveal-overlay > .reveal-box { animation: none; } /* no lights-down: it's simply there */
   :is(.reveal-overlay, .reel-overlay).landed * { animation-delay: 0s !important; } /* it lands all at once */
   .marquee::before, .marquee::after, .reveal-stage::before, .reveal-stage::after, .reveal-stage.landed::before, .reveal-stage.landed::after { animation: none; }

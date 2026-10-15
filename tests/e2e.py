@@ -569,6 +569,41 @@ def reveal_ending_checks(browser, errors):
         emu('PATCH', f'{DOCS}/nights/{d}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
 
 
+def trailer_checks(browser, errors):
+    """A trailer plays here, in the screening room: the title on its marquee, YouTube's
+    privacy-enhanced player on the screen, and Esc or Android back ends the show with focus
+    back on the Trailer button. (The player is stubbed: the suite doesn't call YouTube.)"""
+    now = datetime.now(timezone.utc)
+    emu('PATCH', f'{DOCS}/movies/tt9990099', {'fields': fields({'imdbId': 'tt9990099', 'title': 'Screening Room Test', 'year': '1999', 'poster': '',
+        'runtime': '', 'rating': '', 'genres': [], 'trailer': 'abcDEF12345', 'description': '', 'pitch': '', 'shelf': [], 'by': 'hal', 'byName': 'Hal', 'at': now})}, owner=True)
+    page = as_person(browser, errors, 'jo', 'Jo')
+    page.context.route('**/www.youtube-nocookie.com/**', lambda r: r.fulfill(status=200, content_type='text/html', body='<p>the trailer plays here</p>'))
+    page.goto(f'{SITE}/?emu')
+    expect(page.locator('#shelf .card').first).to_be_visible(timeout=15000)
+    page.wait_for_timeout(3000)
+    for _ in range(3):  # any reveal, reel or news waits for later
+        if page.locator('.reveal-overlay, .reel-overlay').count():
+            page.keyboard.press('Escape')
+        page.wait_for_timeout(400)
+    skip_cards(page)
+    btn = page.locator('#shelf .card', has=page.locator('h3', has_text='Screening Room Test')).locator('[data-action="trailer"]')
+    btn.click()
+    room = page.locator('.screen-overlay')
+    expect(room).to_be_visible()
+    expect(room.locator('.screen-title')).to_contain_text('Screening Room Test')
+    expect(room.locator('iframe')).to_have_attribute('src', re.compile(r'^https://www\.youtube-nocookie\.com/embed/abcDEF12345\?autoplay=1'), timeout=5000)
+    expect(room.locator('a[href^="https://www.youtube.com/watch?v=abcDEF12345"]')).to_have_count(1)  # if it won't play here
+    page.keyboard.press('Escape')
+    expect(room).to_have_count(0)
+    expect(btn).to_be_focused()
+    btn.click()
+    expect(room).to_be_visible()
+    page.go_back()  # Android back ends the show too, without leaving the site
+    expect(room).to_have_count(0)
+    assert page.url.startswith(SITE), page.url
+    page.context.close()
+
+
 def stale_lock_checks(browser, errors):
     """A phone whose lists are only its own copy (the live connection dropped, as on a tab that
     has just woken up) doesn't lock a night from them; once the server's word is back, it does.
@@ -1185,6 +1220,11 @@ def main():
         # The card back on the night is how you turn it over now: no extra amber button beside it.
         expect(fresh.locator('#next .ticket-back[data-action="reveal-now"]')).to_be_visible()
         expect(fresh.locator('#next .reveal-again')).to_have_count(0)
+        # ...beside the night's title (the card floats its art; it isn't a grid)...
+        tops = fresh.evaluate("[document.querySelector('#next .night-face .ticket-art').getBoundingClientRect().top, document.querySelector('#next .night-face h3').getBoundingClientRect().top]")
+        assert abs(tops[0] - tops[1]) < 40, tops
+        # ...and the face-down movie is off the shelf until it's turned over.
+        expect(fresh.locator('#shelf .card h3', has_text=re.compile(f'^{re.escape(loser)}$', re.I))).to_have_count(0)
         fresh.click('#next [data-action="reveal-now"]')  # the card back: tap to turn it over
         fresh.click('.reveal-card')
         fresh.keyboard.press('Escape')  # once it has turned, Esc just closes it
@@ -1327,6 +1367,7 @@ def main():
         big_text_checks(browser, errors)
         flaky_start_checks(browser, errors)
         stale_lock_checks(browser, errors)
+        trailer_checks(browser, errors)
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)

@@ -20,7 +20,7 @@ shared shelf, and thumbs-up what they'd watch. The site picks the movie.
 | **Calendar** | Four weeks of evenings, with a printed key under the grid (you're free, how many are free, a movie night). Tapping a day only shows it in the panel below, which scrolls into reach if needed (the arrow keys move between days too); nothing is marked until you tap **I'm free that evening** there, and a toast says so. **‹ ›** beside the panel's date step to the evening before or after, so marking a run of evenings never means going back to the grid. At big text the grid keeps each date, and a night keeps its house mark as well as its gold ring. Being free on an evening and coming to a night held on it are the same thing: if someone hosts it later, you're on its list. Anyone can pick a start time and tap **I can host**, which prints a hosting slip saying who's already free that evening (and so on the list); **Put it on the marquee** confirms it, puts a movie night on the day and counts you in (one per day; first volunteer hosts; the start has to be in the future, and hosting less than a day out locks the movie right away). |
 | **Up next** | The nearest night: when, whose house, who's coming, its theme, snacks, and **If it locked now**: a small card with the poster of the movie that would win right now and why, in people's names (the same rule as the lock; on a themed night it names the pool, "the group's favorite among Drama movies"), with a Veto on it. Its ribbon gives the night's date ("Leading Nov 3"). The marquee always shows it as "Leading:". **Count me in** says you're coming, the same button wherever a night shows; it turns into **You're in ✓**, and dropping out takes a second tap. Everyone coming (and the host) gets one **veto** on a movie for this night and can call snacks. The host can change the time or theme, lock early, unlock and re-pick (until it starts; past the deadline the clock
 picks again at once), mark it watched (once it's started), or cancel (until it starts). |
-| **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one" (written before you pick). Each card has the poster, then right under it who has seen it (once someone has), the thumbs-up ("I'd watch it"), **Seen it**, the trailer, Stremio and **Plot** (which opens the plot in place and becomes **Hide plot**). The next night still open to the pick crowns its projected pick with a **Leading** ribbon (a locked night's movie never wears it, and a movie still face down for you wears nothing); with no night planned, the overall favorites wear **Most wanted**. Nights further out say what's leading in their Also planned row and their day panel. Thumbs-ups and seen marks are per person and carry over. Sort (one menu) by most wanted, newest, least seen, shortest; show by tag, unseen by me, added by me, or, while a themed night is planned, just the movies it can pick ("Fits Hal's Drama night"). No cap. |
+| **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one" (written before you pick). Each card has the poster, then right under it who has seen it (once someone has), the thumbs-up ("I'd watch it"), **Seen it**, the trailer (it plays right here, in the screening room: the house goes dark, the screen's own curtain parts and YouTube's privacy-enhanced player runs on it under a "Now showing" marquee; back or Esc ends the show, and a link opens it on YouTube if it won't play), Stremio and **Plot** (which opens the plot in place and becomes **Hide plot**). The next night still open to the pick crowns its projected pick with a **Leading** ribbon (a locked night's movie never wears it, and a movie still face down for you wears nothing); with no night planned, the overall favorites wear **Most wanted**. Nights further out say what's leading in their Also planned row and their day panel. Thumbs-ups and seen marks are per person and carry over. Sort (one menu) by most wanted, newest, least seen, shortest; show by tag, unseen by me, added by me, or, while a themed night is planned, just the movies it can pick ("Fits Hal's Drama night"). No cap. |
 | **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. Only the people who were there (free that evening, or hosting) are asked to rate a night, one at a time: the newest unrated night, with the week's others a tap away. Everyone can read the reviews. The stars are one Tab stop; the arrow keys choose. |
 | **Stats** | The long view, worked out in your browser from what the page already has, spelled out on a letter board: nights and hours watched, movies added, thumbs-ups and who gives the most; the most wanted movies on the shelf (a movie booked for an upcoming night leaves the list); whose shelf picks made a watched night (house picks count as "House"; a locked night counts once it's watched, so Stats never give a face-down movie away); and, when you're signed in, who you agree with most (how alike your thumbs-ups are, once you and they have at least three). |
 
@@ -49,7 +49,8 @@ then it lands on your ticket). The news cards
 wait in their bar instead of covering the ticket, and until your reveal has
 played (say you backed out of it) they never name the locked movie. Until your reel or
 reveal has played, the page keeps the movie face down (the marquee reads "The
-movie is…", and so does your ticket); a night locked further out stays face
+movie is…", and so does your ticket, and the movie is off the shelf, its
+thumbs-ups out of the news); a night locked further out stays face
 down too (in the news and the day panel) until it's next and you've turned it
 over. It plays after How it works and before the news cards, so a "Locked for
 Friday" card never spoils it (on the phone that does the lock as well), and it counts as
@@ -61,7 +62,8 @@ the poster once the night locks. A watched movie leaves the shelf. The night
 files itself as watched the morning after.
 
 Also: the house curtain when you arrive (it stays closed while the page loads,
-at most 2.5 s, while the house lights go down on it, then parts onto the lit
+at most 2.5 s from the tap on the link (4 s if the page's script never runs),
+while the house lights go down on it, then parts onto the lit
 marquee or the waiting card; How it works, the news cards and the reel rise after
 it; a reload or a trip back from another app skips it; with reduced motion
 there's none), a first-visit walkthrough (four cards, opening by itself for
@@ -175,6 +177,7 @@ public/            static site (Vercel serves it; cleanUrls)
   js/browse.js     Trending / New / For you tabs   js/tour.js  walkthrough
   js/reel.js       the tie-breaker     js/ui.js     DOM helpers
   js/reveal.js     the flip-the-card reveal of a locked movie
+  js/screen.js     the screening room: trailers played on the house screen
 lib/tick.js        the server clock    lib/status.js  JSON for HA
 lib/calendar.js    the .ics feed       lib/preview.js  link-preview page
 lib/firestore-rest.js  tiny REST client for the server files

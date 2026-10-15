@@ -10,6 +10,7 @@ import { searchMovies, movieMeta, topMovies } from './cinemeta.js';
 import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
 import { spinReel } from './reel.js';
 import { revealMovie } from './reveal.js';
+import { playTrailer } from './screen.js';
 import { openTour } from './tour.js';
 import { newsSteps } from './news.js';
 import * as L from './logic.js';
@@ -71,13 +72,17 @@ setTimeout(() => { if (!ready()) { S.unreachable = true; render(); } }, 8000);
 // reduced motion there is no curtain.
 const curtain = $('.curtain');
 let curtainState = curtain && getComputedStyle(curtain).display !== 'none' ? 'closed' : 'gone';
+// One clock: 2.5 s from the tap on the link. If the page itself was that slow,
+// the stylesheet's own fallback (at 4 s, for a page whose script never runs)
+// may already be parting it: then it's left to finish, never restarted.
 function openCurtain() {
   if (curtainState !== 'closed') return;
   curtainState = 'opening';
-  curtain.classList.add('open');
-  setTimeout(() => { curtainState = 'gone'; curtain.remove(); render(); }, 1300);
+  const late = performance.now() >= 4000;
+  curtain.classList.add(late ? 'parting' : 'open');
+  setTimeout(() => { curtainState = 'gone'; curtain.remove(); render(); }, late ? Math.max(0, 5400 - performance.now()) : 1300);
 }
-setTimeout(openCurtain, 2500);
+setTimeout(openCurtain, Math.max(0, 2500 - performance.now()));
 const curtainUp = () => curtainState === 'gone';
 let tourAfterCurtain = false;
 // How it works opens by itself for someone new, once the page knows what's on:
@@ -261,7 +266,9 @@ const out = (sel) => ({ set innerHTML(html) { paint($(sel), html); } });function
     queued = false;
     const shelf = shelfNow();
     const upcoming = L.upcomingNights(S.nights);
-    S.news = L.sinceLastLook({ nights: S.nights, movies: S.movies, votes: S.votes, free: S.free, people: S.people, subs: S.nightSub, since: S.since, meKey: S.me?.nameKey });
+    // A movie still face down for you isn't news yet, not even its thumbs-ups.
+    const secret = new Set(upcoming.filter((n) => n.status === 'locked' && faceDown(n)).map((n) => n.lockedMovieId));
+    S.news = L.sinceLastLook({ nights: S.nights, movies: S.movies, votes: S.votes.filter((v) => !secret.has(v.movie)), free: S.free, people: S.people, subs: S.nightSub, since: S.since, meKey: S.me?.nameKey });
     renderBoard(upcoming[0], shelf);
     renderWho();
     renderPass();
@@ -610,7 +617,7 @@ function renderNext(upcoming, shelf) {
       ${going && !showing(n) ? `<div class="row ticket-actions"><a class="btn btn-bulb" href="${esc(gcalUrl(n, m, hide))}" target="_blank" rel="noopener">Add to calendar</a>${rsvp(n)}</div>
       <p class="hint">Not on Google Calendar? <button class="linkish" type="button" data-action="ics">Download the invite</button></p>` : ''}
       ${hide || !(m.trailer || m.imdbId) ? '' : `<div class="row links-row">
-        ${m.trailer ? `<a class="btn btn-ghost" href="https://www.youtube.com/watch?v=${esc(m.trailer)}" target="_blank" rel="noopener">Watch the trailer</a>` : ''}
+        ${m.trailer ? `<button class="btn btn-ghost" type="button" ${trailerData(m)}>Watch the trailer</button>` : ''}
         ${m.imdbId ? `<a class="btn btn-ghost" href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener">Watch in Stremio</a>` : ''}
       </div>`}
       <p class="dd-line" style="margin-top:10px">${coming.length} coming: ${faces(coming, S.me?.nameKey, 8, { named: false })} ${esc(coming.map((c) => c.name).join(', '))}</p>
@@ -766,11 +773,13 @@ function whyLine(n) {
   if (S.votes.some((v) => v.movie === n.lockedMovieId)) return `the group’s favorite${pool}`;
   return '';
 }
+// A trailer button: it plays in the screening room (screen.js), not another app.
+const trailerData = (m) => `data-action="trailer" data-trailer="${esc(m.trailer)}" data-title="${esc(m.title || '')}" data-year="${esc(m.year || '')}"`;
 const doneFor = (n) => (imFree(n.day) ? 'See my ticket' : 'OK');
 // Someone not coming yet ends the reveal on an invitation (with no name yet,
 // Count me in asks for one first).
 const inviteFor = (n) => !imFree(n.day) && !isMine(n) && !showing(n);
-const blocked = () => !!document.querySelector('.tour-overlay, .reel-overlay, .reveal-overlay');
+const blocked = () => !!document.querySelector('.tour-overlay, .reel-overlay, .reveal-overlay, .screen-overlay');
 
 // The reel settled a tie: play it once per person so everyone sees how.
 function maybeRevealTie(n) {
@@ -942,14 +951,15 @@ function renderShelf(shelf) {
   if (!filters.includes(S.filter)) S.filter = 'All';
   out('#shelfChips').innerHTML = filters.map((f) => `<button class="chip${S.filter === f ? ' on' : ''}" type="button" data-action="filter" data-tag="${esc(f)}" aria-pressed="${S.filter === f}">${esc(f)}</button>`).join('');
 
-  const list = sorted(shelf.movies).filter((m) => matches(m, fit));
+  // A movie still face down for you is off the shelf until you've turned it
+  // over (its place in Most wanted, its +1, would point straight at it).
+  const hidden = new Set(L.upcomingNights(S.nights).filter((n) => n.status === 'locked' && faceDown(n)).map((n) => n.lockedMovieId));
+  const list = sorted(shelf.movies).filter((m) => matches(m, fit) && !hidden.has(m.imdbId));
   if (!ready()) { out('#shelf').innerHTML = ''; return; }
   if (!list.length) {
     out('#shelf').innerHTML = `<p class="empty">${shelf.movies.length ? 'Nothing matches that filter.' : 'The shelf is empty. Add the first movie.'}</p>`;
     return;
   }
-  // ...and a movie still face down for you wears no crown at all.
-  const hidden = new Set(L.upcomingNights(S.nights).filter((n) => n.status === 'locked' && faceDown(n)).map((n) => n.lockedMovieId));
   const leadIds = new Set((p ? (p.tie.length > 1 ? p.tie : [p.movie.imdbId]) : shelf.leaders.map((m) => m.imdbId)).filter((x) => !hidden.has(x)));
   const crown = p ? leadingFor(next) : 'Most wanted';
   out('#shelf').innerHTML = list.map((m) => {
@@ -982,7 +992,7 @@ function renderShelf(shelf) {
             <button class="vote${voted ? ' on' : ''}${bump ? ' bump' : ''}" type="button" data-action="vote" data-id="${id}"
               aria-pressed="${!!voted}" aria-label="I'd watch ${esc(m.title)} (${m.votes})">${THUMB}<span class="n">${m.votes}</span>${newVotes ? `<span class="vote-new">+${newVotes}</span>` : ''}</button>
             <button class="mini${iSaw ? ' on' : ''}" type="button" data-action="seen" data-id="${id}" aria-pressed="${!!iSaw}" aria-label="Seen ${esc(m.title)}">${iSaw ? `Seen ${CHECK}` : 'Seen it'}</button>
-            ${m.trailer ? `<a class="mini" href="https://www.youtube.com/watch?v=${esc(m.trailer)}" target="_blank" rel="noopener" aria-label="Trailer for ${esc(m.title)}">Trailer</a>` : ''}
+            ${m.trailer ? `<button class="mini" type="button" ${trailerData(m)} aria-label="Trailer for ${esc(m.title)}">Trailer</button>` : ''}
             <a class="mini" href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener" aria-label="Open ${esc(m.title)} in Stremio">Stremio</a>
             ${m.description ? `<button class="mini" type="button" data-action="plot" data-id="${id}" aria-expanded="${plotOpen}" aria-controls="plot-${id}">${plotOpen ? 'Hide plot' : 'Plot'}</button>` : ''}
             ${mine ? `<button class="mini" type="button" data-action="remove-movie" data-id="${id}">Remove</button>` : ''}
@@ -1397,6 +1407,7 @@ document.addEventListener('click', (e) => {
     }
     case 'plot': if (S.openPlots.has(id)) S.openPlots.delete(id); else S.openPlots.add(id); render(); break;
     // A reveal closed early: play it now (it's face down until then).
+    case 'trailer': playTrailer({ id: el.dataset.trailer, title: el.dataset.title, year: el.dataset.year }); break;
     case 'reveal-now': for (const k of S.deferred) S.reelsSeen.delete(seenKey(k)); S.deferred.clear(); render(); break;
     case 'tour': startTour(); break;
     case 'news-seen': keepPlace(); markSeen(); break;
