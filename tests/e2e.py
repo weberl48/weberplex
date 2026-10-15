@@ -65,8 +65,12 @@ def shot(page, name):
 
 
 def skip_tour(page):
-    if page.locator('.tour-overlay').count():
-        page.click('[data-tour="skip"]')
+    """Skip How it works. It rises once the curtain has opened, so give it a moment."""
+    try:
+        page.locator('.tour-overlay').wait_for(timeout=6000)
+    except Exception:
+        return
+    page.click('[data-tour="skip"]')
 
 
 def skip_cards(page):
@@ -202,8 +206,8 @@ def overlay_checks(browser, errors):
     }""")
     veto = '<button type="button" data-action="veto" data-id="m">%s</button>'
     opens = {
-        'reveal': ("""import('/js/reveal.js').then((m) => m.revealMovie({ title: 'The Man Who Would Be King', poster: '' }, { when: 'Fri 8 PM', place: "Jo's", people: '5 coming: you, Gma, Hal, Jo, Sam', why: '3 of the 5 coming thumbed it up' }))""", '.reveal-overlay .reveal-actions'),
-        'reel': ("""import('/js/reel.js').then((m) => { const ms = [{ title: 'A', poster: '' }, { title: 'B', poster: '' }]; return m.spinReel(ms, ms[1], { title: '2-way tie. The reel decides…', invite: true, feature: 'Friday’s feature', when: 'Fri 8 PM', place: "Jo's", people: '5 coming: you, Gma, Hal, Jo and Sam' }); })""", '.reel-overlay'),
+        'reveal': ("""import('/js/reveal.js').then((m) => m.revealMovie({ title: 'The Man Who Would Be King', poster: '' }, { when: 'Fri 8 PM', place: "Jo's", people: '5 coming: you, Gma, Hal, Jo and Sam', why: 'Hal, Jo and you thumbed it up' }))""", '.reveal-overlay .reveal-actions'),
+        'reel': ("""import('/js/reel.js').then((m) => { const ms = [{ title: 'A', poster: '' }, { title: 'B', poster: '' }]; return m.spinReel(ms, ms[1], { title: '2-way tie. The reel decides…', invite: true, when: 'Fri 8 PM', place: "Jo's", people: '5 coming: you, Gma, Hal, Jo and Sam', why: 'Won the reel over A' }); })""", '.reel-overlay'),
     }
     for name, (open_js, overlay) in opens.items():
         page.evaluate('(h) => paintBox(h)', veto % 'Veto')
@@ -212,8 +216,9 @@ def overlay_checks(browser, errors):
         if name == 'reveal':
             page.click('.reveal-card')  # the card waits face down until it's turned
         expect(page.locator(f'{overlay} button').first).to_be_visible()
-        if name == 'reel':  # a tie lands like the reveal: the feature, the people, the same endings
-            expect(page.locator('.reel-overlay h2')).to_have_text('Friday’s feature')
+        if name == 'reel':  # a tie lands like the reveal: the title finishes the heading, the people, what it beat, the same endings
+            expect(page.locator('.reel-overlay h2')).to_have_text('2-way tie. The reel decides…')
+            expect(page.locator('.reel-overlay .reveal-why')).to_have_text('Won the reel over A')
             expect(page.locator('.reel-overlay .reel-result')).to_have_text('B')
             expect(page.locator('.reel-overlay .reveal-who')).to_have_text('5 coming: you, Gma, Hal, Jo and Sam')
             expect(page.locator('.reel-overlay .reveal-actions button')).to_have_text(['Count me in', 'Not this time'])
@@ -303,9 +308,11 @@ def long_name_checks(browser, errors):
     wide = 'document.documentElement.scrollWidth - document.documentElement.clientWidth'
     page = tracked(browser, errors, 'long-guest', viewport=PHONE)
     page.goto(f'{SITE}/?emu')
-    # The curtain parts on every load: taps go through it, and it's gone within two seconds.
-    assert page.evaluate("getComputedStyle(document.querySelector('.curtain')).pointerEvents") == 'none'
-    expect(page.locator('.curtain')).to_be_hidden(timeout=2500)
+    # The curtain on every load: closed, it takes the taps while the page loads; it parts once
+    # the page is ready (never later than 2.5 s) and is gone about 1.3 s after that.
+    closed = page.evaluate("(() => { const c = document.querySelector('.curtain'); return c && !c.classList.contains('open') ? getComputedStyle(c).pointerEvents : 'already open'; })()")
+    assert closed in ('auto', 'already open'), closed
+    expect(page.locator('.curtain')).to_have_count(0, timeout=4500)
     skip_tour(page)
     expect(page.locator('#past .past-row .d', has_text=LONG)).to_have_count(1, timeout=10000)
     expect(page.locator('#rateBox .review .who span:first-child', has_text=LONG)).to_have_count(1)
@@ -469,7 +476,8 @@ def reveal_ending_checks(browser, errors):
     skip_tour(page)
     expect(page.locator('.reveal-overlay')).to_be_visible(timeout=15000)
     page.click('.reveal-card')
-    expect(page.locator('.reveal-overlay h2')).to_have_text(re.compile(r'’s feature$'), timeout=10000)  # the heading resolves
+    expect(page.locator('.reveal-title')).to_have_text('Jaws', timeout=10000)  # the title finishes 'The movie is…'
+    expect(page.locator('.reveal-overlay h2')).to_have_text('The movie is…')
     expect(page.locator('.reveal-actions button')).to_have_text(['Count me in', 'Not this time'])
     page.click('.reveal-actions [data-r="in"]')
     expect(page.locator('#pass')).to_be_visible(timeout=10000)
@@ -859,7 +867,7 @@ def main():
         # Alien and Jaws are tied among the people coming: the reel settles it,
         # and plays once on each phone.
         expect(sam.locator('.reel-overlay button')).to_be_visible(timeout=15000)
-        expect(sam.locator('.reel-overlay h2')).to_contain_text('feature')
+        expect(sam.locator('.reel-overlay .reveal-why')).to_contain_text('Won the reel over')
         expect(sam.locator('.reel-overlay .reveal-who')).to_contain_text('coming: you')
         sam.locator('.reel-overlay button').click()
         expect(sam.locator('#next .ticket')).to_contain_text('ADMIT ONE', timeout=10000)
@@ -1012,8 +1020,11 @@ def main():
         sam.keyboard.press('Enter')  # Enter turns it, like a tap
         expect(sam.locator('.reveal-title')).to_have_text(loser, timeout=10000)
         expect(sam.locator('.reveal-when')).to_contain_text("8 PM at Jo's")
-        expect(sam.locator('.reveal-who')).to_contain_text('coming: you')  # who's coming, and why it won
-        expect(sam.locator('.reveal-who')).to_contain_text('thumbed it up')
+        expect(sam.locator('.reveal-who')).to_contain_text('coming: you')  # who's coming, with faces
+        expect(sam.locator('.reveal-who .face')).not_to_have_count(0)
+        # Why it won, by name, not a fraction.
+        expect(sam.locator('.reveal-why')).to_contain_text('thumbed it up')
+        assert not re.search(r'\d+ of the \d+', sam.locator('.reveal-why').inner_text()), sam.locator('.reveal-why').inner_text()
         shot(sam, '04d-reveal')
         sam.keyboard.press('Tab')  # focus stays inside the dialog
         expect(sam.locator('.reveal-actions button')).to_be_focused()

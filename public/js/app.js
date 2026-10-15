@@ -59,6 +59,25 @@ const got = (key) => (rows, fromCache) => {
 // Still nothing after a while: say the box office can't be reached yet.
 setTimeout(() => { if (!ready()) { S.unreachable = true; render(); } }, 8000);
 
+// ---- the house curtain ----------------------------------------------------------
+// Every load opens on the curtain. It stays closed (and takes the taps) while
+// the page loads, then parts once: onto the lit marquee, or straight onto the
+// face-down card when a reveal is due (the house is already dark behind it).
+// The walkthrough, the news cards and the reel rise only once it has opened. It
+// never waits more than 2.5 s for the page, whatever the network does; with
+// reduced motion there is no curtain.
+const curtain = $('.curtain');
+let curtainState = curtain && getComputedStyle(curtain).display !== 'none' ? 'closed' : 'gone';
+function openCurtain() {
+  if (curtainState !== 'closed') return;
+  curtainState = 'opening';
+  curtain.classList.add('open');
+  setTimeout(() => { curtainState = 'gone'; curtain.remove(); render(); }, 1300);
+}
+setTimeout(openCurtain, 2500);
+const curtainUp = () => curtainState === 'gone';
+let tourAfterCurtain = false;
+
 // ---- your settings (people/{nameKey}) ------------------------------------------
 const myDoc = () => (S.me ? S.people.find((p) => p.id === S.me.nameKey) : null);
 const savePrefs = (prefs) => { if (S.me) A.savePrefs(S.me, prefs).catch((e) => console.warn('settings not saved', e)); };
@@ -235,6 +254,7 @@ const out = (sel) => ({ set innerHTML(html) { paint($(sel), html); } });function
     renderWho();
     renderPass();
     renderNews();
+    if (tourAfterCurtain && curtainUp()) startTour();
     // The movie comes first: the reel or reveal plays before the news cards,
     // which then wait for it (a lock card would give the movie away). It waits
     // for every list too, or it can't tell whether you're coming.
@@ -242,6 +262,9 @@ const out = (sel) => ({ set innerHTML(html) { paint($(sel), html); } });function
       maybeRevealTie(upcoming[0]);
       maybeRevealMovie(upcoming[0]);
     }
+    // The curtain parts once the page knows what comes next (a due reveal is
+    // already in place behind it).
+    if ((ready() && knowsMe()) || S.unreachable) openCurtain();
     maybeWalk();
     renderNext(upcoming, shelf);
     renderCalendar();
@@ -399,7 +422,7 @@ function walkNews() {
 let walkRetry = false;
 const subsLoaded = () => [...subs.keys()].every((day) => S.subLoaded.has(`${day}:snacks`) && S.subLoaded.has(`${day}:reviews`));
 function maybeWalk() {
-  if (S.walked || !ready() || !S.me || !myDoc() || !subsLoaded()) return;
+  if (S.walked || !curtainUp() || !ready() || !S.me || !myDoc() || !subsLoaded()) return;
   if (!myDoc().toured && !S.toured) return; // How it works comes first
   if (document.querySelector('.tour-overlay')) return;
   const next = L.upcomingNights(S.nights)[0];
@@ -691,42 +714,49 @@ function landOnTicket(tries = 30) {
   t.classList.add('printed');
   t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
 }
-// "4 coming: you, Gma, Hal and Sam" for the reveal and the reel.
+// "Jaws, Alien and Up": a list the way a person says it.
+const andList = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0] || '');
+// "you, Gma, Hal and Sam": you first; past six names, "and 3 more".
+function nameList(people, max = 6) {
+  const me = people.some((c) => c.nameKey === S.me?.nameKey);
+  const names = [...(me ? ['you'] : []), ...people.filter((c) => c.nameKey !== S.me?.nameKey).map((c) => c.name)];
+  return andList(names.length > max ? [...names.slice(0, max - 1), `${names.length - max + 1} more`] : names);
+}
+// "4 coming: you, Gma, Hal and Sam" (with their faces) for the reveal and the reel.
 function peopleLine(n) {
   const coming = comingTo(n.day);
-  const me = coming.some((c) => c.nameKey === S.me?.nameKey);
-  const names = [...(me ? ['you'] : []), ...coming.filter((c) => c.nameKey !== S.me?.nameKey).map((c) => c.name)];
-  if (!names.length) return '';
-  const shown = names.length > 6 ? [...names.slice(0, 5), `${names.length - 5} more`] : names;
-  return `${names.length} coming: ${shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}` : shown[0]}`;
+  return coming.length ? `${coming.length} coming: ${nameList(coming)}` : '';
 }
-// Why it won, in the reveal: how many of the people coming thumbed it up.
+const facesFor = (n) => faces(comingTo(n.day), S.me?.nameKey, 6, { named: false });
+// Why it won, by name: "Hal, Jo and you thumbed it up" (the people coming who
+// did), "everyone coming thumbed it up", or with nobody coming behind it, "the
+// group's favorite".
 function whyLine(n) {
-  const coming = comingTo(n.day).map((c) => c.nameKey);
-  const fans = S.votes.filter((v) => v.movie === n.lockedMovieId && coming.includes(v.nameKey)).length;
-  const all = S.votes.filter((v) => v.movie === n.lockedMovieId).length;
+  const coming = comingTo(n.day);
+  const fans = coming.filter((c) => S.votes.some((v) => v.movie === n.lockedMovieId && v.nameKey === c.nameKey));
   const pool = n.theme ? ` (a ${n.theme} night)` : '';
-  if (fans && fans === coming.length) return `everyone coming thumbed it up${pool}`;
-  if (fans) return `${fans} of the ${coming.length} coming thumbed it up${pool}`;
-  if (all) return `the group’s favorite${pool}`;
+  if (fans.length > 1 && fans.length === coming.length) return `everyone coming thumbed it up${pool}`;
+  if (fans.length) return `${nameList(fans, 4)} thumbed it up${pool}`;
+  if (S.votes.some((v) => v.movie === n.lockedMovieId)) return `the group’s favorite${pool}`;
   return '';
 }
 const doneFor = (n) => (imFree(n.day) ? 'See my ticket' : 'OK');
 // Someone not coming yet ends the reveal on an invitation (with no name yet,
 // Count me in asks for one first).
 const inviteFor = (n) => !imFree(n.day) && !isMine(n) && !showing(n);
-// The reveal's heading once it has turned: "Friday's feature".
-const featureOf = (n) => `${L.dayFromKey(n.day).toLocaleDateString(undefined, { weekday: 'long' })}’s feature`;
 const blocked = () => !!document.querySelector('.tour-overlay, .reel-overlay, .reveal-overlay');
 
 // The reel settled a tie: play it once per person so everyone sees how.
 function maybeRevealTie(n) {
   if (S.me && !myDoc()) return; // wait until we know which reels you've seen
+  if (!curtainUp() || tourAfterCurtain) return; // it spins in the open, after How it works
   const p = pendingShow(n);
   if (!p?.tie || p.deferred || blocked()) return;
+  const beat = p.pool.filter((m) => m !== p.winner).map((m) => m.title);
   play(n, p.key, () => spinReel(p.pool, p.winner, {
-    title: `${p.pool.length}-way tie. The reel decides…`, done: doneFor(n), invite: inviteFor(n), feature: featureOf(n),
-    when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), people: peopleLine(n) }));
+    title: `${p.pool.length}-way tie. The reel decides…`, done: doneFor(n), invite: inviteFor(n),
+    when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), people: peopleLine(n), faces: facesFor(n),
+    why: beat.length ? `Won the reel over ${andList(beat)}` : '' }));
 }
 
 // The moment the movie is revealed: once per person (once per phone while
@@ -734,11 +764,15 @@ function maybeRevealTie(n) {
 // reel) and before it starts. After How it works, before the news cards.
 function maybeRevealMovie(n) {
   if (S.me && !myDoc()) return; // wait until we know which reveals you've seen
+  // How it works comes first; and not while the curtain is mid-part (it waits
+  // behind a closed curtain, or comes once the curtain is gone).
+  if (tourAfterCurtain || curtainState === 'opening') return;
   const p = pendingShow(n);
   if (!p || p.tie || p.deferred || blocked()) return;
+  const atOnce = curtainState === 'closed';
   play(n, p.key, () => revealMovie(n.lockedMovie, {
-    when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n), invite: inviteFor(n), feature: featureOf(n),
-    people: peopleLine(n), why: whyLine(n) }));
+    when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n), invite: inviteFor(n),
+    people: peopleLine(n), faces: facesFor(n), why: whyLine(n), atOnce }));
 }
 
 // ---- the calendar --------------------------------------------------------------
@@ -1174,6 +1208,8 @@ async function join(name) {
   }
 }
 function startTour() {
+  if (!curtainUp()) { tourAfterCurtain = true; return; } // the curtain opens first
+  tourAfterCurtain = false;
   openTour({ onDone: () => { S.toured = true; savePrefs({ toured: true }); if (!S.me && !$('#pass').hidden) focusPass(); render(); } });
 }
 // No name yet: show the walkthrough now. With a name, applyPrefs decides once

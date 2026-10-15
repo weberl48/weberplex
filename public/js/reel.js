@@ -1,15 +1,16 @@
 // "Spin the reel": a slot-machine strip of posters that lands on `winner`.
-// It lands the way the reveal does: the night's feature heading, the title in
-// marquee letters, when and where and who's coming, and the same endings
-// (See my ticket, or Count me in / Not this time).
+// It lands the way the reveal does: the heading stays ("3-way tie. The reel
+// decides…") and the title in marquee letters finishes it, then when and where,
+// who's coming and what it beat, one after another, and the same endings (See my
+// ticket, or Count me in / Not this time).
 import { esc, posterImg, keyOf, backCloses } from './ui.js';
 
 // `done` names the last button; `invite` offers Count me in / Not this time
-// instead; `feature` ("Friday's feature") replaces the heading once it lands;
-// `when`, `place` and `people` are printed under the title.
+// instead; `when`, `place`, `people` (with `faces`) and `why` ("Won the reel over
+// Jaws and Alien") are printed under the title.
 // Resolves { movie, seen, rsvp }: `seen` is false when back (or Esc) closed it
 // before it landed, so it spins again next visit.
-export function spinReel(movies, winner, { title = 'Spinning the reel…', done = 'Use this one', invite = false, feature = '', when = '', place = '', people = '' } = {}) {
+export function spinReel(movies, winner, { title = 'Spinning the reel…', done = 'Use this one', invite = false, when = '', place = '', people = '', faces = '', why = '' } = {}) {
   return new Promise((resolve) => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const seq = [];
@@ -26,9 +27,11 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…', done 
         <div class="reel-window"><div class="reel-track">
           ${seq.map((m) => `<div class="reel-item">${posterImg(m.poster, m.title, '', true)}</div>`).join('')}
         </div></div>
-        <p class="reel-result" aria-live="polite"></p>
-        <p class="reveal-when"></p>
-        <p class="reveal-who"></p>
+        <p class="reel-result" aria-hidden="true"></p>
+        <p class="reveal-when" aria-hidden="true"></p>
+        <p class="reveal-who" aria-hidden="true"></p>
+        <p class="reveal-why" aria-hidden="true"></p>
+        <p class="sr-only" aria-live="polite"></p>
         <div class="row reveal-actions" hidden>${invite
           ? '<button class="btn btn-bulb" type="button" data-r="in">Count me in</button><button class="btn btn-ghost" type="button" data-r="ok">Not this time</button>'
           : `<button class="btn btn-bulb" type="button" data-r="ok">${esc(done)}</button>`}</div>
@@ -38,18 +41,21 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…', done 
     overlay.tabIndex = -1;
     document.body.append(overlay);
     overlay.focus();
-    const win = overlay.querySelector('.reel-window');
-    const track = overlay.querySelector('.reel-track');
-    const result = overlay.querySelector('.reel-result');
-    const actions = overlay.querySelector('.reveal-actions');
+    const $in = (sel) => overlay.querySelector(sel);
+    const win = $in('.reel-window');
+    const track = $in('.reel-track');
+    const actions = $in('.reveal-actions');
     const buttons = [...actions.querySelectorAll('button')];
     const finish = () => {
       if (!actions.hidden) return;
       win.classList.add('landed');
-      if (feature) overlay.querySelector('h2').textContent = feature;
-      result.textContent = winner.title;
-      overlay.querySelector('.reveal-when').textContent = [when, place && `at ${place}`].filter(Boolean).join(' ');
-      overlay.querySelector('.reveal-who').textContent = people;
+      overlay.classList.add('landed'); // the lines arrive one after another (site.css)
+      const whenText = [when, place && `at ${place}`].filter(Boolean).join(' ');
+      $in('.reel-result').textContent = winner.title;
+      $in('.reveal-when').textContent = whenText;
+      $in('.reveal-who').innerHTML = people ? `${faces}<span>${esc(people)}</span>` : '';
+      $in('.reveal-why').textContent = why;
+      $in('[aria-live]').textContent = [`The reel picked ${winner.title}.`, whenText && `${whenText}.`, people && `${people}.`, why && `${why}.`].filter(Boolean).join(' ');
       actions.hidden = false;
       buttons[0].focus();
     };

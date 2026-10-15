@@ -32,9 +32,11 @@ do. A **veto** takes a movie out of that night's pick (one per person, undoable
 until the lock; if everything is vetoed the vetoes are ignored). Ties go to the
 reel, which plays once on everyone's phone; a clear winner gets the **reveal**
 instead, once per person: the house lights go down and a face-down card waits in a
-ring of chasing bulbs until you tap it over to the poster. It lands with the
-night's feature, when and where, who's coming, and why it won ("3 of the 4
-coming thumbed it up"); a tie's reel lands the same way. It waits until the
+ring of chasing bulbs until you tap it over to the poster. The title finishes
+"The movie is…", then when and where, who's coming (with their faces) and who
+wanted it ("Hal, Jo and you thumbed it up") arrive one after another; a tie's
+reel lands the same way and says what it beat. When it's due as the page opens,
+the curtain parts straight onto the waiting card. It waits until the
 page has everything it needs, so it knows whether you're coming: it ends on
 **See my ticket** if you are (the ticket comes to the top of the screen), and on
 **Count me in** if you aren't (with no
@@ -55,8 +57,10 @@ shows over the reel or the reveal. The link preview in a group text still shows
 the poster once the night locks. A watched movie leaves the shelf. The night
 files itself as watched the morning after.
 
-Also: the house curtain parts on every load (taps go straight through it, and
-with reduced motion there's none), a first-visit walkthrough (five cards; **How it works** replays it;
+Also: the house curtain on every load (it stays closed while the page loads,
+at most 2.5 s, then parts onto the lit marquee or the waiting card; How it works,
+the news cards and the reel rise after it; with reduced motion there's none), a
+first-visit walkthrough (five cards; **How it works** replays it;
 its examples are stamped SAMPLE and use no real dates or names, so nobody
 mistakes the sample ticket for the real night),
 tickets with **Add to calendar** (Google Calendar's add-event page, with the

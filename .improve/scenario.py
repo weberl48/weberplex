@@ -22,6 +22,7 @@ What this can't observe: real Android Chrome and TalkBack, Google Messages'
 link preview, the hand-off to Google Calendar, real network latency to
 Firestore, the daily cron and Home Assistant.
 """
+import base64
 import functools
 import http.server
 import json
@@ -184,12 +185,25 @@ SEEDED_RANDOM = """(() => { let a = %d >>> 0; Math.random = () => { a |= 0; a = 
 timings, transcript, console = [], [], []
 
 
+# Page-side marks (ms since navigation): when the reveal or reel mounts, when How it works
+# rises, and when the load curtain is gone.
+MARKS = """(() => { const t = () => Math.round(performance.now()); let seen = false;
+  new MutationObserver(() => {
+    if (!window.__revealAt && document.querySelector('.reveal-overlay, .reel-overlay')) window.__revealAt = t();
+    if (!window.__tourAt && document.querySelector('.tour-overlay')) window.__tourAt = t();
+    if (document.querySelector('.curtain')) seen = true;
+    else if (seen && !window.__curtainGone) window.__curtainGone = t();
+  }).observe(document, { subtree: true, childList: true });
+})();"""
+
+
 class Phone:
     def __init__(self, browser, who, width, height, dsf, me=None):
         self.who = who
         self.ctx = browser.new_context(viewport={'width': width, 'height': height}, device_scale_factor=dsf, is_mobile=True,
                                        has_touch=True, timezone_id='America/New_York', locale='en-US')
         self.ctx.add_init_script(SEEDED_RANDOM % SEED)
+        self.ctx.add_init_script(MARKS)
         if me:
             self.ctx.add_init_script("localStorage.setItem('ps.me', JSON.stringify({ name: '%s', nameKey: '%s' }))" % (me, me.lower()))
         self.page = self.ctx.new_page()
@@ -248,21 +262,41 @@ def frames(phone, prefix, seconds=1.8, every=0.12):
     return out
 
 
-def curtain(phone, prefix, times=(0, 300, 550, 800, 1050, 1300, 1550)):
-    """The curtain that opens every load, seeked frame by frame (a screenshot is too slow to
-    film it live): the page behind is as it was when the first card showed."""
+def film(phone, prefix, act, seconds=4.2, every=0.15):
+    """Film in real time with Chrome's screencast (a screenshot is too slow for a page load):
+    the frames from `act` on, at most one every `every` seconds, ms since the act in the name."""
     page = phone.page
-    page.evaluate("""() => { window.__c = document.getAnimations().filter((a) => a.effect?.target?.closest?.('.curtain'));
-      window.__c.forEach((a) => a.pause()); }""")
-    out = []
-    for t in times:
-        page.evaluate('(t) => window.__c.forEach((a) => { a.currentTime = t; })', t)
-        fn = f'{phone.who}-{prefix}-{t:04d}ms.png'
-        page.screenshot(path=str(OUT / 'frames' / fn))
+    cdp = page.context.new_cdp_session(page)
+    got = []
+
+    def on_frame(ev):
+        got.append((time.perf_counter(), ev['data']))
+        cdp.send('Page.screencastFrameAck', {'sessionId': ev['sessionId']})
+    cdp.on('Page.screencastFrame', on_frame)
+    cdp.send('Page.startScreencast', {'format': 'jpeg', 'quality': 70})
+    t0 = time.perf_counter()
+    act()
+    while time.perf_counter() - t0 < seconds:
+        page.wait_for_timeout(40)
+    cdp.send('Page.stopScreencast')
+    out, last = [], -10_000
+    for t, data in got:
+        ms = round((t - t0) * 1000)
+        if ms - last < every * 1000:
+            continue
+        last = ms
+        fn = f'{phone.who}-{prefix}-{ms:04d}ms.jpg'
+        (OUT / 'frames' / fn).write_bytes(base64.b64decode(data))
         out.append(fn)
-    page.evaluate('() => window.__c.forEach((a) => a.finish())')
-    transcript.append(f'- frames `{prefix}` (seeked, ms from when the curtain starts): {", ".join(out)}')
+    transcript.append(f'- frames `{prefix}` (screencast, ms from the tap or the link): {", ".join(out)}')
     return out
+
+
+def mark(phone, step, name):
+    """Record a page-side mark (ms since navigation) as a timed step."""
+    ms = phone.page.evaluate(f'window.{name}')
+    if ms is not None:
+        timings.append({'who': phone.who, 'step': step, 'ms': round(ms)})
 
 
 def visible(page, sel, timeout=20000):
@@ -278,8 +312,10 @@ def newcomer(browser, facts):
     transcript.append('\n## Gma, a newcomer (360 px phone, no name yet)')
     g = Phone(browser, 'gma', 360, 800, 3)
     p = g.page
-    g.step('open link to first card', lambda: p.goto(f'{SITE}/?emu'), visible(p, '.tour-overlay'))
-    curtain(g, 'curtain')
+    film(g, 'open', lambda: p.goto(f'{SITE}/?emu'))
+    visible(p, '.tour-overlay')()
+    mark(g, 'open link to the curtain gone', '__curtainGone')
+    mark(g, 'open link to first card', '__tourAt')
     g.shot('first-screen', 'The first thing she sees: the walkthrough sheet over the marquee.')
     for i in range(4):
         g.step(f'tour next {i + 1}', lambda: p.click('[data-tour="next"]'), lambda: p.wait_for_timeout(50))
@@ -336,7 +372,10 @@ def regular(browser, facts):
     transcript.append('\n## Jo, a regular, a day later (412 px phone, signed in)')
     j = Phone(browser, 'jo', 412, 915, 2.625, me='Jo')
     p = j.page
-    j.step('open link to reveal', lambda: p.goto(f'{SITE}/?emu'), visible(p, '.reveal-overlay'))
+    film(j, 'open', lambda: p.goto(f'{SITE}/?emu'))
+    visible(p, '.reveal-overlay')()
+    mark(j, 'open link to reveal', '__revealAt')
+    mark(j, 'open link to the card in view (curtain gone)', '__curtainGone')
     reveal(j, 'reveal')
     j.shot('reveal-landed', 'The reveal of the locked night, landed.')
     j.step('see my ticket', lambda: p.click('.reveal-actions button'), visible(p, '#next .ticket'))
