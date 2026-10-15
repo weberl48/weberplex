@@ -34,3 +34,16 @@
 - Timings: the write steps' slowdown was the 15 GB emulator. A same-hour A/B against the previous commit showed the same numbers.
 - Checkpoint judge: yes, genuinely impressed (the reveal). Its top Minor (a backed-out signed-out reveal is burned once you give a name) is raised to Major (P-106).
 - Next: face down on every path; lights down, curtain, picture; a reveal that builds; first contact at any text size.
+
+## Iteration 6 (2026-10-14)
+- Kept:
+  - face down on every path (0ff3ff8)
+  - lights down, curtain, picture, and the reveal builds (5fe9eb8)
+  - first contact at any text size (e44ba35)
+  - offline start recovers (83e5809, experiment E-6 confirmed the guess first)
+- Impeccable 30/40, every heuristic at 3.
+- Learned: stale browser-pane tabs were live clients locking nights under the tests; a regression check must be shown failing on the old code (two of them initially passed on it).
+- Next:
+  - the show starts with the show (reveal before the tour, a visible dim, no curtain on reload, fonts off the critical path)
+  - the ticket as payoff
+  - locks from fresh data only

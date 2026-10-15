@@ -1,5 +1,5 @@
 {
- "iteration": 5,
+ "iteration": 6,
  "branch": "improve-loop",
  "shipped_commit": "a390baa",
  "impeccable_scores": [
@@ -123,6 +123,25 @@
     3
    ],
    "note": "down 2 from iter-04 (31); H4 consistency at 2: two host-tool commit models, two amber calls per block, copy contradictions, --rule-strong 2.96:1"
+  },
+  {
+   "run": "iter-06",
+   "commit": "83e5809",
+   "score": 30,
+   "max": 40,
+   "per_heuristic": [
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3
+   ],
+   "note": "every heuristic at 3; to reach 4s: loading placeholders, 'you' everywhere, undo on a mistaken name chip, one host save model and one amber per block, pitch after pick, days on the free-evenings card, curtain skipped on reload, shelf trim, named errors, tour copy"
   }
  ],
  "tests": [
@@ -160,6 +179,13 @@
    "emulator": "41/41",
    "e2e": "PASS (new: Esc keeps it face down, no news after back, reveal and reel people lines, reel endings, Stats face-down, name step at the top with no toast, chip tap guard, curtain taps through and reduced motion)",
    "scenario_runs": "4/4 clean (and no swallowed failure: gma200-04 present, no 'no news cards')"
+  },
+  {
+   "iteration": 6,
+   "unit": "35/35",
+   "emulator": "41/41",
+   "e2e": "PASS (new: backed-out signed-out reveal stays face down after a name; a later locked night stays out of the news; the locking phone shows its reveal first; the curtain takes taps until it parts and is gone in 4.5 s; the reveal's why names fans and the reel says what it beat; the thumb you tapped is on screen after your name; 200% big-text checks; a flaky start with empty lists recovers; each new check shown failing on the old code)",
+   "scenario_runs": "4/4 clean"
   }
  ],
  "timings": [
@@ -184,6 +210,11 @@
    "iteration": 5,
    "source": ".improve/evidence/iter-05/timings.md",
    "note": "write steps 100-650 ms slower than iter-04; same-hour A/B shows faf2b0d equally slow (849/875 vs 868/946 ms name-to-ticket); emulator at 15 GB; same code drifted 433->712 ms between two run sets. Environment, not a regression."
+  },
+  {
+   "iteration": 6,
+   "source": ".improve/evidence/iter-06/timings.md",
+   "note": "open to first tour card 1348 -> 2612 ms and open to card in view 2599 ms: the curtain holds until ready then parts (by design, PV-6b); write steps noisy again (emulator 16.4 GB)"
   }
  ],
  "production_counts": {
@@ -296,7 +327,7 @@
     "gma-01..gma-05",
     "the title first appears in gma-06"
    ],
-   "note": "iter-05 newcomer N1, connoisseur C4: five dense cards before the reveal; card 5 spoils the turn and says \"A day before, the movie locks\" over a locked marquee (N6); operator O14: signed out, it replays on every load"
+   "note": "iter-06: four shorter cards, card 4 no longer spoils the turn; still a stock tour between a newcomer and the answer (newcomer N1, N2; connoisseur C4); operator O11: signed out it replays every visit"
   },
   {
    "id": "P-023",
@@ -465,7 +496,7 @@
     "lib/tick.js:28-30,38-40",
     "app.js:57,77,82,84,130"
    ],
-   "note": "iter-05 operator O6, O9: listener errors end the listener for good; quota reads as a connection problem; the tick report is discarded"
+   "note": "iter-06 operator O4: quota or a dead listener reads as a connection problem; people/season errors swallowed, a signed-in page can sit on Warming up forever (SDK part a GUESS)"
   },
   {
    "id": "P-036",
@@ -478,7 +509,7 @@
     "app.js:113-133",
     "actions.js:181-188"
    ],
-   "note": "iter-05 operator O2: the automatic clock still picks from votes and free marks it may hold stale (wake > 5 s, reconnect without hiding, own unsent marks); the transaction checks only vetoes and theme; nothing records who locked from what"
+   "note": "iter-06 operator O1: a woken or fast-clocked phone can still lock from in-memory lists (only a 5 s wake guard; fromCache dropped after first load); and the host loses Unlock once the lock time passes (app.js:197) though the rules allow it until showtime"
   },
   {
    "id": "P-037",
@@ -540,7 +571,7 @@
    "evidence": [
     "gma200-01, gma200-02"
    ],
-   "note": "iter-05 impeccable A P2-C raised it: at 200% the sticky foot takes ~40% of the card and card 3 is cut (scrollHeight 582 vs 383); newcomer N9. Rating raised to the critic's."
+   "note": "iter-06: the foot is one row at 200% (e2e), but impeccable A still sees the tour body cut under the sticky foot at 206 px (scrollHeight 487 vs 385); newcomer N12: cut mid-sentence, header wraps to three lines"
   },
   {
    "id": "P-004",
@@ -1068,12 +1099,13 @@
    "id": "P-076",
    "title": "At 200% text, Count me in from the reveal lands on the guest list with the heading scrolled off, the name field under the toast, and a name chip under the thumb",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-04 newcomer N2, N3",
    "evidence": [
     "gma200-04 -> gma200-05"
    ],
-   "note": "iter-05: heading at the top and no toast (e2e at 412); NOT met at 200%: gma200-05 shows only name chips, the field is off screen (newcomer N2: the names come before her own box, and a chip joins as that person at once)"
+   "note": "iter-05: heading at the top and no toast (e2e at 412); NOT met at 200%: gma200-05 shows only name chips, the field is off screen (newcomer N2: the names come before her own box, and a chip joins as that person at once)",
+   "fixed_in": "e44ba35"
   },
   {
    "id": "P-077",
@@ -1084,7 +1116,7 @@
    "evidence": [
     "gma-12"
    ],
-   "note": "iter-05 newcomer N7, connoisseur C8: welcome toast lingers across 4 screens, over I'm free that evening"
+   "note": "iter-06 newcomer N9, connoisseur C8 again"
   },
   {
    "id": "P-078",
@@ -1096,7 +1128,7 @@
     "app.js:331 with tour.js:103",
     "app.js:543-544"
    ],
-   "note": "iter-05 impeccable A H4 again"
+   "note": "iter-06 impeccable A H4: Reveal the movie + Add to calendar; news Count me in + Next"
   },
   {
    "id": "P-079",
@@ -1107,7 +1139,7 @@
    "evidence": [
     "logic.js:325-328, 422"
    ],
-   "note": "iter-05 connoisseur C7: 9 cards for 8 updates, anonymous items"
+   "note": "iter-06 connoisseur C6: 8 updates vs 1 of 9; card 2 re-announces the lock; \"1 new thumbs-up on 1 movie\""
   },
   {
    "id": "P-080",
@@ -1119,7 +1151,7 @@
     "app.js:723",
     "index.html:106-110"
    ],
-   "note": "iter-05 impeccable A H1, connoisseur C13: no today mark; green dot not in the key; at 200% the dot sits on the numerals"
+   "note": "iter-06 impeccable A H6: the green fresh dot still not in the key"
   },
   {
    "id": "P-081",
@@ -1128,7 +1160,7 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 connoisseur C1, C12; impeccable A P2-D; newcomer N11",
    "evidence": [
     "gma-curtain-0000..1550",
@@ -1136,7 +1168,8 @@
     "curtain-out-360-sheet 600-850 ms",
     "jo-reveal-wait-0715 overlapping headings"
    ],
-   "note": "iter-05 judge polish: the load curtain overlaps the first frame of the reel"
+   "note": "iter-06: the curtain holds closed until ready and parts onto the card when a reveal is due (frames jo-open); connoisseur C1 now: nothing visibly dims, the curtain is lit and still -> P-112",
+   "fixed_in": "5fe9eb8"
   },
   {
    "id": "P-082",
@@ -1145,12 +1178,13 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 connoisseur C2; newcomer N13 (ring dims as the title lands)",
    "evidence": [
     "jo-reveal-turn-0465..0634, 0822..1568 static",
     "gma reveal-turn-0789..1515"
-   ]
+   ],
+   "fixed_in": "5fe9eb8"
   },
   {
    "id": "P-083",
@@ -1159,35 +1193,38 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 connoisseur C3",
    "evidence": [
     "jo-01",
     "run-s2/jo-01",
     "gma-06"
-   ]
+   ],
+   "fixed_in": "5fe9eb8"
   },
   {
    "id": "P-084",
    "title": "The reel lands without a fairness receipt: the tie heading is replaced and nothing names what it beat",
    "severity": "Minor",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 impeccable A P3-E, H1, H6",
    "evidence": [
     "tie-360-landed",
     "reel.js finish()"
-   ]
+   ],
+   "fixed_in": "5fe9eb8"
   },
   {
    "id": "P-087",
    "title": "A signed-out thumbs-up strands the person: after they give a name the page sits at the top while the pressed vote is ~2,450 px below",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 impeccable A P2-A",
    "evidence": [
     "s8.json scrollY 2715 -> 325 -> 0, vote top 3257 at innerHeight 800",
     "app.js join() focus preventScroll"
-   ]
+   ],
+   "fixed_in": "e44ba35"
   },
   {
    "id": "P-088",
@@ -1199,30 +1236,32 @@
     "shelf-plot-viewport",
     "~600 CSS px per two-card row"
    ],
-   "note": "the one-sided card is a user decision (2026-10-14); this is its execution | iter-05 judge #8: 53.7 screens at 180 px, 13 at 412 px"
+   "note": "iter-06 impeccable A P2: on Sam's Alien card every pill took its own row (675 px tall); 7 movies = 42% of the page"
   },
   {
    "id": "P-089",
    "title": "At 200% the marquee title computes to 16px, under 24px section heads; the ticket title too",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 impeccable A P2-C",
    "evidence": [
     "s7.json font sizes",
     "site.css:146 clamp(1rem, 10.5cqi, 3rem)"
-   ]
+   ],
+   "fixed_in": "e44ba35"
   },
   {
    "id": "P-090",
    "title": "A phone that opens on a flaky connection may stay on 'Can't reach the box office' until reloaded when a query is genuinely empty (the first cached empty snapshot is dropped; no includeMetadataChanges)",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 operator O1",
    "evidence": [
     "app.js:52-60,270",
     "store.js:16-18"
    ],
-   "note": "rests on an untested SDK assumption; the cheap experiment is in the operator's file"
+   "note": "E-6 confirmed it: Listen blocked 12 s with no free or seen marks -> never recovered; control with marks recovered 2.4 s after unblock; fixed with includeMetadataChanges, e2e flaky_start_checks fails on the old store.js",
+   "fixed_in": "83e5809"
   },
   {
    "id": "P-091",
@@ -1235,7 +1274,7 @@
     "app.js:528-541,1091",
     "firebase.js:10"
    ],
-   "note": "that Android discard skips beforeunload is a GUESS"
+   "note": "iter-06 operator O2 again, \"borderline Blocker\": nothing reads hasPendingWrites; the ticket prints from the local echo; Android discard skipping beforeunload is a GUESS"
   },
   {
    "id": "P-092",
@@ -1261,7 +1300,7 @@
   {
    "id": "P-095",
    "title": "Read paths grow with history (status reads all done nights and votes every 30 min; calendar feed every done night; uncapped listeners); HA's control/shield poll interval unknown",
-   "severity": "Minor",
+   "severity": "Major",
    "status": "open",
    "found": "iter-05 operator O7, O8",
    "evidence": [
@@ -1269,7 +1308,7 @@
     "lib/calendar.js:46",
     "firestore.rules:66"
    ],
-   "note": "projection and HA interval are GUESSes; confirm in the Firebase console | iter-05 judge #7: ~200 reads per page load today; a year of growth plus HA could approach 50k (GUESS)"
+   "note": "iter-06 operator O3 raised it to Major (structural): status re-reads every vote and done night per 30-min poll; ~20x headroom today, ~40 page loads/day on plausible year-one numbers (projection)"
   },
   {
    "id": "P-097",
@@ -1303,7 +1342,8 @@
    "evidence": [
     "app.js:819,782",
     "logic.js:462"
-   ]
+   ],
+   "note": "iter-06 impeccable A H2: your own night says \"Sam is hosting\" / \"at Sam's\"; \"5 coming: Gma, Hal…\" without \"you\""
   },
   {
    "id": "P-100",
@@ -1313,7 +1353,8 @@
    "found": "iter-05 impeccable A H4, H5",
    "evidence": [
     "app.js:163-166 vs 1230-1253"
-   ]
+   ],
+   "note": "iter-06 impeccable A H4 again (Change time vs theme saves on change)"
   },
   {
    "id": "P-101",
@@ -1323,17 +1364,19 @@
    "found": "iter-05 newcomer N12, impeccable A H6",
    "evidence": [
     "gma-10, gma-11"
-   ]
+   ],
+   "note": "iter-06 impeccable A (Jordan): Alien first on the shelf with no booked stamp"
   },
   {
    "id": "P-102",
    "title": "After the turn only the title is in the live region; the heading, when, who and why aren't announced before focus jumps to the button",
    "severity": "Minor",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 impeccable A (Sam persona)",
    "evidence": [
     "reveal.js live region on .reveal-title only"
-   ]
+   ],
+   "fixed_in": "5fe9eb8"
   },
   {
    "id": "P-103",
@@ -1371,52 +1414,57 @@
     "news.js:215",
     "app.js:550",
     "site.css:454"
-   ]
+   ],
+   "note": "iter-06 connoisseur C7: news name pills with text pinned to the top (news.js:12 span.chip)"
   },
   {
    "id": "P-106",
    "title": "Backing out of the face-down card before giving a name burns the reveal for good: the signed-out 'seen' mark is carried onto the name you pick (play() marks it when it starts; join() copies every signed-out mark), so the next visit spoils the movie",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 judge #1 (rated Minor)",
    "evidence": [
     "judge probe_carry.py: Kim's reels None -> ['r:2026-10-16.tt8946378']",
     "carry-grid.png",
     "app.js:643 play(), app.js:1117-1120 join()"
    ],
-   "note": "raised from the judge's Minor: it writes a false mark to the person's doc and destroys the signature moment for them permanently; it also breaks this iteration's own 'back means not now' promise"
+   "note": "raised from the judge's Minor: it writes a false mark to the person's doc and destroys the signature moment for them permanently; it also breaks this iteration's own 'back means not now' promise",
+   "fixed_in": "0ff3ff8"
   },
   {
    "id": "P-107",
    "title": "The news names a second locked night's movie before its reveal or reel has played ('Locked for Saturday: Hereditary')",
    "severity": "Minor",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 judge #2",
    "evidence": [
     "spoil2-01-news.png"
    ],
-   "note": "needs two nights locked at once"
+   "note": "needs two nights locked at once",
+   "fixed_in": "0ff3ff8"
   },
   {
    "id": "P-108",
    "title": "On the phone that does the lock, the news cards open before the reveal or reel (news at 1.49 s, reveal at 2.06 s); a reel waited behind the news sheet",
    "severity": "Minor",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 judge #5",
    "evidence": [
     "judge notes.log Jo and Rob timings"
-   ]
+   ],
+   "fixed_in": "0ff3ff8"
   },
   {
    "id": "P-109",
    "title": "At 200% zoom the page scrolls sideways by 8 px (marquee ticker, Up next card)",
    "severity": "Minor",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 judge #4",
    "evidence": [
     "s2z-02-after-news.png"
    ],
-   "note": "text-only scaling had no overflow; which mode the phones use is a GUESS"
+   "note": "text-only scaling had no overflow; which mode the phones use is a GUESS",
+   "fixed_in": "e44ba35"
   },
   {
    "id": "P-110",
@@ -1437,6 +1485,114 @@
    "found": "iter-05 judge polish",
    "evidence": [
     "judge verdict.md"
+   ]
+  },
+  {
+   "id": "P-112",
+   "title": "No visible lights-down: the curtain is lit and still while the page loads, then parts onto a card; nothing dims, though the tour promises 'the house lights go down'",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-06 connoisseur C1",
+   "evidence": [
+    "jo-open-0606..1364 static lit curtain",
+    "gma-04-tour-4 copy"
+   ]
+  },
+  {
+   "id": "P-113",
+   "title": "A newcomer's curtain parts onto the name form, then a 4-card tour covers it; the reveal (the answer they came for) waits behind the tour",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-06 newcomer N1, N2; connoisseur C4; impeccable A (Jordan)",
+   "evidence": [
+    "gma-open-2171..3038",
+    "gma-01..04",
+    "open to first card 2612 ms"
+   ]
+  },
+  {
+   "id": "P-114",
+   "title": "The curtain plays its full ~2.6 s on every load, reloads and back-forward returns (from Stremio, YouTube, Calendar) included",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-06 impeccable A H7; operator (step ratings)",
+   "evidence": [
+    "open to curtain gone 2599-2612 ms",
+    "app.js:69-77"
+   ]
+  },
+  {
+   "id": "P-115",
+   "title": "On a slow connection the page is white for ~5 s (render-blocking font stylesheet, inferred), then the curtain parts onto an empty house ('Warming up the projector…')",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-06 impeccable A P2",
+   "evidence": [
+    "assess-a11 curtain/jo-1 throttled frames",
+    "index.html:19"
+   ],
+   "note": "the white-screen cause is the reviewer's inference"
+  },
+  {
+   "id": "P-116",
+   "title": "The card back is a generic maroon slab with a '?', flipped like a memory card; the waiting screen says nothing about the night and leaves a third of the screen empty",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-06 connoisseur C2; newcomer (iter-05 N13)",
+   "evidence": [
+    "jo-reveal-wait-0000",
+    "jo-reveal-turn-0138..0416"
+   ]
+  },
+  {
+   "id": "P-117",
+   "title": "See my ticket is a hard cut to a poster-less ticket that slices the Up next heading and sits on top of the calendar, Stremio, Concessions and a field",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-06 connoisseur C3; impeccable A P2 (Up next buries the calendar at 1,355 px)",
+   "evidence": [
+    "jo-02-ticket",
+    "kim-02-ticket"
+   ]
+  },
+  {
+   "id": "P-118",
+   "title": "Tour card 2's sample 'I'm free that evening' is a real-looking amber button under a highlighted Fri, her exact goal; only a small SAMPLE tag marks it",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-06 newcomer N3",
+   "evidence": [
+    "gma-02-tour-2"
+   ],
+   "note": "what a tap does is a GUESS (demos are pointer-events: none)"
+  },
+  {
+   "id": "P-119",
+   "title": "The free-evenings news card names people but not days ('Gma, Kim and 1 more marked free evenings'); Show me only scrolls",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-06 impeccable A P2, H6",
+   "evidence": [
+    "logic.js:427"
+   ]
+  },
+  {
+   "id": "P-120",
+   "title": "If the Firebase SDK can't load, the page sits on 'Warming up the projector…' with no message (the curtain does open: CSS fallback, hidden by ~4.2 s, verified)",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-06 operator O5 (curtain part refuted)",
+   "evidence": [
+    "probe: gstatic blocked -> curtain hidden at 4.2 s, board 'Warming up the projector'"
    ]
   }
  ],
@@ -1462,6 +1618,11 @@
    "id": "iter-05 N10",
    "title": "On a second device the reveal lists Gma and still asks Count me in",
    "why": "the 200% walk is a different signed-out visitor, not Gma; listing Gma and offering that visitor Count me in is correct"
+  },
+  {
+   "id": "iter-06 N11",
+   "title": "Tapping 'You're in ✓' might take her off the list",
+   "why": "refuted again by code: a first tap only arms 'Tap again: can't make it' (app.js armed())"
   }
  ],
  "pivots": [
@@ -1782,6 +1943,72 @@
     "P-078, P-099, P-100 consistency and copy (the H4 score)",
     "P-077 toasts over buttons",
     "P-024, P-025, P-079 news and locked-night card"
+   ],
+   "results": {
+    "PV-6a": "kept; met: e2e backed-out signed-out reveal stays face down after a name (fails on old code), no news names a later locked night, the locking phone shows its reveal first (fails on old code)",
+    "PV-6b": "kept; met: frames show the curtain parting onto the card with nothing behind it (jo-open), the landing builds over ~0.8 s (title 784, when 960, who 1146, why 1324-1491 ms), e2e why names fans and the reel says what it beat; timing: open to card in view 2599 ms (met), open to first tour card 2612 ms (missed the 2.6 s line by 12 ms)",
+    "PV-6c": "kept; met: e2e 200% (206 px) no sideways scroll, title 20 px > heads 18 px, tour foot one row, name field in view after a thumb; e2e the tapped thumb is on screen after the name; tour four cards",
+    "E-6": "confirmed and fixed (83e5809): page stuck on \"Can't reach\" after a flaky start with empty lists"
+   }
+  },
+  {
+   "iteration": 7,
+   "changes": [
+    {
+     "id": "PV-7a",
+     "fixes": [
+      "P-113",
+      "P-112",
+      "P-114",
+      "P-115",
+      "P-022"
+     ],
+     "what": "The show starts with the show: a newcomer with a reveal due gets the reveal first (How it works waits behind its link; it opens by itself only when nothing is face down); the house lights visibly go down on the closed curtain before it parts; a reload or back-forward return skips the curtain; the font stylesheet no longer blocks the first paint.",
+     "proof": [
+      "frames: a newcomer's curtain parts onto the face-down card, no tour before it",
+      "frames: the curtain dims (>= 30% darker) before it parts",
+      "e2e: a reload shows no curtain",
+      "measured: first paint is the curtain, not white, with the font CSS delayed 2 s"
+     ],
+     "risk": "a newcomer who wanted the walkthrough first has to find How it works"
+    },
+    {
+     "id": "PV-7b",
+     "fixes": [
+      "P-116",
+      "P-117",
+      "P-078"
+     ],
+     "what": "The ticket is the payoff: the card back is a printed ticket back (house name, the night's day and place); the waiting card says when and where; See my ticket lands on the Up next heading and the ticket carries the poster; after backing out, the face-down ticket itself is how you turn it over (no separate amber button).",
+     "proof": [
+      "frames: the card back shows the night's day and place",
+      "screenshot: after See my ticket the Up next heading is fully on screen and the ticket shows a poster",
+      "e2e: backing out leaves one amber call in Up next; tapping the face-down ticket plays the reveal"
+     ],
+     "risk": "the ticket grows taller; a busier card back"
+    },
+    {
+     "id": "PV-7c",
+     "fixes": [
+      "P-036"
+     ],
+     "what": "Locks you can trust: the phone's clock never locks from lists that are still cache-only or while its own taps are unsent; the host keeps Unlock and re-pick until showtime (as the rules allow).",
+     "proof": [
+      "e2e: a phone whose free marks are still cache-only doesn't lock",
+      "e2e: the host sees Unlock and re-pick after the lock time"
+     ],
+     "risk": "a lock delayed a pass on a flaky phone (the server clock covers it)"
+    }
+   ],
+   "deferred": [
+    "P-091 local echo and tab discard (GUESS on Android discard)",
+    "P-095 read growth (structural; ~20x headroom today)",
+    "P-088 shelf card pile (the user's card; its own round)",
+    "P-119 days on the free-evenings card",
+    "P-099, P-100 copy and the host save model",
+    "P-118 tour sample button (moot for most newcomers once the reveal comes first)",
+    "P-035 listener failure messaging",
+    "P-120 SDK load failure message"
    ]
   }
  ],
