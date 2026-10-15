@@ -143,7 +143,7 @@ button, input, select, textarea { font: inherit; color: inherit; accent-color: v
 .board { container-type: inline-size; }
 .board h1 {
   margin: 0;
-  font: 400 clamp(1rem, 10.5cqi, 3rem)/1.05 var(--f-display);
+  font: 400 clamp(1.25rem, 10.5cqi, 3rem)/1.05 var(--f-display);
   letter-spacing: 0.03em; text-transform: uppercase;
   text-wrap: balance; overflow-wrap: break-word;
 }
@@ -383,7 +383,7 @@ h3.label, h4.label { margin: 0 0 6px; }
 }
 .ticket-main { padding: 18px 18px 16px; min-width: 0; container-type: inline-size; }
 .admit { margin: 0; font: 700 11px/1 var(--f-body); letter-spacing: 0.38em; color: var(--admit-red); }
-.ticket h3 { margin: 8px 0 6px; font: 400 clamp(1rem, 10cqi, 2rem)/1.05 var(--f-display); text-transform: uppercase; overflow-wrap: break-word; }
+.ticket h3 { margin: 8px 0 6px; font: 400 clamp(1.25rem, 10cqi, 2rem)/1.05 var(--f-display); text-transform: uppercase; overflow-wrap: break-word; }
 .ticket dl { margin: 10px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: var(--step--1); }
 .ticket dt { font: 700 11px/1.8 var(--f-body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ticket-label); }
 .ticket dd { margin: 0; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
@@ -581,7 +581,14 @@ h3.label, h4.label { margin: 0 0 6px; }
 .tour-ticket { grid-template-columns: 1fr 52px; }
 .tour-ticket h3 { font-size: var(--step-1); }
 /* big text on a phone: the words carry the card; the example would crowd them */
-@media (max-width: 300px) { .tour-demo { display: none; } }
+@media (max-width: 300px) {
+  .tour-demo { display: none; }
+  /* the foot is one row: the dots go, Back and Next sit side by side */
+  .tour-dots { display: none; }
+  .tour-foot { padding-top: 8px; }
+  .tour-nav { flex-wrap: nowrap; justify-content: space-between; }
+  .tour-nav .btn { min-width: 0; flex: 1 1 0; }
+}
 
 /* ---- up next ------------------------------------------------------------ */
 .night-card { gap: 14px; }
@@ -859,7 +866,7 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 @keyframes curtain-gone-open { to { visibility: hidden; } }
 
 /* ---- host console ------------------------------------------------------- */
-.host-card { padding: 1rem; border-radius: var(--radius); background: var(--velvet-2); border: 1px solid var(--rule); display: grid; gap: 12px; }
+.host-card { padding: 1rem; border-radius: var(--radius); background: var(--velvet-2); border: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; } /* the column never outgrows the card */
 .host-card h3 { margin: 0; font-size: var(--step-1); }
 .date-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .date-item { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 8px 10px; border-radius: 4px; background: var(--velvet-3); font-size: var(--step--1); }
@@ -889,6 +896,13 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
   .board .kicker { letter-spacing: 0.16em; }
   .board .sub { font-size: var(--step--1); letter-spacing: 0.04em; }
   .program { gap: 0 12px; }
+  /* nothing runs past the screen's edge: buttons wrap their words, the
+     If-it-locked-now poster sits over its line, and the section heads step
+     down so the marquee title stays the biggest thing on the page */
+  .btn { max-width: 100%; padding: 0 12px; text-align: center; }
+  .btn-rsvp { min-width: min(9.5rem, 100%); }
+  .pick-now { grid-template-columns: minmax(0, 1fr); }
+  .section-head h2 { font-size: 1.125rem; }
 }
 
 @media (min-width: 640px) {

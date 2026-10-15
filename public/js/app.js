@@ -1183,6 +1183,8 @@ async function join(name) {
       const el = p?.key && document.querySelector(p.key);
       if (el) {
         el.focus({ preventScroll: true });
+        // Back where you tapped (a thumb deep in the shelf), unless the ticket comes next.
+        if (!p.ticket) el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
         if (el.disabled || el.getAttribute('aria-pressed') === 'true') return;
         const before = lastRun;
         el.click();

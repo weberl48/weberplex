@@ -362,7 +362,7 @@ def honest_sending_checks(browser, errors):
     # With the note up, a walkthrough's buttons still take the tap (the note moves out of the way).
     page.click('.topbar [data-action="tour"]')
     page.click('[data-tour="next"]', timeout=3000)
-    expect(page.locator('.tour-top .label')).to_contain_text('2 of 5')
+    expect(page.locator('.tour-top .label')).to_contain_text('2 of 4')
     page.click('[data-tour="skip"]')
     page.context.unroute('**/google.firestore.v1.Firestore/Write/**')  # the SDK retries and resends
     expect(page.locator('#toast')).to_contain_text('Sent.', timeout=20000)
@@ -560,6 +560,34 @@ def reveal_ending_checks(browser, errors):
     page.context.close()
     for d in (day, later):
         emu('PATCH', f'{DOCS}/nights/{d}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
+
+
+def big_text_checks(browser, errors):
+    """200% text on a phone (simulated as a 206 px screen): nothing runs past the edge, the
+    marquee title stays bigger than the section heads, How it works keeps Back and Next on one
+    row, and a thumbs-up with no name brings the name form up with its heading and field in view."""
+    page = tracked(browser, errors, 'big-text', viewport={'width': 206, 'height': 457}, device_scale_factor=4,
+                   is_mobile=True, has_touch=True)
+    page.goto(f'{SITE}/?emu')
+    tour = page.locator('.tour-overlay')
+    expect(tour).to_be_visible(timeout=10000)
+    page.click('[data-tour="next"]')
+    tops = page.evaluate("[...document.querySelectorAll('.tour-nav .btn')].map((b) => Math.round(b.getBoundingClientRect().top))")
+    assert len(tops) == 2 and tops[0] == tops[1], tops
+    page.click('[data-tour="skip"]')
+    if page.locator('.reveal-overlay').count():
+        page.keyboard.press('Escape')
+    page.wait_for_selector('#shelf .card .vote')
+    m = page.evaluate("""() => ({ over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      h1: parseFloat(getComputedStyle(document.querySelector('#board h1')).fontSize),
+      h2: parseFloat(getComputedStyle(document.querySelector('.section-head h2')).fontSize) })""")
+    assert m['over'] <= 0 and m['h1'] > m['h2'], m
+    page.locator('#shelf .card .vote').first.click()
+    expect(page.locator('#pass')).to_be_visible()
+    page.wait_for_timeout(1200)
+    box = page.evaluate("() => ({ top: document.querySelector('#pass').getBoundingClientRect().top, field: document.querySelector('#passName').getBoundingClientRect().bottom, h: innerHeight })")
+    assert 0 <= box['top'] <= 30 and box['field'] <= box['h'], box
+    page.context.close()
 
 
 def locking_phone_checks(browser, errors):
@@ -1082,6 +1110,10 @@ def main():
         expect(card(fresh, paddington).locator('.vote')).to_have_attribute('aria-pressed', 'true', timeout=10000)
         expect(fresh.locator('#toast')).to_contain_text('Your thumbs-up on')
         fresh.wait_for_timeout(1500)
+        # Back where they tapped: the pressed thumb is on screen, not 2,000 px below.
+        box = card(fresh, paddington).locator('.vote').bounding_box()
+        vh = fresh.viewport_size['height']
+        assert box and 0 <= box['y'] and box['y'] + box['height'] <= vh, (box, vh)
         expect(fresh.locator('.reveal-overlay')).to_have_count(0)
         reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/fran'))['fields']['reels']['arrayValue']['values']]
         assert any(r.startswith(f'r:{day2}.') for r in reels), reels
@@ -1154,11 +1186,10 @@ def main():
         shot(newbie, '05-tour')
         # Its demos are stamped samples with no real dates, and each card is announced.
         expect(tour.locator('.tour-demo.sample')).to_have_count(1)
-        expect(tour.locator('[aria-live]')).to_have_text('How it works, 1 of 5: Welcome to the Weberplex')
-        newbie.click('[data-tour="next"]')
+        expect(tour.locator('[aria-live]')).to_have_text('How it works, 1 of 4: Welcome to the Weberplex')
         newbie.click('[data-tour="next"]')
         expect(tour.locator('.tour-demo .d-num')).to_have_text(['Thu', 'Fri', 'Sat', 'Sun'])  # weekdays, not dates
-        expect(tour.locator('[aria-live]')).to_contain_text('3 of 5')
+        expect(tour.locator('[aria-live]')).to_contain_text('2 of 4')
         newbie.click('[data-tour="next"]')
         newbie.click('[data-tour="next"]')
         newbie.click('[data-tour="done"]')
@@ -1202,6 +1233,7 @@ def main():
         reveal_invite_checks(browser, errors)
         reveal_ending_checks(browser, errors)
         locking_phone_checks(browser, errors)
+        big_text_checks(browser, errors)
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)

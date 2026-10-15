@@ -58,16 +58,16 @@
 
     <section class="pass" id="pass" hidden>
       <h2>Put your name on the guest list</h2>
-      <div id="passPeople" hidden>
-        <p class="hint" id="passListHint" style="margin:0 0 8px">On the list already? Tap your name.</p>
-        <div class="chips guest-list" id="passChips" role="group" aria-labelledby="passListHint"></div>
-      </div>
       <form id="passForm" autocomplete="on">
-        <label class="field-label" for="passName">New here? <span>Your first name is fine; this phone remembers it.</span></label>
+        <label class="field-label" for="passName">Your first name is fine; this phone remembers it.</label>
         <input class="field" id="passName" name="name" maxlength="24" autocomplete="given-name" placeholder="Your name" required>
         <button class="btn btn-bulb" id="passGo" type="submit">That's me</button>
       </form>
       <p class="msg" id="passMsg" role="status" hidden></p>
+      <div id="passPeople" hidden>
+        <p class="hint" id="passListHint" style="margin:0 0 8px">On the list already? Tap your name.</p>
+        <div class="chips guest-list" id="passChips" role="group" aria-labelledby="passListHint"></div>
+      </div>
     </section>
 
     <section class="section" id="nextSec">

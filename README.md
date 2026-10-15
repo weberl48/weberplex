@@ -40,7 +40,8 @@ the curtain parts straight onto the waiting card. It waits until the
 page has everything it needs, so it knows whether you're coming: it ends on
 **See my ticket** if you are (the ticket comes to the top of the screen), and on
 **Count me in** if you aren't (with no
-name yet, the guest list comes to the top of the screen and asks for one, its
+name yet, the guest list comes to the top of the screen and asks for one (your
+name box first, then the names already on it), its
 names ignoring taps for a moment so a second tap can't pick someone else's,
 then it lands on your ticket). The news cards
 wait in their bar instead of covering the ticket, and until your reveal has
@@ -60,7 +61,7 @@ files itself as watched the morning after.
 Also: the house curtain on every load (it stays closed while the page loads,
 at most 2.5 s, then parts onto the lit marquee or the waiting card; How it works,
 the news cards and the reel rise after it; with reduced motion there's none), a
-first-visit walkthrough (five cards; **How it works** replays it;
+first-visit walkthrough (four cards; **How it works** replays it;
 its examples are stamped SAMPLE and use no real dates or names, so nobody
 mistakes the sample ticket for the real night),
 tickets with **Add to calendar** (Google Calendar's add-event page, with the

@@ -317,9 +317,9 @@ def newcomer(browser, facts):
     mark(g, 'open link to the curtain gone', '__curtainGone')
     mark(g, 'open link to first card', '__tourAt')
     g.shot('first-screen', 'The first thing she sees: the walkthrough sheet over the marquee.')
-    for i in range(4):
+    for i in range(3):
         g.step(f'tour next {i + 1}', lambda: p.click('[data-tour="next"]'), lambda: p.wait_for_timeout(50))
-        g.shot(f'tour-{i + 2}', f'Walkthrough card {i + 2} of 5.')
+        g.shot(f'tour-{i + 2}', f'Walkthrough card {i + 2} of 4.')
     g.step('tour done to reveal', lambda: p.click('[data-tour="done"]'), visible(p, '.reveal-overlay'))
     reveal(g, 'reveal')
     g.shot('reveal-landed', 'The reveal after it lands (signed out, once per phone): its ending.')

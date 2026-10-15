@@ -16,17 +16,12 @@ const dayCell = (name, cls = '', meta = '') => `<span class="day${cls}"><span cl
 const STEPS = [
   {
     title: 'Welcome to the Weberplex',
-    body: 'Movie night, decided together. Say when you’re free, thumbs-up what you’d watch, and the site picks the movie.',
+    body: 'Movie night, decided together. Put your first name down once (this phone remembers it), say when you’re free, thumbs-up what you’d watch, and the site picks the movie.',
     demo: `<div class="marquee tour-mini"><div class="board"><p class="kicker">Now booking</p><h1>Weberplex</h1><p class="sub">Pick a night · Pick a picture</p></div></div>`,
   },
   {
-    title: 'Put your name down',
-    body: 'Type your first name once. This phone remembers it, and your thumbs-ups and free evenings count under it.',
-    demo: `<div class="tour-row"><span class="field tour-field">Ava</span><span class="btn btn-bulb">That's me</span></div>`,
-  },
-  {
     title: 'Say when you’re free',
-    body: 'Tap a day on the calendar to see who’s free, then say you are: I’m free that evening, or Count me in when someone’s already hosting. Either way, you’re on the list. Anyone can host: pick a start time and tap I can host.',
+    body: 'Tap a day to see who’s free, then say you are: I’m free that evening, or Count me in when someone’s hosting. Anyone can host: pick a time and tap I can host.',
     demo: `<div class="cal tour-cal">
       ${dayCell('Thu')}${dayCell('Fri', ' on sel', '2')}${dayCell('Sat', ' lead', `3<span class="d-host">${HOUSE}</span>`)}${dayCell('Sun')}
     </div>
@@ -36,13 +31,13 @@ const STEPS = [
   },
   {
     title: 'Thumbs-up what you’d watch',
-    body: 'Everyone adds movies to the shelf. Thumbs-up as many as you like; they carry over from night to night. Mark the ones you’ve seen so everyone can spot what’s new to the group.',
+    body: 'Everyone adds movies to the shelf. Thumbs-up as many as you like; they carry over. Mark the ones you’ve seen.',
     demo: `<div class="tour-row"><span class="vote on">${THUMB}<span class="n">4</span></span><span class="mini on">Seen ${CHECK}</span>
       <span class="mini">Trailer</span><span class="tag-chip" data-tag="Foreign">Foreign</span></div>`,
   },
   {
     title: 'The movie picks itself',
-    body: 'A day before, the movie locks: the one the people coming want most. Everyone coming gets one veto, and a tie spins the reel. Then you turn the card over, and your ticket appears.',
+    body: 'Before each night, the movie locks: the one the people coming want most (everyone coming gets a veto; a tie spins the reel). Then the house lights go down on everyone’s phone.',
     demo: `<div class="ticket tour-ticket"><div class="ticket-main"><p class="admit">ADMIT ONE</p><h3>The movie is…</h3>
       <dl><dt>When</dt><dd>Fri · 8:00&nbsp;PM</dd><dt>Where</dt><dd>Ava's</dd></dl></div>
       <div class="ticket-stub"><span>No. 004213</span></div></div>`,
