@@ -315,6 +315,32 @@ h3.label, h4.label { margin: 0 0 6px; }
 .tile-actions .add { color: var(--bulb); border-color: var(--bulb); }
 .tile-actions .add[disabled] { color: var(--faint); border-color: var(--rule); cursor: default; }
 
+/* ---- paste a list: one row per line, what it matched and what becomes of it */
+.paste-text { display: block; min-height: 8.5rem; padding: 10px 14px; resize: vertical; line-height: 1.4; }
+.paste > .row { margin-top: 10px; }
+.paste-rows { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.paste-row {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: start;
+  padding: 8px; background: var(--velvet-2); border: 1px solid var(--rule); border-radius: var(--radius);
+}
+.paste-row.ready { border-color: var(--rule-strong); }
+.paste-poster img, .paste-poster .noimg { width: 40px; height: 60px; object-fit: cover; border-radius: 2px; background: var(--velvet-3); }
+.paste-poster .noimg { display: grid; place-items: center; font: 400 var(--step-1)/1 var(--f-display); color: var(--faint); }
+.paste-main { min-width: 0; display: grid; gap: 4px; justify-items: start; }
+.paste-title { overflow-wrap: anywhere; }
+.paste-title .y { color: var(--dim); font-size: var(--step--1); }
+.paste-line { font-size: 12px; color: var(--dim); overflow-wrap: anywhere; }
+.paste-state { font: 700 var(--step--1)/1.3 var(--f-body); color: var(--faint); }
+.paste-row.ready .paste-state { color: var(--go); }
+.paste-row.miss .paste-state { color: var(--bad); }
+.paste-pick { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-top: -6px; cursor: pointer; }
+.paste-pick input, .check input { flex: none; width: 22px; height: 22px; }
+.paste-miss { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+.paste-miss .field { flex: 1 1 10rem; }
+.paste-alts { width: 100%; display: grid; gap: 4px; padding: 4px; background: var(--velvet-3); border-radius: var(--radius); }
+.paste-actions { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-weight: 600; font-size: var(--step--1); }
+
 /* ---- the ballot --------------------------------------------------------- */
 .ballot { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(9.5rem, 100%), 1fr)); gap: 14px; }
 .card { min-width: 0; display: grid; grid-template-rows: auto 1fr; background: var(--velvet-2); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--rule); }

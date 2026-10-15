@@ -10,6 +10,8 @@ function secureId(len = 24) {
   return Array.from(bytes, (b) => abc[b % abc.length]).join('');
 }
 
+const MOVIES_PER_BATCH = 20;
+
 export class AlreadyOnShelfError extends Error {
   constructor(movie) {
     super(`${movie.title} is already on the shelf${movie.byName ? ` (added by ${movie.byName})` : ''}. Give it a thumbs-up instead.`);
@@ -91,6 +93,41 @@ export function makeActions(db, F) {
         if (now.exists()) throw new AlreadyOnShelfError(now.data());
         throw e;
       }
+    },
+
+    // The Paste a list tab: several movies at once, each written exactly as addMovie writes it (pitch
+    // '', and your thumb when `thumbs`). Batches of at most 20 movies (a batch holds 500 writes; this
+    // is two per movie, so there is plenty of room). Anything on the shelf already, or put there since
+    // the list was read, is skipped. Resolves with the ids of what was added, skipped and failed (and
+    // the last error): a batch that fails is reported and the next ones still go.
+    async addMovies(who, movies, { thumbs = true } = {}) {
+      const res = { added: [], skipped: [], failed: [], error: null };
+      const taken = async (m) => (await getDoc(doc(db, 'movies', m.imdbId))).exists();
+      const commit = (chunk) => batched((b) => {
+        for (const m of chunk) {
+          b.set(doc(db, 'movies', m.imdbId), { ...m, pitch: '', by: who.nameKey, byName: who.name, at: serverTimestamp() });
+          if (thumbs) b.set(doc(db, 'votes', `${m.imdbId}__${who.nameKey}`), { movie: m.imdbId, title: m.title, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
+        }
+      });
+      const list = [...new Map(movies.map((m) => [m.imdbId, m])).values()];
+      for (let i = 0; i < list.length; i += MOVIES_PER_BATCH) {
+        let chunk = list.slice(i, i + MOVIES_PER_BATCH);
+        // Twice at most: a batch bounces whole when one of its movies landed a moment ago, so look again.
+        for (let attempt = 0; chunk.length; attempt += 1) {
+          try {
+            const there = await Promise.all(chunk.map(taken));
+            res.skipped.push(...chunk.filter((_, j) => there[j]).map((m) => m.imdbId));
+            chunk = chunk.filter((_, j) => !there[j]);
+            if (chunk.length) await commit(chunk);
+            res.added.push(...chunk.map((m) => m.imdbId));
+            chunk = [];
+          } catch (e) {
+            res.error = e;
+            if (attempt) { res.failed.push(...chunk.map((m) => m.imdbId)); chunk = []; }
+          }
+        }
+      }
+      return res;
     },
 
     // Takes a movie off the shelf with its thumbs and seen marks.

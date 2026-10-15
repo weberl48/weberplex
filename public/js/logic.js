@@ -728,3 +728,115 @@ export function movieFromMeta(meta) {
     description: String(meta.description || '').slice(0, 600),
   };
 }
+
+// ---- pasting a list ---------------------------------------------------------------
+// "Paste a list" on the shelf: one movie per line, as people type them. Parsing,
+// picking the catalog's match for a line, and what each line is by the time the
+// review shows it are all pure; the lookups themselves are in paste.js.
+export const PASTE_MAX = 50;
+
+// A pasted line is "1. It Follows (2014)", '- "Alien" 1979', "• Heat - 1995". Numbering needs its dot or
+// bracket ("1.", "1)", "#1"), so a title that starts with a number ("21 Jump Street") keeps it.
+const LEAD = /^(?:#\d{1,3}[.):]?|\d{1,3}[.)]|[-*•–—]+)\s*/;
+const QUOTED = /^(["“”„«‹'‘’])\s*(.*?)\s*(["“”»›'’‘])$/;
+const unquote = (s) => { const m = s.match(QUOTED); return m && m[2] ? m[2] : s; };
+const YEAR_IN_BRACKETS = /^(.*\S)\s*[([]\s*((?:19|20)\d{2})\s*[)\]]$/;
+const YEAR_AT_END = /^(.*\S)\s+(?:[-–—,:]\s*)?((?:19|20)\d{2})$/;
+
+function parseMovieLine(line) {
+  let t = line;
+  for (let i = 0; i < 2; i += 1) t = t.replace(LEAD, ''); // "- 1. Alien"
+  t = unquote(t.replace(/[\s,;]+$/, ''));
+  // A year with nothing before it is the title ("1917"), not a year.
+  const m = t.match(YEAR_IN_BRACKETS) || t.match(YEAR_AT_END);
+  const year = m ? Number(m[2]) : null;
+  const title = unquote((m ? m[1] : t).replace(/[\s,;:–—-]+$/, '').trim());
+  return { title: title.slice(0, 120), year };
+}
+
+// -> [{ line, title, year|null }], blank lines left out, at most `max` (50).
+export function parseMovieList(text, max = PASTE_MAX) {
+  const out = [];
+  for (const raw of String(text ?? '').split(/\r\n|\r|\n/)) {
+    const line = raw.replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (!line) continue;
+    const { title, year } = parseMovieLine(line);
+    if (!title) continue;
+    out.push({ line, title, year });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+const plain = (s) => String(s ?? '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/&/g, ' and ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const withoutArticle = (s) => plain(s).replace(/^(?:the|a|an) /, '');
+
+// Edit distance where swapping two neighbours counts once ("Alein" is one slip from "Alien").
+function slips(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j += 1) d[0][j] = j;
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[a.length][b.length];
+}
+
+// How well a catalog name fits what was typed: 3 the same title (spacing, case, accents, "The" aside; a
+// hair more when "The" matches too), 2 a slip or two away ("Se7en" for "Seven"), 1 one inside the other
+// ("Romulus" in "Alien: Romulus"), else 0.
+function titleFit(want, got) {
+  const a = withoutArticle(want);
+  const b = withoutArticle(got);
+  if (!a || !b) return 0;
+  const sa = a.replace(/ /g, '');
+  const sb = b.replace(/ /g, '');
+  if (sa === sb) return plain(want).replace(/ /g, '') === plain(got).replace(/ /g, '') ? 3.2 : 3;
+  const long = Math.max(sa.length, sb.length);
+  if (Math.min(sa.length, sb.length) >= 5 && slips(sa, sb) <= Math.max(1, Math.floor(long * 0.2))) return 2;
+  const [few, many] = a.split(' ').length <= b.split(' ').length ? [a.split(' '), b.split(' ')] : [b.split(' '), a.split(' ')];
+  return few.every((w) => many.includes(w)) ? 1 : 0;
+}
+
+// The year Cinemeta gives a result ("1979", or "2014–2016" for a series).
+export const releaseYear = (meta) => {
+  const y = String(meta?.releaseInfo || meta?.year || '').match(/\d{4}/);
+  return y ? Number(y[0]) : null;
+};
+
+// The catalog result that a pasted { title, year } most likely meant, and the other results
+// (best first) for "Wrong movie?"; null when none of them is even near. An exact title with the
+// right year wins; a year one off still counts (catalogs differ on the festival year); a year
+// that sits inside the title ("Blade Runner 2049") is tried as part of it.
+export function matchMovie({ title, year = null }, metas = []) {
+  const scored = metas.map((meta, i) => {
+    const asTyped = titleFit(title, meta.name);
+    const withYear = year ? titleFit(`${title} ${year}`, meta.name) : 0;
+    const fit = Math.max(asTyped, withYear ? withYear + 0.5 : 0);
+    const y = releaseYear(meta);
+    const yearFit = year && y ? (y === year ? 2 : Math.abs(y - year) === 1 ? 1 : 0) : 0;
+    return { meta, i, fit, score: fit * 4 + yearFit * 3 };
+  }).sort((a, b) => b.score - a.score || a.i - b.i);
+  const best = scored.find((s) => s.fit >= 1);
+  return best ? { meta: best.meta, alts: scored.filter((s) => s !== best).map((s) => s.meta) } : null;
+}
+
+// What each row of a pasted list is right now, from the shelf as it stands (so a movie someone adds
+// while you review it turns into "on the shelf"): loading · miss · watched · shelf (with its movie) ·
+// dup (an earlier row is the one that gets added) · ready.
+export function pasteStates(rows = [], { shelf = new Map(), watched = new Set() } = {}) {
+  const claimed = new Set();
+  return rows.map((r) => {
+    if (r.status === 'loading') return { kind: 'loading' };
+    if (r.status !== 'found') return { kind: 'miss' };
+    const id = r.meta.imdb_id || r.meta.id;
+    if (watched.has(id)) return { kind: 'watched' };
+    if (shelf.has(id)) return { kind: 'shelf', movie: shelf.get(id) };
+    if (claimed.has(id)) return { kind: 'dup' };
+    claimed.add(id);
+    return { kind: 'ready' };
+  });
+}

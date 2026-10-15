@@ -127,8 +127,22 @@
             <input class="field" id="q" type="search" placeholder="Search a movie to add…" autocomplete="off" enterkeyhint="search">
             <button class="btn btn-ghost" type="button" data-action="surprise">Surprise me</button>
           </div>
-          <label class="field-label" for="pitch">Why this one? <span>Optional, printed on its card. Write it before you pick.</span></label>
-          <input class="field" id="pitch" maxlength="140" placeholder="e.g. The shark still holds up">
+          <div id="pitchRow">
+            <label class="field-label" for="pitch">Why this one? <span>Optional, printed on its card. Write it before you pick.</span></label>
+            <input class="field" id="pitch" maxlength="140" placeholder="e.g. The shark still holds up">
+          </div>
+          <div class="paste" id="pasteBox" hidden>
+            <label class="field-label" for="pasteText">One movie per line. <span>Add the year if you know it: It Follows (2014)</span></label>
+            <textarea class="field paste-text" id="pasteText" rows="6" placeholder="Alien (1979)&#10;The Thing&#10;Heat 1995" autocomplete="off" spellcheck="false"></textarea>
+            <p class="hint" id="pasteSignIn" hidden>Add your name first (the form is at the top of the page): the movies go on the shelf under it.</p>
+            <div class="row"><button class="btn btn-bulb" type="button" id="pasteFind" data-action="paste-find">Find these</button></div>
+            <p class="hint" id="pasteSum" role="status"></p>
+            <div id="pasteReview"></div>
+            <div class="paste-actions" id="pasteActions" hidden>
+              <label class="check"><input type="checkbox" id="pasteThumbs" checked> Give them all my thumbs-up</label>
+              <button class="btn btn-primary" type="button" id="pasteAdd" data-action="paste-add">Add 0 movies</button>
+            </div>
+          </div>
           <div class="results" id="results" hidden></div>
           <p class="hint" id="browseNote" hidden></p>
           <div class="poster-grid" id="browseGrid" hidden></div>

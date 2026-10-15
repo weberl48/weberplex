@@ -8,6 +8,7 @@ import {
   icsEvent, icsCalendar, icsFold, icsEscape,
   tasteMatch, pickLeaders, mostWanted, recap,
   vetoedFor, pickable, fitsTheme, themeOptions, cleanTheme, showtimeShort, showtimeLong, looksLike, whenWords, sinceWords, googleCalendarUrl,
+  parseMovieList, matchMovie, pasteStates, releaseYear, PASTE_MAX,
 } from '../public/js/logic.js';
 
 const at = (ms) => new Date(ms);
@@ -437,4 +438,126 @@ test('the theme menu: shelf tags first, then genres, each once', () => {
 test('showtimeShort reads like a person would say it', () => {
   assert.equal(showtimeShort(new Date(2026, 9, 16, 20, 0), 'en-US'), 'Friday 8 PM');
   assert.equal(showtimeShort(new Date(2026, 9, 16, 19, 30), 'en-US'), 'Friday 7:30 PM');
+});
+
+test('a pasted list: one entry per line, numbering and bullets and quotes stripped, blank lines ignored', () => {
+  const text = [
+    '1. It Follows', '2) Alien', '#3 Heat', '- Jaws', '* The Thing', '• Rear Window', '  ', '', '"Se7en"', '“Arrival”', "'Moonlight'",
+  ].join('\r\n');
+  assert.deepEqual(parseMovieList(text).map((e) => e.title), ['It Follows', 'Alien', 'Heat', 'Jaws', 'The Thing', 'Rear Window', 'Se7en', 'Arrival', 'Moonlight']);
+  assert.deepEqual(parseMovieList('1. Alien\n\n\n2. Aliens'), [{ line: '1. Alien', title: 'Alien', year: null }, { line: '2. Aliens', title: 'Aliens', year: null }]);
+  assert.deepEqual(parseMovieList('- 1. Alien').map((e) => e.title), ['Alien']); // a bullet, then a number
+  assert.deepEqual(parseMovieList('1.\n---\n   \n'), []); // nothing left once the numbering goes
+  assert.deepEqual(parseMovieList(''), []);
+  assert.deepEqual(parseMovieList(null), []);
+  assert.deepEqual(parseMovieList('Alien\rAliens').map((e) => e.title), ['Alien', 'Aliens']); // an old Mac line break
+});
+
+test('a pasted list: the year in each of its forms', () => {
+  const one = (line) => parseMovieList(line)[0];
+  assert.deepEqual(one('It Follows (2014)'), { line: 'It Follows (2014)', title: 'It Follows', year: 2014 });
+  assert.deepEqual(one('It Follows [2014]'), { line: 'It Follows [2014]', title: 'It Follows', year: 2014 });
+  assert.deepEqual(one('It Follows 2014'), { line: 'It Follows 2014', title: 'It Follows', year: 2014 });
+  assert.deepEqual(one('It Follows - 2014'), { line: 'It Follows - 2014', title: 'It Follows', year: 2014 });
+  assert.equal(one('It Follows – 2014').title, 'It Follows');
+  assert.equal(one('It Follows, 2014').title, 'It Follows');
+  assert.equal(one('It Follows(2014)').year, 2014);
+  assert.equal(one('7. "It Follows" (2014)').title, 'It Follows'); // quotes around the title only
+  assert.equal(one('"It Follows (2014)"').year, 2014); // quotes around the lot
+  assert.equal(one('It Follows (1899)').title, 'It Follows (1899)'); // only 1900-2099 is a year
+  assert.equal(one('It Follows (2100)').year, null);
+  assert.equal(one('Metropolis 1927').year, 1927);
+  assert.equal(one('Tenet 2099').year, 2099);
+  assert.equal(one('Heat 12345').year, null); // not four digits at the end
+});
+
+test('a pasted list: titles that are or contain numbers are left alone', () => {
+  const one = (line) => parseMovieList(line)[0];
+  assert.deepEqual(one('2001: A Space Odyssey'), { line: '2001: A Space Odyssey', title: '2001: A Space Odyssey', year: null });
+  assert.deepEqual(one('1917'), { line: '1917', title: '1917', year: null }); // a year with no title is the title
+  assert.deepEqual(one('1917 (2019)'), { line: '1917 (2019)', title: '1917', year: 2019 });
+  assert.deepEqual(one('1. 1917'), { line: '1. 1917', title: '1917', year: null });
+  assert.deepEqual(one('Se7en'), { line: 'Se7en', title: 'Se7en', year: null });
+  assert.deepEqual(one('Se7en 1995'), { line: 'Se7en 1995', title: 'Se7en', year: 1995 });
+  assert.deepEqual(one('21 Jump Street'), { line: '21 Jump Street', title: '21 Jump Street', year: null });
+  assert.deepEqual(one('4. 21 Jump Street (2012)'), { line: '4. 21 Jump Street (2012)', title: '21 Jump Street', year: 2012 });
+  assert.equal(one('300').title, '300');
+  assert.equal(one('12 Angry Men').title, '12 Angry Men');
+  assert.equal(one('(500) Days of Summer (2009)').title, '(500) Days of Summer');
+  assert.equal(one("Ocean's Eleven").title, "Ocean's Eleven"); // an apostrophe is not a quote
+  assert.equal(one('2012 2009').title, '2012');
+  // A title that ends in a year-like number reads as a year here; matching sorts it out (below).
+  assert.deepEqual(one('Blade Runner 2049'), { line: 'Blade Runner 2049', title: 'Blade Runner', year: 2049 });
+});
+
+test('a pasted list is cut at 50 lines, and says how many there were when asked', () => {
+  const text = Array.from({ length: 70 }, (_, i) => `Movie ${i + 1}`).join('\n');
+  assert.equal(PASTE_MAX, 50);
+  assert.equal(parseMovieList(text).length, 50);
+  assert.equal(parseMovieList(text).at(-1).title, 'Movie 50');
+  assert.equal(parseMovieList(text, Infinity).length, 70);
+  assert.equal(parseMovieList(text, 3).length, 3);
+  assert.equal(parseMovieList('x'.repeat(500))[0].title.length, 120);
+});
+
+const meta = (id, name, releaseInfo) => ({ id, imdb_id: id, name, releaseInfo });
+
+test('matching a pasted line to the catalog: exact title, then the year, then a near title', () => {
+  const heat = [meta('tt1', 'Heat', '1995'), meta('tt2', 'Heat', '1986'), meta('tt3', 'The Heat', '2013'), meta('tt4', 'Heat Wave', '1990')];
+  assert.equal(matchMovie({ title: 'Heat', year: null }, heat).meta.id, 'tt1'); // the catalog's own order breaks a tie
+  assert.equal(matchMovie({ title: 'Heat', year: 1986 }, heat).meta.id, 'tt2');
+  assert.equal(matchMovie({ title: 'heat', year: 1995 }, heat).meta.id, 'tt1');
+  assert.equal(matchMovie({ title: 'Heat', year: 1996 }, heat).meta.id, 'tt1'); // a year out still counts: catalogs differ by one
+  assert.equal(matchMovie({ title: 'Heat', year: 1960 }, heat).meta.id, 'tt1'); // a wrong year doesn't lose the title
+  // The other results come back best first, for "Wrong movie?".
+  assert.deepEqual(matchMovie({ title: 'Heat', year: 1986 }, heat).alts.map((m) => m.id), ['tt1', 'tt3', 'tt4']);
+  assert.equal(matchMovie({ title: 'The Heat', year: null }, heat).meta.id, 'tt3');
+  assert.equal(matchMovie({ title: 'Heat', year: null }, [meta('tt3', 'The Heat', '2013')]).meta.id, 'tt3'); // "The" doesn't matter
+});
+
+test('matching: near titles, and nothing near is a miss', () => {
+  assert.equal(matchMovie({ title: 'Seven', year: 1995 }, [meta('x', 'Se7en', '1995')]).meta.id, 'x'); // a slip or two
+  assert.equal(matchMovie({ title: 'Alein', year: null }, [meta('x', 'Alien', '1979')]).meta.id, 'x'); // letters swapped
+  assert.equal(matchMovie({ title: 'Romulus', year: null }, [meta('x', 'Alien: Romulus', '2024')]).meta.id, 'x'); // one inside the other
+  assert.equal(matchMovie({ title: 'Spider-Man', year: null }, [meta('x', 'Spiderman', '2002')]).meta.id, 'x');
+  assert.equal(matchMovie({ title: 'Amelie', year: null }, [meta('x', 'Amélie', '2001')]).meta.id, 'x'); // accents
+  assert.equal(matchMovie({ title: 'Alien 3', year: null }, [meta('x', 'Alien³', '1992')]).meta.id, 'x');
+  // Two-letter titles are not "a slip" from each other: Us is not Up.
+  assert.equal(matchMovie({ title: 'Us', year: 2019 }, [meta('x', 'Up', '2009')]), null);
+  assert.equal(matchMovie({ title: 'zzqxvkj', year: null }, [meta('x', 'Alien', '1979')]), null);
+  assert.equal(matchMovie({ title: 'Anything', year: null }, []), null);
+  // A near title with the right year beats an exact one in the wrong year; a year alone never makes a match.
+  assert.equal(matchMovie({ title: 'Seven', year: 1995 }, [meta('a', 'Seven', '2010'), meta('b', 'Se7en', '1995')]).meta.id, 'b');
+  assert.equal(matchMovie({ title: 'Xyz', year: 2001 }, [meta('a', 'Other', '2001')]), null);
+});
+
+test('matching: a year that is part of the title (Blade Runner 2049, Wonder Woman 1984)', () => {
+  const runner = [meta('tt1', 'Blade Runner', '1982'), meta('tt2', 'Blade Runner 2049', '2017')];
+  assert.equal(matchMovie({ title: 'Blade Runner', year: 2049 }, runner).meta.id, 'tt2');
+  assert.equal(matchMovie({ title: 'Blade Runner', year: 1982 }, runner).meta.id, 'tt1');
+  assert.equal(matchMovie({ title: 'Blade Runner', year: null }, runner).meta.id, 'tt1');
+  const ww = [meta('a', 'Wonder Woman', '2017'), meta('b', 'Wonder Woman 1984', '2020')];
+  assert.equal(matchMovie({ title: 'Wonder Woman', year: 1984 }, ww).meta.id, 'b');
+  assert.equal(releaseYear({ releaseInfo: '2014–2016' }), 2014);
+  assert.equal(releaseYear({ year: 1999 }), 1999);
+  assert.equal(releaseYear({}), null);
+  assert.equal(releaseYear(undefined), null);
+});
+
+test('a pasted list, row by row: ready, on the shelf, watched, listed twice, not found', () => {
+  const found = (id) => ({ status: 'found', meta: meta(id, `Movie ${id}`, '2000') });
+  const rows = [
+    found('a'), found('b'), found('c'), found('a'), found('d'), found('a'),
+    { status: 'miss', meta: null }, { status: 'error', meta: null }, { status: 'loading', meta: null },
+  ];
+  const shelf = new Map([['b', { imdbId: 'b', by: 'sam', byName: 'Sam' }]]);
+  const kinds = pasteStates(rows, { shelf, watched: new Set(['c']) });
+  assert.deepEqual(kinds.map((s) => s.kind), ['ready', 'shelf', 'watched', 'dup', 'ready', 'dup', 'miss', 'miss', 'loading']);
+  assert.equal(kinds[1].movie.byName, 'Sam');
+  // Listing a movie that is already on the shelf twice says so both times; nothing of it is kept.
+  assert.deepEqual(pasteStates([found('b'), found('b')], { shelf }).map((s) => s.kind), ['shelf', 'shelf']);
+  // Someone puts the first one on the shelf while you review: the row follows, and the repeats go with it.
+  const later = pasteStates(rows.slice(0, 6), { shelf: new Map([['a', { imdbId: 'a', by: '', byName: 'The house' }]]) });
+  assert.deepEqual(later.map((s) => s.kind), ['shelf', 'ready', 'ready', 'shelf', 'ready', 'shelf']);
+  assert.deepEqual(pasteStates([]), []);
 });

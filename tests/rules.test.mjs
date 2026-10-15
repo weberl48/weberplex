@@ -519,3 +519,62 @@ test('a reveal is remembered on your people doc next to the tie reels', async ()
   await assertSucceeds(A.savePrefs(sam, { reels: ['2026-10-31.tt0000001', 'r:2026-11-07.tt0000002'] }));
   assert.deepEqual((await getDoc(doc(db, 'people', 'sam'))).data().reels, ['2026-10-31.tt0000001', 'r:2026-11-07.tt0000002']);
 });
+
+test('a pasted list: addMovies adds several at once, with or without thumbs, and skips what is on the shelf', async () => {
+  const sam = await A.join('Sam');
+  const jo = await A.join('Jo');
+  await A.addMovie(jo, movie(1));
+  const shelfDoc = async (n) => (await getDoc(doc(db, 'movies', movie(n).imdbId))).data();
+  const voted = async (n, who) => (await getDoc(doc(db, 'votes', `${movie(n).imdbId}__${who}`))).exists();
+
+  // With thumbs: movie 1 is already Jo's (skipped, still hers, no thumb from Sam); 2 and 3 are added once each.
+  const res = await A.addMovies(sam, [movie(1), movie(2), movie(3), movie(2)], { thumbs: true });
+  assert.deepEqual(res.added, [movie(2).imdbId, movie(3).imdbId]);
+  assert.deepEqual(res.skipped, [movie(1).imdbId]);
+  assert.deepEqual(res.failed, []);
+  assert.equal((await shelfDoc(1)).by, 'jo');
+  assert.equal(await voted(1, 'sam'), false);
+  assert.equal(await voted(2, 'sam'), true);
+  assert.equal(await voted(3, 'sam'), true);
+
+  // Each is written exactly as addMovie writes it: the same fields, an empty pitch, the adder's name.
+  await A.addMovie(sam, movie(4));
+  const one = await shelfDoc(4);
+  const pasted = await shelfDoc(2);
+  assert.deepEqual(Object.keys(pasted).sort(), Object.keys(one).sort());
+  assert.deepEqual({ ...pasted, imdbId: '', title: '', at: null }, { ...one, imdbId: '', title: '', at: null });
+  assert.equal(pasted.pitch, '');
+  assert.equal(pasted.by, 'sam');
+  assert.equal(pasted.byName, 'Sam');
+  assert.equal(pasted.title, 'Movie 2');
+
+  // Without thumbs: on the shelf, no thumb.
+  const quiet = await A.addMovies(sam, [movie(5), movie(6)], { thumbs: false });
+  assert.deepEqual(quiet.added, [movie(5).imdbId, movie(6).imdbId]);
+  assert.equal((await shelfDoc(5)).by, 'sam');
+  assert.equal(await voted(5, 'sam'), false);
+  assert.equal(await voted(6, 'sam'), false);
+
+  // The same list again adds nothing, and says why.
+  const again = await A.addMovies(sam, [movie(5), movie(6)]);
+  assert.deepEqual([again.added, again.skipped.length, again.failed], [[], 2, []]);
+  assert.deepEqual(await A.addMovies(sam, []), { added: [], skipped: [], failed: [], error: null });
+});
+
+test('a pasted list of 45 goes in as three batches; a batch that is refused is reported and the next ones still go', async () => {
+  const sam = await A.join('Sam');
+  const many = Array.from({ length: 45 }, (_, i) => movie(100 + i));
+  const all = await A.addMovies(sam, many);
+  assert.equal(all.added.length, 45);
+  assert.equal((await getDocs(collection(db, 'movies'))).size, 45);
+  assert.equal((await getDocs(collection(db, 'votes'))).size, 45);
+
+  // One bad movie (the rules want a title) sinks the batch of 20 it is in, not the batches after it.
+  const list = Array.from({ length: 25 }, (_, i) => movie(200 + i, i === 3 ? { title: '' } : {}));
+  const res = await A.addMovies(sam, list);
+  assert.equal(res.failed.length, 20);
+  assert.ok(res.failed.includes(list[3].imdbId));
+  assert.deepEqual(res.added, list.slice(20).map((m) => m.imdbId));
+  assert.ok(res.error);
+  assert.equal((await getDocs(collection(db, 'movies'))).size, 50);
+});

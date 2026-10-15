@@ -22,6 +22,7 @@ const CLASSIFIED = {
   join: quiet('signing the guest list; the person has nothing to show yet'),
   savePrefs: quiet('personal settings (lastSeen, toured, hostTime, reels)'),
   addMovie: announced('movies'),
+  addMovies: announced('movies'), // a pasted list: one card for them all ("12 new movies on the shelf: A, B, C…")
   removeMovie: quiet('a removal; nothing new to look at'),
   setVote: announced('votes'),
   setSeen: quiet('a personal "seen it" mark'),
@@ -199,4 +200,14 @@ test('at most eight cards, with the rest counted on the last one', () => {
   assert.deepEqual(n.cards.at(-1).rest, n.items.slice(MAX_NEWS_CARDS).map((x) => x.text));
   assert.equal(n.count, 11); // the bar's count: the cards plus what the last one lists
   assert.equal(sinceLastLook({ ...base, ...FIXTURES.movies }).cards.length, 1);
+});
+
+test('a pasted list of movies is one card, with a thumbs-up for the first few', () => {
+  const movies = Array.from({ length: 12 }, (_, i) => ({ imdbId: `tt${i + 1}`, title: `Movie ${i + 1}`, by: 'sam', at: at(2000) }));
+  const n = sinceLastLook({ ...base, movies });
+  assert.equal(n.items.length, 1);
+  assert.equal(n.items[0].kind, 'movies');
+  assert.equal(n.items[0].text, '12 new movies on the shelf: Movie 1, Movie 2, Movie 3…');
+  assert.deepEqual(n.items[0].ids.map((x) => x.id), ['tt1', 'tt2', 'tt3']);
+  assert.equal(n.movies.size, 12); // and all twelve wear the New chip
 });

@@ -8,6 +8,7 @@ import { makeActions, AlreadyOnShelfError } from './actions.js';
 import { watch, watchNights, watchFree, watchDoc, loadRows } from './store.js';
 import { searchMovies, movieMeta, topMovies } from './cinemeta.js';
 import { browseTabs, tabsHtml, loadTab, tilesHtml } from './browse.js';
+import { lookupRows, lookupRow, mapLimit, reviewHtml, summaryText } from './paste.js';
 import { spinReel } from './reel.js';
 import { revealMovie } from './reveal.js';
 import { playTrailer } from './screen.js';
@@ -35,6 +36,7 @@ const S = {
   reelsSeen: new Set(),              // tie reels and movie reveals played this visit, as `${nameKey}|${key}` ('' when signed out)
   sort: 'wanted', filter: 'All',
   tab: 'search', tabItems: [], tabNote: '', tabLoading: false,
+  paste: { rows: [], cut: 0, adding: false }, // the Paste a list tab: see "Paste a list" below
   openPlots: new Set(), lastVotes: new Map(),
   newsAt: 0,                         // the news card "Show me" left from, so Walk me through picks up there
   deferred: new Set(),               // reveals closed with back before they turned: face down, a tap away
@@ -930,7 +932,7 @@ const matches = (m, fit) => S.filter === 'All'
 function renderShelf(shelf) {
   $('#shelfCount').textContent = `${shelf.movies.length} movies`;
   const genre = L.ballotGenre(shelf.movies);
-  out('#browseTabs').innerHTML = tabsHtml(browseTabs(genre), S.tab);
+  out('#browseTabs').innerHTML = tabsHtml(browseTabs(genre, 'For you', { paste: true }), S.tab);
   const searching = S.tab === 'search';
   $('#searchRow').hidden = !searching;
   $('#results').hidden = !searching || !$('#results').innerHTML;
@@ -939,6 +941,7 @@ function renderShelf(shelf) {
   const taken = new Set(S.movies.map((m) => m.imdbId));
   $('#browseGrid').hidden = searching || S.tabLoading || !S.tabItems.length;
   if (!searching) paint($('#browseGrid'), tilesHtml(S.tabItems, { taken, watched: L.watchedIds(S.nights) }));
+  renderPaste();
 
   if ($('#sortSel').value !== S.sort) $('#sortSel').value = S.sort;
   // The crown belongs to the next night: with one planned, its projected pick
@@ -1023,6 +1026,7 @@ let tabToken = 0;
 async function openTab(id) {
   S.tab = id; S.tabItems = []; S.tabNote = '';
   if (id === 'search') { render(); $('#q').focus(); return; }
+  if (id === 'paste') { setPickMsg(''); render(); setTimeout(() => $('#pasteText').focus(), 0); return; } // once its panel is showing
   const token = ++tabToken;
   S.tabLoading = true;
   render();
@@ -1536,6 +1540,11 @@ document.addEventListener('click', (e) => {
     }
     case 'filter': S.filter = el.dataset.tag; render(); break;
     case 'pick': pick(id, el); break;
+    case 'paste-find': pasteFind(el); break;
+    case 'paste-wrong': { const r = pasteRow(id); if (r) { r.wrong = !r.wrong; render(); } break; }
+    case 'paste-alt': pasteSwap(id, el.dataset.item); break;
+    case 'paste-retry': pasteRetry(id); break;
+    case 'paste-add': pasteAdd(el); break;
     case 'surprise': surprise(); break;
     case 'close-surprise': $('#surprise').innerHTML = ''; break;
     case 'quick-snack': addSnack(day, el.dataset.item, el); break;
@@ -1620,6 +1629,124 @@ async function pick(imdbId, el = null) {
     $('#surprise').innerHTML = '';
   });
 }
+
+// Paste a list ----------------------------------------------------------------------
+// S.paste.rows has one row per pasted line: { id, line, title, year, status ('loading' | 'found' |
+// 'miss' | 'error'), meta, alts (the other results, best first), on (ticked), wrong (the other
+// matches are open) }. What a row *is* (ready, on the shelf, ...) is worked out on every paint from
+// the live shelf, so a movie someone adds while you review it turns into "on the shelf" by itself.
+// The name gate (requireMe) is at Find these, and again at Add, like the other adds.
+let pasteAbort = null;
+const imdbOf = (m) => m.imdb_id || m.id;
+const pasteRow = (id) => S.paste.rows.find((r) => r.id === Number(id));
+const pasteStates = () => L.pasteStates(S.paste.rows, { shelf: new Map(S.movies.map((m) => [m.imdbId, m])), watched: L.watchedIds(S.nights) });
+// Text and state only when they change: a screen reader reads a status again on every touch.
+const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
+
+function renderPaste() {
+  const on = S.tab === 'paste';
+  $('#pitchRow').hidden = on; // "why this one" is for a single add
+  $('#pasteBox').hidden = !on;
+  if (!on) return;
+  const { rows, cut, adding } = S.paste;
+  const states = pasteStates();
+  $('#pasteSignIn').hidden = !!S.me;
+  out('#pasteReview').innerHTML = reviewHtml(rows, states, { cut, meKey: S.me?.nameKey });
+  setText($('#pasteSum'), summaryText(rows, states));
+  const n = rows.filter((r, i) => states[i].kind === 'ready' && r.on).length;
+  $('#pasteActions').hidden = !rows.length;
+  $('#pasteFind').disabled = adding;
+  setText($('#pasteAdd'), adding ? 'Adding…' : `Add ${n} movie${n === 1 ? '' : 's'}`);
+  $('#pasteAdd').disabled = adding || !n || states.some((s) => s.kind === 'loading');
+}
+
+async function pasteFind(el) {
+  const me = requireMe(el); if (!me) return;
+  const lines = L.parseMovieList($('#pasteText').value, Infinity);
+  if (!lines.length) { toast('Paste at least one movie first, one per line.', true); $('#pasteText').focus(); return; }
+  pasteAbort?.abort(); // a new list drops the last one's lookups
+  pasteAbort = new AbortController();
+  const rows = lines.slice(0, L.PASTE_MAX).map((e, id) => ({ id, ...e, status: 'loading', meta: null, alts: [], on: true, wrong: false }));
+  S.paste = { rows, cut: lines.length - rows.length, adding: false };
+  render();
+  try { await lookupRows(rows, { signal: pasteAbort.signal, onRow: render }); } catch (e) { if (e.name !== 'AbortError') console.error(e); }
+}
+
+// Not found: look the line up again as it now reads (the year too).
+async function pasteRetry(id) {
+  const r = pasteRow(id); if (!r) return;
+  const [entry] = L.parseMovieList(document.getElementById(`paste-line-${r.id}`)?.value ?? r.line, 1);
+  if (!entry) { toast('Type the movie’s name first.', true); return; }
+  Object.assign(r, entry, { status: 'loading', meta: null, alts: [], on: true, wrong: false });
+  render();
+  try { await lookupRow(r, pasteAbort?.signal); } catch (e) { if (e.name !== 'AbortError') console.error(e); }
+  render();
+}
+
+// Wrong movie? -> use another result. The one it was stays on offer, first.
+function pasteSwap(id, to) {
+  const r = pasteRow(id);
+  const next = r?.alts.find((a) => imdbOf(a) === to);
+  if (!next) return;
+  Object.assign(r, { meta: next, alts: [r.meta, ...r.alts.filter((a) => a !== next)], wrong: false, on: true });
+  render();
+  setTimeout(() => document.querySelector(`#pasteReview [data-action="paste-wrong"][data-id="${r.id}"]`)?.focus(), 0);
+}
+
+async function pasteAdd(el) {
+  const me = requireMe(el); if (!me || S.paste.adding) return;
+  const states = pasteStates();
+  const picks = S.paste.rows.filter((r, i) => states[i].kind === 'ready' && r.on);
+  if (!picks.length) return;
+  const thumbs = $('#pasteThumbs').checked;
+  S.paste.adding = true;
+  render();
+  try {
+    // Each movie's full details (runtime, trailer, plot), as adding one gets them, a few at a time
+    // (before the write starts, so the sending note doesn't count this wait); the search result
+    // stands in for one that won't come.
+    const movies = [];
+    await mapLimit(picks, 4, async (r, i) => {
+      const meta = (await movieMeta(imdbOf(r.meta)).catch(() => null)) || r.meta;
+      movies[i] = L.movieFromMeta({ ...meta, poster: meta.poster || r.meta.poster });
+    });
+    let res;
+    await once('paste-add', async () => { res = await A.addMovies(me, movies, { thumbs }); return !res.failed.length; });
+    if (res) pasteDone(res, picks, thumbs);
+  } finally {
+    S.paste.adding = false;
+    render();
+  }
+}
+
+// Says what happened. All went through: the list is done with. Some didn't: they stay, ticked, to try again.
+function pasteDone(res, picks, thumbs) {
+  const n = res.added.length;
+  const plural = (k) => `${k} movie${k === 1 ? '' : 's'}`;
+  if (!res.failed.length) {
+    const there = res.skipped.length;
+    toast(n
+      ? `Added ${plural(n)} to the shelf${thumbs ? ', with your thumbs-up' : ''}.${there ? ` ${there} ${there === 1 ? 'was' : 'were'} on it already.` : ''}`
+      : 'Those are on the shelf already.');
+    $('#pasteText').value = '';
+    S.paste = { rows: [], cut: 0, adding: false };
+    return;
+  }
+  const done = new Set([...res.added, ...res.skipped]);
+  S.paste.rows = S.paste.rows.filter((r) => !(r.meta && done.has(imdbOf(r.meta))));
+  const names = picks.filter((r) => res.failed.includes(imdbOf(r.meta))).map((r) => r.meta.name);
+  const list = `${names.slice(0, 3).join(', ')}${names.length > 3 ? ` and ${names.length - 3} more` : ''}`;
+  toast(`${n ? `Added ${n} of ${n + res.failed.length}. ` : ''}Couldn’t add ${list}. ${writeError(res.error)}`, true);
+}
+
+$('#pasteReview').addEventListener('change', (e) => {
+  const box = e.target.closest('[data-paste-on]');
+  const r = box && pasteRow(box.dataset.pasteOn);
+  if (r) { r.on = box.checked; render(); }
+});
+$('#pasteReview').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches('[data-paste-line]')) { e.preventDefault(); pasteRetry(e.target.dataset.pasteLine); }
+});
 
 let surpriseItem = null;
 async function surprise() {

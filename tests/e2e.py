@@ -841,6 +841,124 @@ def news_cards_checks(browser, errors):
     wren.context.close()
 
 
+def paste_list_checks(browser, errors):
+    """Paste a list, on a phone: four lines (a movie that's new, one already on the shelf, nonsense, and the
+    new one again) read back as Ready, Already on the shelf, Not found and Listed twice; Wrong movie? swaps
+    the match; the nonsense line is fixed and tried again; Add puts the new movies on the shelf under the
+    person's name with her thumb. Someone with no name is asked for one at Find these, and the list carries
+    on once she gives it. (Cinemeta is the live catalog here, as in the search steps above, so the titles
+    are well-known ones.)"""
+    now = datetime.now(timezone.utc)
+    emu('PATCH', f'{DOCS}/movies/tt0084787', {'fields': fields({
+        'imdbId': 'tt0084787', 'title': 'The Thing', 'year': '1982', 'poster': '', 'runtime': '', 'rating': '', 'genres': [],
+        'trailer': '', 'description': '', 'pitch': '', 'shelf': [], 'by': 'hal', 'byName': 'Hal', 'at': now - timedelta(days=1)})}, owner=True)
+    emu('PATCH', f'{DOCS}/people/pia', {'fields': fields({'name': 'Pia', 'at': now, 'toured': True, 'lastSeen': now})}, owner=True)
+    wide = 'document.documentElement.scrollWidth - document.documentElement.clientWidth'
+    page = as_person(browser, errors, 'pia', 'Pia')
+    page.goto(f'{SITE}/?emu')
+    expect(page.locator('#shelf .card').first).to_be_visible(timeout=15000)
+    page.wait_for_timeout(3000)
+    for _ in range(3):  # any reveal, reel or news the earlier checks left waits for later
+        if page.locator('.reveal-overlay, .reel-overlay').count():
+            page.keyboard.press('Escape')
+        page.wait_for_timeout(400)
+    skip_cards(page)
+
+    open_add(page)
+    page.click('#browseTabs [data-tab="paste"]')
+    box = page.locator('#pasteBox')
+    expect(box).to_be_visible()
+    expect(box).to_contain_text('One movie per line. Add the year if you know it: It Follows (2014)')
+    expect(page.locator('#pitchRow')).to_be_hidden()  # "why this one" is for a single add
+    expect(page.locator('#searchRow')).to_be_hidden()
+    expect(page.locator('#pasteSignIn')).to_be_hidden()  # she has a name
+    expect(page.locator('#pasteActions')).to_be_hidden()
+    page.fill('#pasteText', 'The Thing (1982)\n2. The Princess Bride 1987\n\nzzqxvkj\n- "the princess bride" (1987)')
+    page.click('#pasteFind')
+    rows = page.locator('#pasteReview .paste-row')
+    expect(rows).to_have_count(4)  # the blank line is left out
+    expect(page.locator('#pasteSum')).to_have_text('1 ready · 2 skipped · 1 not found', timeout=30000)
+    expect(rows.nth(0)).to_contain_text('The Thing')
+    expect(rows.nth(0)).to_contain_text('Already on the shelf (added by Hal)')
+    expect(rows.nth(1)).to_contain_text('The Princess Bride')
+    expect(rows.nth(1)).to_contain_text('1987')
+    expect(rows.nth(1).locator('.paste-state')).to_have_text('Ready')
+    expect(rows.nth(1).locator('input[type=checkbox]')).to_be_checked()  # ticked by default
+    expect(rows.nth(2)).to_contain_text('Not found')
+    expect(rows.nth(2).locator('input.field')).to_have_value('zzqxvkj')  # the line stays editable
+    expect(rows.nth(3)).to_contain_text('Listed twice')
+    expect(rows.nth(3).locator('input[type=checkbox]')).to_have_count(0)  # kept once: the first one is the one added
+    expect(page.locator('#pasteThumbs')).to_be_checked()  # on by default, like adding one
+    expect(page.locator('#pasteAdd')).to_have_text('Add 1 movie')
+    over = page.evaluate(wide)
+    assert over <= 0, f'the review list is {over}px too wide at phone width'
+    shot(page, '08-paste-review')
+
+    # Wrong movie? offers the other results (up to four); picking one swaps the row, and the old one stays on offer.
+    ready = rows.nth(1)
+    ready.locator('[data-action="paste-wrong"]').click()
+    alts = ready.locator('.paste-alts .result')
+    expect(alts.first).to_be_visible()
+    assert 1 <= alts.count() <= 4, alts.count()
+    other = alts.first.locator('.t').inner_text()
+    alts.first.click()
+    expect(ready.locator('.paste-title b')).to_have_text(other)
+    expect(rows.nth(3)).to_contain_text('Ready')  # the repeat is no longer a repeat
+    ready.locator('[data-action="paste-wrong"]').click()
+    ready.locator('.paste-alts .result', has_text='The Princess Bride').first.click()
+    expect(ready.locator('.paste-title b')).to_have_text('The Princess Bride')
+    expect(rows.nth(3)).to_contain_text('Listed twice')
+
+    # Fix the nonsense line and try again.
+    lost = rows.nth(2)
+    lost.locator('input.field').fill('Arrival (2016)')
+    lost.locator('[data-action="paste-retry"]').click()
+    expect(lost.locator('.paste-title b')).to_have_text('Arrival', timeout=15000)
+    expect(lost.locator('.paste-state')).to_have_text('Ready')
+    expect(page.locator('#pasteSum')).to_have_text('2 ready · 2 skipped')
+    expect(page.locator('#pasteAdd')).to_have_text('Add 2 movies')
+    lost.locator('input[type=checkbox]').uncheck()  # leave one out, and back in
+    expect(page.locator('#pasteAdd')).to_have_text('Add 1 movie')
+    lost.locator('input[type=checkbox]').check()
+    expect(page.locator('#pasteAdd')).to_have_text('Add 2 movies')
+
+    page.click('#pasteAdd')
+    expect(page.locator('#toast')).to_contain_text('Added 2 movies to the shelf, with your thumbs-up', timeout=20000)
+    expect(rows).to_have_count(0)  # the list is done with
+    expect(page.locator('#pasteText')).to_have_value('')
+    for title in ('The Princess Bride', 'Arrival'):
+        c = card(page, title)
+        expect(c).to_have_count(1, timeout=10000)
+        expect(c.locator('.by')).to_have_text('Added by you')
+        expect(c.locator('[data-action="vote"]')).to_have_attribute('aria-pressed', 'true')  # her thumb is on it
+        expect(c.locator('.pitch')).to_have_count(0)
+    # Written as a single add writes it: her key, an empty pitch, her thumb.
+    doc = json.loads(emu('GET', f'{DOCS}/movies/tt0093779'))['fields']
+    assert doc['by']['stringValue'] == 'pia' and doc['pitch']['stringValue'] == '', doc
+    json.loads(emu('GET', f'{DOCS}/votes/tt0093779__pia'))
+    page.context.close()
+
+    # No name yet: Find these asks for one, then carries on with the list.
+    page = tracked(browser, errors, 'paste-guest', viewport=PHONE)
+    page.goto(f'{SITE}/?emu')
+    skip_tour(page)
+    open_add(page)
+    page.click('#browseTabs [data-tab="paste"]')
+    expect(page.locator('#pasteSignIn')).to_contain_text('Add your name first')
+    page.fill('#pasteText', 'Moonlight (2016)')
+    page.click('#pasteFind')
+    expect(page.locator('#pass')).to_be_visible()
+    expect(page.locator('#passMsg')).to_contain_text('name first')
+    expect(page.locator('#pasteReview .paste-row')).to_have_count(0)  # nothing is looked up, or written, without a name
+    page.fill('#passName', 'Quinn')
+    page.click('#passForm button[type=submit]')
+    expect(page.locator('#whoami')).to_contain_text('Quinn')
+    expect(page.locator('#pasteReview .paste-row')).to_have_count(1, timeout=15000)  # the tap that brought her there goes through
+    expect(page.locator('#pasteReview .paste-row').first).to_contain_text('Moonlight', timeout=15000)
+    expect(page.locator('#pasteText')).to_have_value('Moonlight (2016)')
+    page.context.close()
+
+
 def main():
     ensure_site()
     reset()
@@ -1381,6 +1499,7 @@ def main():
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)
+        paste_list_checks(browser, errors)
         owner_guard_checks(browser, errors)  # last: it changes the owner password
         browser.close()
 

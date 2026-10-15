@@ -1,16 +1,19 @@
 // Browse tabs shared by the guest picks section and the host's house picks:
-// Search · Trending · Trending <genre> · New this year · For you.
+// Search · Trending · Trending <genre> · New this year · For you · Paste a list
+// (the last only where `paste` is asked for: the guest page; its own panel and
+// lookups are in paste.js and app.js, so loadTab has nothing to load for it).
 import { trending, newThisYear, candidatePool, movieMeta } from './cinemeta.js';
 import * as L from './logic.js';
 import { esc, posterImg } from './ui.js';
 
-export function browseTabs(genre, forYouLabel = 'For you') {
+export function browseTabs(genre, forYouLabel = 'For you', { paste = false } = {}) {
   return [
     { id: 'search', label: 'Search' },
     { id: 'trending', label: 'Trending' },
     ...(genre ? [{ id: 'genre', label: `Trending ${genre}` }] : []),
     { id: 'new', label: 'New this year' },
     { id: 'foryou', label: forYouLabel },
+    ...(paste ? [{ id: 'paste', label: 'Paste a list' }] : []),
   ];
 }
 
