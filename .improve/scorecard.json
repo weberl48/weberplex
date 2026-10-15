@@ -1,5 +1,5 @@
 {
- "iteration": 7,
+ "iteration": 8,
  "branch": "improve-loop",
  "shipped_commit": "a390baa",
  "impeccable_scores": [
@@ -161,6 +161,25 @@
     3
    ],
    "note": "H4 back to 2 (two host commit models, you vs Sam, two amber calls on news night cards, the night-card cascade bug); the reviewer found three execution bugs from this iteration (curtain restart on slow loads, face-down leak via shelf and vote news, night-card cascade), all fixed before shipping in 63190dd"
+  },
+  {
+   "run": "iter-08",
+   "commit": "925f1d9",
+   "score": 29,
+   "max": 40,
+   "per_heuristic": [
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    2,
+    3,
+    3,
+    3
+   ],
+   "note": "H7 at 2: the shelf card ~630 px tall at 360, no cap or search; the 4s ask for: booked stamp and TIED wording, names not counts in news, guarded name taps and host RSVP, one amber call per block and the reel behind the curtain, labelled voter faces, a tighter card action grid, collapsed concessions, a toast that doesn't eat taps with a retry, How it works offered after the ticket"
   }
  ],
  "tests": [
@@ -212,6 +231,13 @@
    "emulator": "41/41",
    "e2e": "PASS (new: reveal before How it works for a newcomer, no curtain on reload, card back as the turn-over control, Up next heading in view after the ticket, no lock from a cached copy (fails on old code), unlock after the deadline, the screening room plays a trailer and closes with Esc and back, the night card art beside its title, the face-down movie off the shelf)",
    "scenario_runs": "4/4 clean"
+  },
+  {
+   "iteration": 8,
+   "unit": "35/35",
+   "emulator": "41/41",
+   "e2e": "PASS (new: toasts at the top, the duplicate Count me in steps aside, the card comes forward on the tap, the ticket prints, You're hosting, the time saves when chosen, the screening room)",
+   "scenario_runs": "4/4 clean (console: one allow/allowfullscreen warning from the screening room, fixed in c2ef671)"
   }
  ],
  "timings": [
@@ -246,6 +272,11 @@
    "iteration": 7,
    "source": ".improve/evidence/iter-07/timings.md",
    "note": "newcomer now gets the reveal first: open to the card in view 2640 ms (was 2612 to the first tour card); regulars flat; a measured A/B showed the blocking font stylesheet isn't the slow-load long pole (both paint at ~2.68 s under 400 ms/60 KB/s), so that change was reverted"
+  },
+  {
+   "iteration": 8,
+   "source": ".improve/evidence/iter-08/timings.md",
+   "note": "flat except Put it on the marquee 1212 -> 1770 ms; a four-pair same-hour A/B against 5fe1aba overlapped (old 1638-1789, new 1529-1898): emulator drift"
   }
  ],
  "production_counts": {
@@ -1143,25 +1174,25 @@
   {
    "id": "P-077",
    "title": "Toasts sit over the button they refer to, across several screens (the welcome toast over 'I'm free that evening')",
-   "severity": "Major",
+   "severity": "Minor",
    "status": "open",
    "found": "iter-04 newcomer N1, connoisseur C10",
    "evidence": [
     "gma-12"
    ],
-   "note": "iter-07 newcomer N1 rated it Major: the welcome toast stays through the ticket, shelf and calendar and covers I'm free that evening; the next sits over the tour on all four cards. Rating raised to the critic's"
+   "note": "iter-08: good news at the top for 2.6 s and pass-through; newcomer N7 / connoisseur C11 still see a toast linger across the harness's fast screenshots and fade over the header; impeccable A H9: the bottom error toast eats the tap meant for what's under it, and has no retry"
   },
   {
    "id": "P-078",
    "title": "Two amber calls in one block: news cards (Count me in + Next); the face-down Up next (Reveal the movie + Add to calendar)",
    "severity": "Minor",
-   "status": "fixed",
+   "status": "open",
    "found": "iter-04 impeccable A H4",
    "evidence": [
     "app.js:331 with tour.js:103",
     "app.js:543-544"
    ],
-   "note": "iter-07: the face-down card back is the turn-over control (no second amber call); impeccable A H4 still sees Count me in + Next on news night cards",
+   "note": "iter-08 impeccable A H4/P3: news night cards still carry Count me in + Next in amber",
    "fixed_in": "3769eb0"
   },
   {
@@ -1173,7 +1204,7 @@
    "evidence": [
     "logic.js:325-328, 422"
    ],
-   "note": "iter-06 connoisseur C6: 8 updates vs 1 of 9; card 2 re-announces the lock; \"1 new thumbs-up on 1 movie\""
+   "note": "iter-08 impeccable A H2 and P3: \"1 new thumbs-up on 1 movie\"; connoisseur C7"
   },
   {
    "id": "P-080",
@@ -1270,7 +1301,7 @@
     "shelf-plot-viewport",
     "~600 CSS px per two-card row"
    ],
-   "note": "iter-06 impeccable A P2: on Sam's Alien card every pill took its own row (675 px tall); 7 movies = 42% of the page"
+   "note": "iter-08 impeccable A H7 = 2: ~630 px per card at 360 (six pills in four rows), ~12,000 px for 40 movies; no shelf search"
   },
   {
    "id": "P-089",
@@ -1342,7 +1373,7 @@
     "lib/calendar.js:46",
     "firestore.rules:66"
    ],
-   "note": "iter-07 operator O1: ~60 reads per open today, ~420 at year-out sizes (projection); O3: HA poll ~530 reads/day now"
+   "note": "iter-08 operator O9 (Minor, projection): 500 votes and 150 movies -> ~31k reads/day from HA alone"
   },
   {
    "id": "P-097",
@@ -1354,7 +1385,7 @@
     "app.js:254,261,548,710,722",
     "firestore.rules:80-81"
    ],
-   "note": "trigger is a GUESS (a name saved before people docs existed)"
+   "note": "iter-08 operator O3 again (GUESS); checked read-only against the iter-07 production backup: every nameKey in votes/seen/free has a people doc (only \"lucas\" active). Not occurring in production today."
   },
   {
    "id": "P-098",
@@ -1377,29 +1408,30 @@
     "app.js:819,782",
     "logic.js:462"
    ],
-   "note": "iter-06 impeccable A H2: your own night says \"Sam is hosting\" / \"at Sam's\"; \"5 coming: Gma, Hal…\" without \"you\""
+   "note": "iter-08: \"You're hosting\", \"your place\", \"you\" first in coming lists (925f1d9); impeccable A still wants \"Seen by you\" beside \"Added by you\" and names not counts in news"
   },
   {
    "id": "P-100",
    "title": "Host tools mix two commit models (time needs Change time; theme saves on change, no undo); --rule-strong is 2.96:1 on velvet-3",
    "severity": "Minor",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-05 impeccable A H4, H5",
    "evidence": [
     "app.js:163-166 vs 1230-1253"
    ],
-   "note": "iter-06 impeccable A H4 again (Change time vs theme saves on change)"
+   "note": "iter-06 impeccable A H4 again (Change time vs theme saves on change)",
+   "fixed_in": "925f1d9"
   },
   {
    "id": "P-101",
    "title": "The locked movie sits on the shelf with no 'Showing Fri' stamp, so people keep thumbing it and think their thumb counts for Friday",
-   "severity": "Minor",
+   "severity": "Major",
    "status": "open",
    "found": "iter-05 newcomer N12, impeccable A H6",
    "evidence": [
     "gma-10, gma-11"
    ],
-   "note": "iter-06 impeccable A (Jordan): Alien first on the shelf with no booked stamp"
+   "note": "iter-08 impeccable A P2: Alien (4 thumbs) booked for Friday sits uncrowned with a live thumb while Jaws and Forrest Gump wear LEADING; a fairness doubt. Raised to the reviewer's rating"
   },
   {
    "id": "P-102",
@@ -1658,12 +1690,13 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-07 connoisseur C1",
    "evidence": [
     "jo-reveal-turn-0000/0284/0584",
     "jo-01-reveal-landed"
-   ]
+   ],
+   "fixed_in": "863a0a4"
   },
   {
    "id": "P-123",
@@ -1672,23 +1705,25 @@
    "tags": [
     "taste"
    ],
-   "status": "open",
+   "status": "fixed",
    "found": "iter-07 connoisseur C2",
    "evidence": [
     "jo-02-ticket",
     "kim-02-ticket"
-   ]
+   ],
+   "fixed_in": "863a0a4"
   },
   {
    "id": "P-124",
    "title": "After Count me in on the reveal, the name form sits over a second live Count me in for the same night, with three lines of instructions",
    "severity": "Major",
-   "status": "open",
+   "status": "fixed",
    "found": "iter-07 newcomer N2; connoisseur C9",
    "evidence": [
     "gma-03-name-form",
     "gma200-03"
-   ]
+   ],
+   "fixed_in": "c556284"
   },
   {
    "id": "P-125",
@@ -1708,6 +1743,85 @@
    "found": "iter-07 impeccable A H5",
    "evidence": [
     "app.js free action has no host guard"
+   ]
+  },
+  {
+   "id": "P-127",
+   "title": "One tap on a guest-list name signs you in as that person, no confirm; the host can drop out of their own night (no isMine guard on the RSVP)",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-08 impeccable A H3/H5; newcomer N4 (GUESS)",
+   "evidence": [
+    "app.js:1402 join on chip tap",
+    "app.js:487-493 rsvp has no host guard"
+   ]
+  },
+  {
+   "id": "P-128",
+   "title": "Focus rings meant for keyboards show for phone users at the peak: a cream ring on the face-down card skews into a white parallelogram mid-flip; double amber rings on See my ticket and tour Next",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-08 impeccable A P2",
+   "evidence": [
+    "out360-03-reveal-turning.png",
+    "reveal.js:57, 74",
+    "site.css:827"
+   ],
+   "note": "Chromium headless matched :focus-visible after touch taps; real-device confirmation advised"
+  },
+  {
+   "id": "P-129",
+   "title": "A tie's reel doesn't get the curtain: the curtain parts onto a lit page, then the 97% scrim snaps on with the page ghosting through",
+   "severity": "Minor",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-08 impeccable A P2",
+   "evidence": [
+    "tie-sheet.png",
+    "tie360-fran-02-landed.png",
+    "app.js:792"
+   ]
+  },
+  {
+   "id": "P-130",
+   "title": "After showtime a night can't be cancelled or unlocked, and at +12 h it is filed as watched: its movie leaves the shelf for good (only the Firebase console can undo)",
+   "severity": "Major",
+   "status": "open",
+   "found": "iter-08 operator O1",
+   "evidence": [
+    "firestore.rules:222-228, 232-236",
+    "logic.js:76-78, 188",
+    "tick.js:34-36"
+   ],
+   "note": "a fix needs a rules change, which only Lucas can deploy"
+  },
+  {
+   "id": "P-131",
+   "title": "The reveal's tap has no beat (the card edge-on at 162 ms, readable at ~300 ms) and its wait shows no people; the curtain parts onto a second 'curtain' (the face-down card)",
+   "severity": "Major",
+   "tags": [
+    "taste"
+   ],
+   "status": "open",
+   "found": "iter-08 connoisseur C1-C4",
+   "evidence": [
+    "jo-reveal-turn-0162/0306",
+    "jo-reveal-wait-0000",
+    "jo-open-*"
+   ],
+   "note": "the card staying face down until each person turns it is a user decision; C1 conflicts with it"
+  },
+  {
+   "id": "P-132",
+   "title": "Up next for a planned night stacks ~10 blocks at 360 (leaders list, vetoes, concessions chips and field); the leader appears four times",
+   "severity": "Minor",
+   "status": "open",
+   "found": "iter-08 impeccable A H8/P2",
+   "evidence": [
+    "app.js:572-588",
+    "snackBox :644-660"
    ]
   }
  ],
@@ -2182,6 +2296,68 @@
     "P-115 empty house on a slow connection",
     "P-125 How it works for a reveal-first newcomer",
     "P-126 host drop-off guard and repeated snacks"
+   ],
+   "results": {
+    "PV-8a": "kept; met: e2e toast box in the top 80 px after a confirmation, e2e the night's Count me in steps aside with \"Your name first, just above\"; newcomer had no Major this iteration",
+    "PV-8b": "kept; met: e2e the stage is >1.05x after the tap with .turning, frames show the card growing; e2e .ticket.printed; criterion revised from 10% to 8% before implementing (10% collides with the heading)",
+    "PV-8c": "kept; met: e2e the host's day panel says You're hosting, the time saves when chosen, no Change time button"
+   }
+  },
+  {
+   "iteration": 9,
+   "changes": [
+    {
+     "id": "PV-9a",
+     "fixes": [
+      "P-088",
+      "P-101"
+     ],
+     "what": "The shelf card, trimmed: its actions in two fixed rows (the thumb and Seen it, then Trailer, Stremio and Plot), Remove as a link in the 'Added by you' line; the booked movie wears a BOOKED · FRI OCT 16 ribbon (its thumb says so); tied leaders read TIED.",
+     "proof": [
+      "measured at 360: a card's action block is two rows and the card is >= 25% shorter than iteration 8's",
+      "e2e: the locked movie (face up) wears BOOKED; tied leaders read TIED"
+     ],
+     "risk": "Remove is less prominent (it was a pill)"
+    },
+    {
+     "id": "PV-9b",
+     "fixes": [
+      "P-079",
+      "P-078",
+      "P-105"
+     ],
+     "what": "Names, not counts, and one amber call: news says who ('Gma thumbed up Alien'); the news name chips are name tags with faces, text centred; a card that carries its own amber call gets a ghost Next.",
+     "proof": [
+      "unit (news): the thumbs-up headline names the people",
+      "e2e: a news night card has exactly one amber button"
+     ],
+     "risk": "longer headlines on busy weeks"
+    },
+    {
+     "id": "PV-9c",
+     "fixes": [
+      "P-127",
+      "P-128",
+      "P-077"
+     ],
+     "what": "Safe taps: a name on the guest list asks once ('Tap again: I'm Gma'); the host's own night has no drop-out; an error toast no longer eats the tap under it; focus rings show for keyboards, not after taps.",
+     "proof": [
+      "e2e: one tap on a name doesn't sign in; the second does",
+      "e2e: no RSVP button on the host's own night",
+      "e2e: a tap on a button under an error toast reaches the button",
+      "e2e: after a tap-opened reveal, the card has no focus-visible ring"
+     ],
+     "risk": "keyboard users still need the ring (the modality check keeps it for them)"
+    }
+   ],
+   "deferred": [
+    "P-130 undo for a night that didn't happen (needs a rules change; flagged for the user)",
+    "P-131 a beat on the tap (the user's face-down rule bounds it)",
+    "P-129 the tie reel behind the curtain",
+    "P-132 Up next density",
+    "P-095 read growth",
+    "P-091 local echo and discard (GUESS)",
+    "P-003 the tour at 206 px"
    ]
   }
  ],

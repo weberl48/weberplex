@@ -63,3 +63,13 @@
   - toasts out of the way and one Count me in
   - the tap and the ticket
   - "you" and one save model for the host
+
+## Iteration 8 (2026-10-15)
+- Kept:
+  - out of the way (c556284)
+  - the tap and the ticket (863a0a4)
+  - you, and one way to save (925f1d9)
+  - the screening room's fullscreen warning, gone (c2ef671)
+- Impeccable 29/40. The newcomer has no Major for the first time.
+- Learned: the score sits within ±2 of 29-31 across eight runs, while the newcomer and operator critiques improved a lot. The rubric averages the whole page, and the deferred everyday screens hold it at 3s.
+- Next: the shelf card, names not counts, safe taps.
