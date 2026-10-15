@@ -425,7 +425,7 @@ Letter-board paper with board ink, 6px corners, rising 20px into place over 180m
 - **Do** give everyday components a cinema material (paper stock, stamp lettering, perforation, slips, letter boards, concession stripes) instead of more light. That's the confirmed direction as of 2026-10-14.
 - **Do** reserve amber fills for what's yours, what's leading, and the main call in each block.
 - **Do** keep main buttons at least 44px tall, chips and votes 40px, and in-card pills at least 36px, and judge everything at 360 and 412px first, then at 200% text.
-- **Do** keep a locked movie face down everywhere on the page until that person's reveal has played.
+- **Do** keep a locked movie face down everywhere on the page until that person's reveal has played, a later locked night included.
 - **Do** draw icons as solid SVG in the thumb's style (thumb, house, check, the rating stars); never a Unicode glyph or emoji. A ★ inside running text ("★ 8.4", a review's score) is typography, not an icon, and stays.
 - **Do** keep posters at 2:3 and let them be the most colorful thing below the marquee.
 - **Do** set numbers, countdowns and stub print in Courier Prime with tabular numerals.

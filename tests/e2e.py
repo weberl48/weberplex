@@ -15,6 +15,7 @@ import threading
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -488,6 +489,38 @@ def reveal_ending_checks(browser, errors):
     assert json.loads(emu('GET', f'{DOCS}/free/{day}__quentin', owner=True)).get('fields'), 'Quentin is on the list'
     ctx.close()
 
+    # Signed out, Esc on the face-down card ('not now'), then a name: the reveal isn't carried
+    # onto the name as seen, so the next visit doesn't spoil it; it waits behind Reveal the movie.
+    try:
+        emu('DELETE', f'{DOCS}/people/xavier', owner=True)  # a fresh person, even on a rerun
+    except Exception:
+        pass
+    ctx = browser.new_context(viewport=PHONE)
+    page = ctx.new_page()
+    page.on('pageerror', lambda e: errors.append(f'xavier: {e}'))
+    page.goto(f'{SITE}/?emu')
+    skip_tour(page)
+    expect(page.locator('.reveal-overlay')).to_be_visible(timeout=15000)
+    page.keyboard.press('Escape')
+    expect(page.locator('.reveal-overlay')).to_have_count(0)
+    page.fill('#passName', 'Xavier')
+    page.click('#passForm button[type=submit]')
+    expect(page.locator('#whoami')).to_contain_text('Xavier', timeout=10000)
+    page.wait_for_timeout(1500)
+    doc = json.loads(emu('GET', f'{DOCS}/people/xavier', owner=True)).get('fields', {})
+    reels = [v['stringValue'] for v in doc.get('reels', {}).get('arrayValue', {}).get('values', [])]
+    assert not any(r.endswith('tt0073195') for r in reels), reels
+    expect(page.locator('#board h1')).to_have_text('The movie is…')
+    expect(page.locator('#next [data-action="reveal-now"]')).to_be_visible()
+    ctx.close()
+
+    # A second locked night further out stays face down too (its reveal plays once it's next).
+    later = (now + timedelta(days=4)).strftime('%Y-%m-%d')
+    emu('PATCH', f'{DOCS}/nights/{later}', {'fields': fields({
+        'day': later, 'startsAt': now + timedelta(days=4), 'host': 'Sam', 'hostKey': 'sam', 'status': 'locked', 'createdAt': now - timedelta(hours=3),
+        'theme': '', 'vetoes': {}, 'lockedTie': [], 'lockedMovieId': 'tt9990077', 'lockedAt': now - timedelta(minutes=20),
+        'lockedMovie': {'imdbId': 'tt9990077', 'title': 'Overlook Hotel Night', 'year': '1980', 'poster': '', 'runtime': '146 min', 'rating': '', 'genres': ['Horror'], 'trailer': ''}})}, owner=True)
+
     # Ola last looked before the lock, and backs out of the face-down card.
     emu('PATCH', f'{DOCS}/people/ola', {'fields': fields({'name': 'Ola', 'at': now - timedelta(days=3), 'toured': True,
                                                           'lastSeen': now - timedelta(hours=2)})}, owner=True)
@@ -510,11 +543,49 @@ def reveal_ending_checks(browser, errors):
         nxt.click()
     # (Jaws is also new on the shelf, which is fine: the lock is what must stay face down.)
     assert not any(re.search(r'Locked for .*Jaws', t) for t in texts), 'no news card names a face-down movie'
+    assert not any('Overlook Hotel Night' in t for t in texts), 'nor a later locked night'
     assert any('movie is locked' in t for t in texts), texts
     # The shelf's crown follows the next night still open to the pick, never the face-down movie.
     skip_cards(page)
     expect(page.locator('#shelf .card.lead', has=page.locator('h3', has_text='Jaws'))).to_have_count(0)
     expect(page.locator('#shelf .ribbon').first).to_contain_text('Leading')
+    page.context.close()
+    for d in (day, later):
+        emu('PATCH', f'{DOCS}/nights/{d}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
+
+
+def locking_phone_checks(browser, errors):
+    """The phone that locks a night (its clock notices the deadline as the page opens) shows its
+    reveal first; the news cards wait until after it, never over it."""
+    now = datetime.now(timezone.utc)
+    # Due to lock only on Uma's phone, whose clock runs 8 hours ahead (the other pages still open
+    # in this run would otherwise lock it first): 30 hours out, so the day-before deadline is 6 hours off.
+    starts = now + timedelta(hours=30)
+    day = starts.astimezone(ZoneInfo('America/New_York')).strftime('%Y-%m-%d')
+    emu('PATCH', f'{DOCS}/people/uma', {'fields': fields({'name': 'Uma', 'at': now - timedelta(days=3), 'toured': True,
+                                                          'lastSeen': now - timedelta(hours=2)})}, owner=True)
+    emu('PATCH', f'{DOCS}/nights/{day}', {'fields': fields({
+        'day': day, 'startsAt': starts, 'host': 'Hal', 'hostKey': 'hal', 'status': 'planned', 'createdAt': now - timedelta(days=2),
+        'theme': '', 'vetoes': {}, 'lockedTie': []})}, owner=True)
+    emu('PATCH', f'{DOCS}/free/{day}__uma', {'fields': fields({'day': day, 'nameKey': 'uma', 'name': 'Uma', 'at': now - timedelta(hours=1)})}, owner=True)
+    emu('PATCH', f'{DOCS}/votes/tt0073195__hal', {'fields': fields({  # something new since Uma's last look
+        'movie': 'tt0073195', 'title': 'Jaws', 'nameKey': 'hal', 'name': 'Hal', 'at': now - timedelta(hours=1)})}, owner=True)
+    page = as_person(browser, errors, 'uma', 'Uma')
+    page.add_init_script("""(() => { const off = 8 * 3600e3, D = Date;
+      class Ahead extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + off); } static now() { return D.now() + off; } }
+      window.Date = Ahead; })();""")
+    page.add_init_script("""new MutationObserver(() => {
+      if (window.__first) return;
+      if (document.querySelector('.tour-overlay')) window.__first = 'news';
+      else if (document.querySelector('.reveal-overlay, .reel-overlay')) window.__first = 'reveal';
+    }).observe(document, { subtree: true, childList: true });""")
+    # A slow lock (its first two tries fail and the SDK backs off), so the news is ready first.
+    tries = []
+    page.route(re.compile(r'documents:commit'), lambda r: (tries.append(1), r.abort() if len(tries) <= 2 else r.continue_()))
+    page.goto(f'{SITE}/?emu')
+    expect(page.locator('.reveal-overlay, .reel-overlay')).to_be_visible(timeout=30000)
+    assert len(tries) >= 3, tries
+    assert page.evaluate('window.__first') == 'reveal', page.evaluate('window.__first')
     page.context.close()
     emu('PATCH', f'{DOCS}/nights/{day}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
 
@@ -1119,6 +1190,7 @@ def main():
         honest_sending_checks(browser, errors)
         reveal_invite_checks(browser, errors)
         reveal_ending_checks(browser, errors)
+        locking_phone_checks(browser, errors)
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)

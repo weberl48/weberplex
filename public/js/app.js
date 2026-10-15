@@ -119,6 +119,11 @@ const recentDone = () => L.pastNights(S.nights).filter((n) => Date.now() - n.sta
 // one runs at a time.
 let lastClock = 0;
 let clockRunning = false;
+// The phone that locks a night shows its reveal before the news: the walk
+// waits for the clock's first pass, and for a lock it made to reach the lists.
+let clockPassed = false;
+let walkHeld = false;
+const lockingNow = new Set();
 // A tab that has just woken up holds old lists until the listeners catch up:
 // it doesn't lock anything for a few seconds (the server clock covers it).
 let wokeAt = 0;
@@ -137,13 +142,17 @@ async function clock() {
         if (L.lockDue(n)) {
           const watched = new Set([...L.excludedFor(S.nights, n.day), ...lockedNow]);
           const pick = L.pickMovie({ movies: S.movies, votes: S.votes, watched, attendees: comingTo(n.day).map((f) => f.nameKey), vetoed: L.vetoedFor(n), theme: n.theme || '' });
-          if (pick && await A.lockNight(n.day, pick, { vetoes: n.vetoes || {}, theme: n.theme || '' })) lockedNow.add(pick.movie.imdbId);
+          if (pick && await A.lockNight(n.day, pick, { vetoes: n.vetoes || {}, theme: n.theme || '' })) { lockedNow.add(pick.movie.imdbId); lockingNow.add(n.day); }
         } else if (L.doneDue(n)) {
           await A.finishNight(n.day);
         }
       } catch (e) { console.warn('clock', n.day, e); }
     }
-  } finally { clockRunning = false; }
+  } finally {
+    clockRunning = false;
+    clockPassed = true;
+    if (walkHeld) { walkHeld = false; setTimeout(render, 50); }
+  }
 }
 
 // ---- derived ------------------------------------------------------------------
@@ -257,8 +266,9 @@ function pendingShow(n) {
   const winner = pool.find((m) => m.imdbId === n.lockedMovieId);
   return pool.length < 2 || !winner ? null : { key, tie, pool, winner };
 }
-// Is the movie for night n still a surprise to whoever is looking?
-const faceDown = (n) => !!n && (S.revealing?.day === n.day || (n.day === L.upcomingNights(S.nights)[0]?.day && !!pendingShow(n)));
+// Is the movie for night n still a surprise to whoever is looking? Any locked
+// night whose reveal you haven't played (a later one plays once it's next).
+const faceDown = (n) => !!n && (S.revealing?.day === n.day || !!pendingShow(n));
 // Signed in, which reveals you've seen is on your people doc: until it is in,
 // the marquee doesn't know whether to show the movie.
 const knowsMe = () => !S.me || S.loaded.has('people');
@@ -345,7 +355,8 @@ function unspoiled(c) {
   const titles = hidden.map((n) => [n.lockedMovie?.title || '', blank(n)]).filter(([t]) => t);
   const rest = c.rest?.map((t) => titles.find(([title]) => t.includes(title))?.[1] || t);
   const n = c.kind === 'locked' && hidden.find((x) => x.day === c.day);
-  if (n) return { ...c, rest, text: blank(n), detail: 'It’s face down until you turn it over: Reveal the movie, in Up next.', poster: undefined, title: '' };
+  const next = n && n.day === L.upcomingNights(S.nights)[0]?.day;
+  if (n) return { ...c, rest, text: blank(n), detail: next ? 'It’s face down until you turn it over: Reveal the movie, in Up next.' : 'It stays face down until it’s the next night; you’ll turn it over then.', poster: undefined, title: '' };
   // Elsewhere (a thumbs-up on it, a new-movie card) the title gives way too.
   const scrub = (t) => titles.reduce((s, [title, b]) => s.split(title).join(b.replace(' is locked', '')), t || '');
   const hit = titles.some(([title]) => (c.text || '').includes(title) || (c.detail || '').includes(title));
@@ -391,7 +402,10 @@ function maybeWalk() {
   if (S.walked || !ready() || !S.me || !myDoc() || !subsLoaded()) return;
   if (!myDoc().toured && !S.toured) return; // How it works comes first
   if (document.querySelector('.tour-overlay')) return;
-  const owed = pendingShow(L.upcomingNights(S.nights)[0]);
+  const next = L.upcomingNights(S.nights)[0];
+  for (const d of lockingNow) if (S.nights.find((x) => x.day === d)?.status !== 'planned') lockingNow.delete(d);
+  if (clockRunning || lockingNow.size || (!clockPassed && next && L.lockDue(next))) { walkHeld = true; return; }
+  const owed = pendingShow(next);
   if (S.revealing || (owed && !owed.deferred)) return; // then the movie
   if (!S.news?.cards.length) { S.walked = true; return; }
   if (document.querySelector('.reel-overlay, .reveal-overlay')) {
@@ -1114,8 +1128,9 @@ async function join(name) {
     done();
     S.me = who;
     saveLocal('ps.me', who);
-    // What this phone showed before you gave a name is yours too: don't replay it.
-    const carried = [...S.reelsSeen].filter((k) => k.startsWith('|')).map((k) => k.slice(1));
+    // What this phone showed before you gave a name is yours too: don't replay
+    // it. A reveal you backed out of ("not now") isn't: it stays face down.
+    const carried = [...S.reelsSeen].filter((k) => k.startsWith('|')).map((k) => k.slice(1)).filter((k) => !S.deferred.has(k));
     for (const k of carried) S.reelsSeen.add(seenKey(k));
     const had = myDoc()?.reels || [];
     if (carried.some((k) => !had.includes(k))) savePrefs({ reels: [...had, ...carried.filter((k) => !had.includes(k))] });

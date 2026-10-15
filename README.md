@@ -44,11 +44,13 @@ then it lands on your ticket). The news cards
 wait in their bar instead of covering the ticket, and until your reveal has
 played (say you backed out of it) they never name the locked movie. Until your reel or
 reveal has played, the page keeps the movie face down (the marquee reads "The
-movie is…", and so does your ticket). It plays after How it works and before
-the news cards, so a "Locked for Friday" card never spoils it, and it counts as
+movie is…", and so does your ticket); a night locked further out stays face
+down too (in the news and the day panel) until it's next and you've turned it
+over. It plays after How it works and before the news cards, so a "Locked for
+Friday" card never spoils it (on the phone that does the lock as well), and it counts as
 seen only once it has turned: closing it with the back gesture (or Esc) before
 the card turns means "not now", so no news card rises in its place and it plays
-again next visit. The host's lock toast doesn't name the movie, and no toast
+again next visit, even if you give your name in between. The host's lock toast doesn't name the movie, and no toast
 shows over the reel or the reveal. The link preview in a group text still shows
 the poster once the night locks. A watched movie leaves the shelf. The night
 files itself as watched the morning after.
