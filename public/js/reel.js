@@ -60,9 +60,10 @@ export function spinReel(movies, winner, { title = 'Spinning the reel…', done 
       buttons[0].focus();
     };
     const close = (seen = true, rsvp = false) => {
-      if (!overlay.isConnected) return;
+      if (!overlay.isConnected || overlay.classList.contains('closing')) return;
       release();
-      overlay.remove();
+      overlay.classList.add('closing'); // the house lights come up, not a cut
+      setTimeout(() => overlay.remove(), reduce ? 0 : 380);
       document.removeEventListener('keydown', onKey, true);
       (prev?.isConnected ? prev : prevKey && document.querySelector(prevKey))?.focus?.();
       resolve({ movie: winner, seen, rsvp });

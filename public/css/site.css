@@ -418,8 +418,13 @@ button.ticket-back { width: 84px; min-height: 0; cursor: pointer; grid-template-
 .host-card.night-face { display: flow-root; } /* not a grid: the art floats beside the heading */
 .night-face > :is(.hint, .row) { margin-top: 10px; }
 .night-face h3 { font: 400 var(--step-1)/1.15 var(--f-display); color: var(--bulb); } /* the night's title in marquee letters, like the ticket's */
-.ticket.printed { animation: printed 0.5s ease-out both; }
-@keyframes printed { from { opacity: 0.2; transform: translateY(-16px); } to { opacity: 1; transform: none; } }
+/* it prints: the ticket comes out of the slot top first, and settles */
+.ticket.printed { animation: printed 0.75s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes printed {
+  from { clip-path: inset(0 0 100% 0); transform: translateY(-10px); }
+  65% { clip-path: inset(0 0 0 0); transform: translateY(2px); }
+  to { clip-path: inset(0 0 0 0); transform: none; }
+}
 .links-row { margin-top: 8px; }
 
 /* ---- snacks, reviews, past --------------------------------------------- */
@@ -758,7 +763,19 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
   background: #0a0407; overflow-y: auto; overscroll-behavior: contain;
   animation: lights-down 0.9s ease-in both;
 }
-.reveal-overlay > .reveal-box { animation: comes-up 0.6s ease-out 0.55s both; }
+.reveal-overlay > .reveal-box { position: relative; z-index: 1; animation: comes-up 0.6s ease-out 0.55s both; }
+/* The tap: the house narrows to a spotlight on the card, and the card comes
+   forward as it turns, so the poster lands bigger than the back it replaced. */
+.reveal-overlay::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s ease-out;
+  background: radial-gradient(ellipse 62% 46% at 50% 40%, rgba(0, 0, 0, 0) 0 42%, rgba(0, 0, 0, 0.72) 100%);
+}
+.reveal-overlay.turning::before { opacity: 1; }
+.reveal-stage { transition: transform 0.9s cubic-bezier(.3, .7, .2, 1); }
+.reveal-overlay.turning .reveal-stage { transform: scale(1.08); }
+/* Leaving: the house lights come up over a moment instead of a cut. */
+:is(.reveal-overlay, .reel-overlay).closing { animation: lights-up 0.38s ease-out forwards; pointer-events: none; }
+@keyframes lights-up { to { opacity: 0; } }
 /* the curtain opens onto it: the house is already dark */
 .reveal-overlay.at-once, .reveal-overlay.at-once > .reveal-box { animation: none; }
 /* It lands as a sentence: the title finishes "The movie is…" in marquee letters,
@@ -847,6 +864,7 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
   .reveal-why { margin-bottom: 6px; }
   .reveal-who .faces { display: none; } /* the names say it; the faces cost a line */
   .reveal-overlay .reveal-hint[hidden] { display: none !important; } /* no room to hold its place */
+  .reveal-overlay.turning .reveal-stage { transform: none; } /* no room to come forward */
 }
 
 /* the curtain's oxblood pleats (the house curtain and the screen's) */
@@ -1007,6 +1025,7 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
   .screen-curtain { display: none; }
   .screen-overlay, .screen-room { animation: none; }
   .reveal-overlay, .reveal-overlay > .reveal-box { animation: none; } /* no lights-down: it's simply there */
+  .reveal-overlay.turning .reveal-stage { transform: none; }
   :is(.reveal-overlay, .reel-overlay).landed * { animation-delay: 0s !important; } /* it lands all at once */
   .marquee::before, .marquee::after, .reveal-stage::before, .reveal-stage::after, .reveal-stage.landed::before, .reveal-stage.landed::after { animation: none; }
   .marquee::after, .reveal-stage::after { opacity: 0.4; }

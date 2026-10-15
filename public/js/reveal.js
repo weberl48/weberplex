@@ -77,6 +77,7 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK', inv
       if (turned) return;
       turned = true;
       stage.classList.remove('waiting');
+      overlay.classList.add('turning'); // the house narrows to a spotlight; the card comes forward
       $in('.reveal-hint').hidden = true;
       card.setAttribute('tabindex', '-1');
       if (reduce) { finish(); return; }
@@ -86,9 +87,12 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK', inv
       setTimeout(finish, 650);
     };
     const close = (seen = true, rsvp = false) => {
-      if (!overlay.isConnected) return;
+      if (!overlay.isConnected || overlay.classList.contains('closing')) return;
       release();
-      overlay.remove();
+      // The house lights come up over a moment while the page (and a ticket
+      // printing in) shows through, rather than a cut.
+      overlay.classList.add('closing');
+      setTimeout(() => overlay.remove(), reduce ? 0 : 380);
       document.removeEventListener('keydown', onKey, true);
       (prev?.isConnected ? prev : prevKey && document.querySelector(prevKey))?.focus?.();
       resolve({ movie, seen, rsvp });

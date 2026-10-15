@@ -457,6 +457,7 @@ def reveal_invite_checks(browser, errors):
     expect(page.locator('.reveal-actions button')).to_have_text(['Count me in', 'Not this time'])
     page.click('.reveal-actions [data-r="in"]')
     expect(page.locator('#next .ticket')).to_be_focused(timeout=10000)
+    expect(page.locator('#next .ticket.printed')).to_have_count(1)  # it prints in, top first
     expect(page.locator('#toast')).to_contain_text('in for', timeout=10000)
     # The toast drops in at the top, never over the buttons under the thumb.
     toast_box = page.locator('#toast').bounding_box()
@@ -1180,6 +1181,9 @@ def main():
         sam.keyboard.press('Enter')  # Enter turns it, like a tap
         expect(sam.locator('.reveal-title')).to_have_text(loser, timeout=10000)
         expect(sam.locator('.reveal-when')).to_contain_text("8 PM at Jo's")
+        # The tap narrowed the house to a spotlight and brought the card forward.
+        grown = sam.evaluate("(() => { const s = document.querySelector('.reveal-stage'); return s.getBoundingClientRect().width / s.offsetWidth; })()")
+        assert grown > 1.05 and sam.locator('.reveal-overlay.turning').count() == 1, grown
         expect(sam.locator('.reveal-who')).to_contain_text('coming: you')  # who's coming, with faces
         expect(sam.locator('.reveal-who .face')).not_to_have_count(0)
         # Why it won, by name, not a fraction.
