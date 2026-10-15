@@ -194,6 +194,8 @@ async function clock() {
 const comingTo = (day) => S.free.filter((f) => f.day === day).sort((a, b) => a.name.localeCompare(b.name));
 const shelfNow = () => L.tallyShelf({ movies: S.movies, votes: S.votes, seen: S.seen, watched: L.watchedIds(S.nights) });
 const isMine = (n) => S.me && n?.hostKey === S.me.nameKey;
+// "Hal's", or "your place" on your own night (on screen; calendar invites keep the name).
+const placeOf = (n) => (isMine(n) ? 'your place' : L.placeLabel(n.host));
 const imFree = (day) => !!S.me && S.free.some((f) => f.day === day && f.nameKey === S.me.nameKey);
 const showing = (n) => n.status === 'locked' && n.startsAt.toDate() <= new Date();
 const started = (n) => n.startsAt.toDate() <= new Date();
@@ -204,8 +206,8 @@ function hostTools(n, scope) {
   if (!isMine(n)) return '';
   const tools = [];
   if (n.status === 'planned') {
-    tools.push(timeSelect(`${scope}-time-${n.day}`, timeOf(n.startsAt.toDate())),
-      `<button class="btn btn-ghost btn-small" type="button" data-action="night-time" data-day="${n.day}">Change time</button>`,
+    // The time and the theme both save when chosen (a toast says what changed).
+    tools.push(timeSelect(`${scope}-time-${n.day}`, timeOf(n.startsAt.toDate()), `data-time-day="${n.day}"`),
       themeSelect(`${scope}-theme-${n.day}`, n.theme, `data-theme-day="${n.day}"`),
       `<button class="btn btn-ghost btn-small" type="button" data-action="lock-now" data-day="${n.day}">Lock the movie now</button>`);
   }
@@ -332,7 +334,7 @@ function renderBoard(n, shelf) {
   } else if (n.status === 'planned') {
     // What would win if it locked now, always on the board.
     const p = projection(n);
-    kicker = S.season || 'Coming up'; title = `Movie night at ${L.placeLabel(n.host)}`;
+    kicker = S.season || 'Coming up'; title = `Movie night at ${placeOf(n)}`;
     sub = [L.showtimeLong(n.startsAt), n.theme && `Theme: ${n.theme}`].filter(Boolean).join(' · ');
     // "Leading:" never parts from the title it introduces.
     count = [L.lockDue(n) ? 'Locking now…' : `Movie locks ${L.whenWords(L.lockAt(n))}`, p && `Leading: ${pickName(p)}`].filter(Boolean).join(' · ');
@@ -340,7 +342,7 @@ function renderBoard(n, shelf) {
     kicker = showing(n) ? 'Now showing' : (S.season ? `${S.season} · now booking` : 'Now booking');
     // Face down until your reveal has played: the letters wait for the card.
     title = faceDown(n) ? 'The movie is…' : n.lockedMovie?.title || 'Movie night';
-    sub = `${L.showtimeLong(n.startsAt)} · at ${L.placeLabel(n.host)}`;
+    sub = `${L.showtimeLong(n.startsAt)} · at ${placeOf(n)}`;
     count = showing(n) ? 'Rolling now' : `Starts ${L.whenWords(n.startsAt)}`;
   }
   out('#board').innerHTML = `
@@ -475,7 +477,7 @@ const TIMES = ['18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '2
 const timeLabel = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); };
 const timeOf = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 const startsAtFor = (day, hhmm) => { const d = L.dayFromKey(day); const [h, m] = hhmm.split(':').map(Number); d.setHours(h, m, 0, 0); return d; };
-const timeSelect = (id, value) => `<label class="sr-only" for="${id}">Start time</label><select class="field place" id="${id}">${TIMES.map((x) => `<option value="${x}"${x === value ? ' selected' : ''}>${timeLabel(x)}</option>`).join('')}</select>`;
+const timeSelect = (id, value, attrs = '') => `<label class="sr-only" for="${id}">Start time</label><select class="field place" id="${id}" ${attrs}>${TIMES.map((x) => `<option value="${x}"${x === value ? ' selected' : ''}>${timeLabel(x)}</option>`).join('')}</select>`;
 
 // Saying you're coming to a night, the same button everywhere a night shows
 // (Up next, Also planned, the day panel): "Count me in", then "You're in ✓".
@@ -570,11 +572,11 @@ function renderNext(upcoming, shelf) {
     body = `
       <div class="host-card night-card">
         <div class="nc-head">
-          <h3>${esc(L.showtimeLong(n.startsAt))}</h3><p class="hint">At ${esc(L.placeLabel(n.host))} · the movie locks ${esc(L.showtimeLong(L.lockAt(n)))}</p>
+          <h3>${esc(L.showtimeLong(n.startsAt))}</h3><p class="hint">At ${esc(placeOf(n))} · the movie locks ${esc(L.showtimeLong(L.lockAt(n)))}</p>
           ${n.theme ? `<p class="theme-line"><span class="label">Theme</span> <span class="theme-chip">${esc(n.theme)}</span>${noFit ? ` <span class="hint">${allVetoed ? 'Everything that fits is vetoed, so the whole shelf is in play.' : 'Nothing on the shelf fits yet, so the whole shelf is in play.'}</span>` : ''}</p>` : ''}
         </div>
         <div class="rsvp-row">${rsvp(n)}
-          <p class="dd-line">${coming.length ? `${coming.length} coming: ${faces(coming, S.me?.nameKey, 8, { named: false })} ${esc(coming.map((c) => c.name).join(', '))}` : 'Nobody has said they’re in yet.'}</p></div>
+          <p class="dd-line">${coming.length ? `${coming.length} coming: ${faces(coming, S.me?.nameKey, 8, { named: false })} ${esc(nameList(coming, 8))}` : 'Nobody has said they’re in yet.'}</p></div>
         ${canVeto ? '' : `<p class="hint">${S.me ? 'Count yourself in' : 'Put your name down and count yourself in'} to veto a movie and call a snack.</p>`}
         ${pickNow}
         <div>
@@ -604,7 +606,7 @@ function renderNext(upcoming, shelf) {
           <h3>${esc(title)}</h3>
           <dl>
             <dt>When</dt><dd>${esc(L.showtimeLong(n.startsAt))}</dd>
-            <dt>Where</dt><dd>${esc(L.placeLabel(n.host))}</dd>
+            <dt>Where</dt><dd>${esc(isMine(n) ? 'Your place' : L.placeLabel(n.host))}</dd>
             <dt>Guest</dt><dd>${esc(S.me.name)}</dd>
             ${meta && !hide ? `<dt>Running</dt><dd>${esc(meta)}</dd>` : ''}
           </dl>
@@ -612,7 +614,7 @@ function renderNext(upcoming, shelf) {
         <div class="ticket-stub"><span>No. ${L.ticketNumber(S.me.nameKey, n.day)}</span></div>
       </div>` : `
       <div class="host-card night-face">${art}<h3>${esc(title)}</h3>
-        <p class="hint">${esc(L.showtimeLong(n.startsAt))} · at ${esc(L.placeLabel(n.host))}</p>
+        <p class="hint">${esc(L.showtimeLong(n.startsAt))} · at ${esc(placeOf(n))}</p>
         ${showing(n) ? '' : `<div class="row">${rsvp(n)}</div>`}
       </div>`;
     body = `
@@ -623,7 +625,7 @@ function renderNext(upcoming, shelf) {
         ${m.trailer ? `<button class="btn btn-ghost" type="button" ${trailerData(m)}>Watch the trailer</button>` : ''}
         ${m.imdbId ? `<a class="btn btn-ghost" href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener">Watch in Stremio</a>` : ''}
       </div>`}
-      <p class="dd-line" style="margin-top:10px">${coming.length} coming: ${faces(coming, S.me?.nameKey, 8, { named: false })} ${esc(coming.map((c) => c.name).join(', '))}</p>
+      <p class="dd-line" style="margin-top:10px">${coming.length} coming: ${faces(coming, S.me?.nameKey, 8, { named: false })} ${esc(nameList(coming, 8))}</p>
       ${n.theme ? `<p class="dd-line">Theme: <span class="theme-chip">${esc(n.theme)}</span></p>` : ''}
       ${hostTools(n, 'next')}
       ${showing(n) ? reviewBox(n, sub.reviews) : ''}`;
@@ -633,7 +635,7 @@ function renderNext(upcoming, shelf) {
   out('#moreNights').innerHTML = more.length ? `
     <h3 class="label" style="margin:16px 0 6px">Also planned</h3>
     <ul class="date-list">${more.map((x) => `
-      <li class="date-item"><span>${esc(L.showtimeLong(x.startsAt))} · at ${esc(L.placeLabel(x.host))} · ${comingTo(x.day).length} coming${leadingLine(x)}</span>
+      <li class="date-item"><span>${esc(L.showtimeLong(x.startsAt))} · at ${esc(placeOf(x))} · ${comingTo(x.day).length} coming${leadingLine(x)}</span>
         ${rsvp(x, ' btn-small', { quiet: true })}</li>`).join('')}</ul>` : '';
 }
 
@@ -793,7 +795,7 @@ function maybeRevealTie(n) {
   const beat = p.pool.filter((m) => m !== p.winner).map((m) => m.title);
   play(n, p.key, () => spinReel(p.pool, p.winner, {
     title: `${p.pool.length}-way tie. The reel decides…`, done: doneFor(n), invite: inviteFor(n),
-    when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), people: peopleLine(n), faces: facesFor(n),
+    when: L.showtimeShort(n.startsAt), place: placeOf(n), people: peopleLine(n), faces: facesFor(n),
     why: beat.length ? `Won the reel over ${andList(beat)}` : '' }));
 }
 
@@ -809,7 +811,7 @@ function maybeRevealMovie(n) {
   if (!p || p.tie || p.deferred || blocked()) return;
   const atOnce = curtainState === 'closed';
   play(n, p.key, () => revealMovie(n.lockedMovie, {
-    when: L.showtimeShort(n.startsAt), place: L.placeLabel(n.host), doneText: doneFor(n), invite: inviteFor(n),
+    when: L.showtimeShort(n.startsAt), place: placeOf(n), doneText: doneFor(n), invite: inviteFor(n),
     people: peopleLine(n), faces: facesFor(n), why: whyLine(n), atOnce }));
 }
 
@@ -865,7 +867,7 @@ function renderCalendar() {
     ${d.night?.status === 'done'
       ? `<p class="dd-line">Watched ${esc(d.night.lockedMovie?.title || '')} at ${esc(L.placeLabel(d.night.host))}.</p>`
       : night
-      ? `<p class="dd-line"><span><b>${esc(night.host)}</b> is hosting at ${esc(L.showtimeParts(night.startsAt).time)}${night.theme ? ` · ${esc(night.theme)} night` : ''}${night.status === 'locked' ? (faceDown(night) ? ' · the movie is locked' : ` · showing ${esc(night.lockedMovie?.title || '')}`) : leadingLine(night)}</span></p>
+      ? `<p class="dd-line"><span>${isMine(night) ? '<b>You’re</b> hosting' : `<b>${esc(night.host)}</b> is hosting`} at ${esc(L.showtimeParts(night.startsAt).time)}${night.theme ? ` · ${esc(night.theme)} night` : ''}${night.status === 'locked' ? (faceDown(night) ? ' · the movie is locked' : ` · showing ${esc(night.lockedMovie?.title || '')}`) : leadingLine(night)}</span></p>
          <div class="row dd-actions">${freeBtn}</div>${hostTools(night, 'dd')}`
       : `<div class="row dd-actions">${freeBtn}</div>
          <p class="hint">Free that evening puts you on the list if someone hosts it.</p>
@@ -949,7 +951,7 @@ function renderShelf(shelf) {
   // A themed night picks only from the movies that fit it; a chip shows which.
   const pool = next?.status === 'planned' && next.theme ? L.pickable(shelf.movies, { vetoed: L.vetoedFor(next), theme: next.theme }) : null;
   const fit = pool && !pool.themeFallback
-    ? { label: `Fits ${L.placeLabel(next.host)} ${next.theme} night`, ids: new Set(pool.movies.map((m) => m.imdbId)) } : null;
+    ? { label: `Fits ${isMine(next) ? 'your' : L.placeLabel(next.host)} ${next.theme} night`, ids: new Set(pool.movies.map((m) => m.imdbId)) } : null;
   const filters = ['All', ...(fit ? [fit.label] : []), ...(S.me ? ['Unseen by me', 'Added by me'] : []), ...L.shelfTags(shelf.movies)];
   if (!filters.includes(S.filter)) S.filter = 'All';
   out('#shelfChips').innerHTML = filters.map((f) => `<button class="chip${S.filter === f ? ' on' : ''}" type="button" data-action="filter" data-tag="${esc(f)}" aria-pressed="${S.filter === f}">${esc(f)}</button>`).join('');
@@ -1326,6 +1328,19 @@ document.addEventListener('change', (e) => {
   if (e.target.id === 'hostTime') { S.hostTime = e.target.value; savePrefs({ hostTime: S.hostTime }); render(); }
   if (e.target.id === 'hostTheme') { S.hostTheme = e.target.value; render(); }
   if (e.target.id === 'sortSel') { S.sort = e.target.value; render(); }
+  // The host's time menu on a planned night (Up next and the day panel each
+  // have one): the night moves when a time is chosen.
+  const timeDay = e.target.dataset.timeDay;
+  if (timeDay) {
+    const sel = e.target;
+    once(`time:${timeDay}`, async () => {
+      const t = startsAtFor(timeDay, sel.value);
+      if (t <= new Date()) { sel.value = timeOf(S.nights.find((x) => x.day === timeDay).startsAt.toDate()); toast('That time has already passed.', true); return false; }
+      await A.setNightTime(timeDay, t);
+      toast(`Moved to ${L.showtimeLong(t)}.`);
+    });
+    return;
+  }
   const day = e.target.dataset.themeDay; // the host's theme menu on a planned night
   if (!day) return;
   wantTheme.set(day, e.target.value);
@@ -1467,13 +1482,6 @@ document.addEventListener('click', (e) => {
       break;
     }
     case 'rate-night': S.rateDay = day; render(); break;
-    case 'night-time': once(`time:${day}`, async () => {
-      // The time menu beside the button you tapped (Up next and the day panel each have one).
-      const t = startsAtFor(day, el.closest('.host-tools').querySelector(`select[id$="-time-${day}"]`).value);
-      if (t <= new Date()) { toast('That time has already passed.', true); return; }
-      await A.setNightTime(day, t);
-      toast(`Moved to ${L.showtimeLong(t)}.`);
-    }); break;
     case 'lock-now': {
       if (!armed(el, 'Tap again to lock')) return;
       const pickNow = () => {

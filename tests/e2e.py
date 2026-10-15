@@ -783,9 +783,9 @@ def news_cards_checks(browser, errors):
     hal.goto(f'{SITE}/?emu')
     skip_cards(hal)
     expect(hal.locator('#next .host-tools')).to_have_count(1, timeout=10000)
-    hal.select_option(f'#next #next-time-{day}', '21:00')
-    hal.click(f'#next [data-action="night-time"]')
+    hal.select_option(f'#next #next-time-{day}', '21:00')  # it saves when chosen, like the theme
     expect(hal.locator('#toast')).to_contain_text('Moved to', timeout=10000)
+    expect(hal.locator('[data-action="night-time"]')).to_have_count(0)  # one way to save: no Change time button
     hal.select_option('#next select[data-theme-day]', 'Drama')
     expect(hal.locator('#toast')).to_contain_text('Theme: Drama', timeout=10000)
     hal.click('#next [data-action="veto"]')
@@ -951,13 +951,14 @@ def main():
         expect(jo.locator('#dayDetail [data-action="host"]')).to_be_focused()
         jo.click('#dayDetail [data-action="host-cancel"]')
         expect(jo.locator('#dayDetail .host-slip')).to_have_count(0)
-        expect(jo.locator('#board')).not_to_contain_text("Movie night at Jo's")
+        expect(jo.locator('#board')).not_to_contain_text("Movie night at your place")
         jo.click('#dayDetail [data-action="host-slip"]')
         jo.click('#dayDetail [data-action="host"]')
-        expect(jo.locator('#board')).to_contain_text("Movie night at Jo's")
+        expect(jo.locator('#board')).to_contain_text("Movie night at your place")  # the host's own night, in their words
         expect(sam.locator('#next')).to_contain_text("At Jo's")
         sam.click('#next [data-action="free"]')  # Count me in
-        expect(sam.locator('#next')).to_contain_text('Sam')
+        expect(sam.locator('#next')).to_contain_text('coming: ')
+        expect(sam.locator('#next .dd-line', has_text='coming: ')).to_contain_text('you')  # Sam is "you" on his own phone
         expect(sam.locator('#next .leaders')).to_contain_text(alien)
         expect(sam.locator('#next .host-tools')).to_have_count(0)  # only the host gets tools
         expect(jo.locator('#next .host-tools')).to_have_count(1)
@@ -1098,18 +1099,17 @@ def main():
         expect(jo.locator('#board')).to_contain_text('Theme: Foreign')
         expect(sam.locator('#next .theme-chip')).to_have_text('Foreign')
         shot(jo, '04b3-host-themed-night')
-        # The host's tools sit in Up next and in the day panel: each Change time
-        # button saves the menu beside it, not the first one on the page.
+        # The host's tools sit in Up next and in the day panel: each time menu
+        # saves itself when chosen. The host reads "You're hosting", not their own name.
+        expect(jo.locator('#dayDetail')).to_contain_text('You’re hosting')
         expect(jo.locator('#dayDetail .host-tools select[id^="dd-time-"]')).to_have_count(1)
         jo.select_option(f'#dayDetail #dd-time-{day2}', '21:00')
-        jo.click('#dayDetail [data-action="night-time"]')
         expect(jo.locator('#next h3').first).to_contain_text(re.compile(r'9:00\sPM'), timeout=10000)
         expect(jo.locator('#toast')).to_contain_text('Moved to')  # the write has landed, not just the local echo
         jo.select_option(f'#dayDetail #dd-time-{day2}', '20:00')
-        jo.click('#dayDetail [data-action="night-time"]')
         expect(jo.locator('#next h3').first).to_contain_text(re.compile(r'8:00\sPM'), timeout=10000)
         sam.click('#next [data-action="free"]')  # Count me in
-        expect(sam.locator('#next .dd-line').first).to_contain_text('Sam')
+        expect(sam.locator('#next .dd-line').first).to_contain_text('you')  # Sam reads "you", first
         # The theme narrows "what the people coming want" to movies that fit it; their
         # thumbs are all on other movies, and the page says so rather than "no thumbs".
         # In their names: "You and Jo only thumbed up vetoed or off-theme movies…"
