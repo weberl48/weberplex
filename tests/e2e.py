@@ -562,6 +562,33 @@ def reveal_ending_checks(browser, errors):
         emu('PATCH', f'{DOCS}/nights/{d}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
 
 
+def flaky_start_checks(browser, errors):
+    """A phone that opens with Firestore out of reach catches up by itself once the connection is
+    back, even when some of its lists are genuinely empty (no free marks, nothing seen): the server's
+    'still empty' counts as loaded. Its own emulator namespace, so those lists really are empty."""
+    project = 'e2e-flaky'
+    docs = f'/v1/projects/{project}/databases/(default)/documents'
+    now = datetime.now(timezone.utc)
+    emu('DELETE', f'/emulator/v1/projects/{project}/databases/(default)/documents', owner=True)
+    emu('PATCH', f'{docs}/movies/tt0000001', {'fields': fields({'imdbId': 'tt0000001', 'title': 'Flaky Feature', 'year': '1999', 'poster': '',
+        'runtime': '', 'rating': '', 'genres': [], 'trailer': '', 'description': '', 'pitch': '', 'shelf': [], 'by': 'hal', 'byName': 'Hal', 'at': now})}, owner=True)
+    emu('PATCH', f'{docs}/votes/tt0000001__hal', {'fields': fields({'movie': 'tt0000001', 'title': 'Flaky Feature', 'nameKey': 'hal', 'name': 'Hal', 'at': now})}, owner=True)
+    config = Path('public/js/config.js').read_text(encoding='utf-8').replace(f"projectId: '{PROJECT}'", f"projectId: '{project}'")
+    assert project in config
+    ctx = browser.new_context(viewport=PHONE, reduced_motion='reduce')
+    ctx.route('**/js/config.js', lambda r: r.fulfill(status=200, content_type='text/javascript', body=config))
+    block = lambda r: r.abort()
+    ctx.route('**/google.firestore.v1.Firestore/Listen/**', block)
+    page = ctx.new_page()
+    page.on('pageerror', lambda e: errors.append(f'flaky: {e}'))
+    page.goto(f'{SITE}/?emu')
+    expect(page.locator('#board')).to_contain_text('reach the box office', ignore_case=True, timeout=15000)
+    ctx.unroute('**/google.firestore.v1.Firestore/Listen/**', block)
+    expect(page.locator('#shelf .card')).to_have_count(1, timeout=20000)  # no reload
+    expect(page.locator('#board')).not_to_contain_text('reach the box office', ignore_case=True)
+    ctx.close()
+
+
 def big_text_checks(browser, errors):
     """200% text on a phone (simulated as a 206 px screen): nothing runs past the edge, the
     marquee title stays bigger than the section heads, How it works keeps Back and Next on one
@@ -1234,6 +1261,7 @@ def main():
         reveal_ending_checks(browser, errors)
         locking_phone_checks(browser, errors)
         big_text_checks(browser, errors)
+        flaky_start_checks(browser, errors)
         overlay_checks(browser, errors)
         owner_gate_checks(browser, errors)
         long_name_checks(browser, errors)
