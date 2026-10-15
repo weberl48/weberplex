@@ -570,7 +570,7 @@ def reveal_ending_checks(browser, errors):
     # The shelf's crown follows the next night still open to the pick, never the face-down movie.
     skip_cards(page)
     expect(page.locator('#shelf .card.lead', has=page.locator('h3', has_text='Jaws'))).to_have_count(0)
-    expect(page.locator('#shelf .ribbon').first).to_contain_text('Leading')
+    expect(page.locator('#shelf .ribbon').first).to_contain_text(re.compile(r'Leading|Tied'))
     page.context.close()
     for d in (day, later):
         emu('PATCH', f'{DOCS}/nights/{d}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
@@ -966,7 +966,7 @@ def main():
 
         # Seen marks (right under the poster) and the filter.
         card(sam, jaws).locator('[data-action="seen"]').click()
-        expect(card(sam, jaws)).to_contain_text('Seen by Sam')
+        expect(card(sam, jaws)).to_contain_text('Seen by you')  # in Sam's own words
         sam.click('#shelfChips [data-tag="Unseen by me"]')
         expect(card(sam, jaws)).to_have_count(0)
         sam.click('#shelfChips [data-tag="All"]')
@@ -1196,6 +1196,8 @@ def main():
         sam.click('.reveal-actions button')
         expect(sam.locator('.reveal-overlay')).to_have_count(0)
         expect(sam.locator('#next .ticket h3')).to_contain_text(loser, ignore_case=True)
+        # On the shelf the booked movie says so (its thumbs aren't passed over).
+        expect(card(sam, loser).locator('.ribbon.booked')).to_contain_text('Booked')
         expect(sam.locator('#next .ticket')).to_be_focused()  # the reveal hands over to the ticket
         sam.wait_for_timeout(1500)
         expect(sam.locator('.tour-overlay')).to_have_count(0)  # and no news cards over it

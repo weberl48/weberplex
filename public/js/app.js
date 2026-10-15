@@ -966,7 +966,12 @@ function renderShelf(shelf) {
     return;
   }
   const leadIds = new Set((p ? (p.tie.length > 1 ? p.tie : [p.movie.imdbId]) : shelf.leaders.map((m) => m.imdbId)).filter((x) => !hidden.has(x)));
-  const crown = p ? leadingFor(next) : 'Most wanted';
+  // A tie reads as one ("Tied Oct 19" on each), the same word Up next uses.
+  const crown = p ? (p.tie.length > 1 ? leadingFor(next).replace('Leading', 'Tied') : leadingFor(next)) : 'Most wanted';
+  // A movie booked for an upcoming night (and already turned over for you)
+  // says so: "Booked Fri Oct 16", so its thumbs don't look passed over.
+  const booked = new Map(L.upcomingNights(S.nights).filter((n) => n.status === 'locked' && n.lockedMovieId)
+    .map((n) => { const t = L.showtimeParts(n.startsAt); return [n.lockedMovieId, `Booked ${t.dow.slice(0, 3)} ${t.mon.charAt(0)}${t.mon.slice(1, 3).toLowerCase()} ${t.day}`]; }));
   out('#shelf').innerHTML = list.map((m) => {
     const id = esc(m.imdbId);
     const mine = S.me && m.by === S.me.nameKey;
@@ -982,28 +987,31 @@ function renderShelf(shelf) {
     // The poster, then everything about the movie right under it: the
     // thumbs-up, Seen it, the trailer, Stremio and the plot.
     return `
-      <article class="card${leadIds.has(m.imdbId) ? ' lead' : ''}">
+      <article class="card${leadIds.has(m.imdbId) ? ' lead' : ''}${booked.has(m.imdbId) ? ' booked' : ''}">
         <div class="poster">${posterImg(m.poster, m.title)}
           ${fresh ? '<span class="new-chip">New</span>' : ''}
-          ${leadIds.has(m.imdbId) ? `<span class="ribbon">${crown}</span>` : ''}</div>
+          ${booked.has(m.imdbId) ? `<span class="ribbon booked">${booked.get(m.imdbId)}</span>` : leadIds.has(m.imdbId) ? `<span class="ribbon">${crown}</span>` : ''}</div>
         <div class="card-body">
           <h3>${esc(m.title)}</h3>
           ${meta ? `<p class="meta">${esc(meta)}</p>` : ''}
           ${m.shelf?.length ? `<div class="tags">${m.shelf.map((x) => `<span class="tag-chip" data-tag="${esc(x)}">${esc(x)}</span>`).join('')}</div>` : ''}
           ${m.pitch ? `<p class="pitch">“${esc(m.pitch)}”</p>` : ''}
-          <p class="by">${L.isHouse(m) ? 'House pick' : `Added by ${mine ? 'you' : esc(m.byName)}`}</p>
-          ${m.seenBy.length ? `<p class="seen-line">Seen by ${esc(m.seenBy.map((x) => x.name).join(', '))}</p>` : ''}
+          <p class="by">${L.isHouse(m) ? 'House pick' : `Added by ${mine ? 'you' : esc(m.byName)}`}${mine ? ` · <button class="linkish" type="button" data-action="remove-movie" data-id="${id}">Remove</button>` : ''}</p>
+          ${m.seenBy.length ? `<p class="seen-line">Seen by ${esc(nameList(m.seenBy, 4))}</p>` : ''}
           <div class="card-actions">
+            <div class="card-main">
             <button class="vote${voted ? ' on' : ''}${bump ? ' bump' : ''}" type="button" data-action="vote" data-id="${id}"
               aria-pressed="${!!voted}" aria-label="I'd watch ${esc(m.title)} (${m.votes})">${THUMB}<span class="n">${m.votes}</span>${newVotes ? `<span class="vote-new">+${newVotes}</span>` : ''}</button>
             <button class="mini${iSaw ? ' on' : ''}" type="button" data-action="seen" data-id="${id}" aria-pressed="${!!iSaw}" aria-label="Seen ${esc(m.title)}">${iSaw ? `Seen ${CHECK}` : 'Seen it'}</button>
-            ${m.trailer ? `<button class="mini" type="button" ${trailerData(m)} aria-label="Trailer for ${esc(m.title)}">Trailer</button>` : ''}
-            <a class="mini" href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener" aria-label="Open ${esc(m.title)} in Stremio">Stremio</a>
-            ${m.description ? `<button class="mini" type="button" data-action="plot" data-id="${id}" aria-expanded="${plotOpen}" aria-controls="plot-${id}">${plotOpen ? 'Hide plot' : 'Plot'}</button>` : ''}
-            ${mine ? `<button class="mini" type="button" data-action="remove-movie" data-id="${id}">Remove</button>` : ''}
+            </div>
+            <div class="card-more">
+            ${m.trailer ? `<button type="button" ${trailerData(m)} aria-label="Trailer for ${esc(m.title)}">Trailer</button>` : ''}
+            <a href="${esc(L.stremioUrl(m.imdbId))}" target="_blank" rel="noopener" aria-label="Open ${esc(m.title)} in Stremio">Stremio</a>
+            ${m.description ? `<button type="button" data-action="plot" data-id="${id}" aria-expanded="${plotOpen}" aria-controls="plot-${id}">Plot</button>` : ''}
+            </div>
           </div>
           ${m.description ? `<p class="plot" id="plot-${id}"${plotOpen ? '' : ' hidden'}>${esc(m.description)}</p>` : ''}
-          <div class="voters">${faces(m.voters, S.me?.nameKey, 6)}</div>
+          <div class="voters">${m.voters.length ? `<span class="voters-thumb" aria-hidden="true">${THUMB}</span>` : ''}${faces(m.voters, S.me?.nameKey, 6)}</div>
         </div>
       </article>`;
   }).join('');
