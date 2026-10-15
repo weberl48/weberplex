@@ -47,3 +47,19 @@
   - the show starts with the show (reveal before the tour, a visible dim, no curtain on reload, fonts off the critical path)
   - the ticket as payoff
   - locks from fresh data only
+
+## Iteration 7 (2026-10-14)
+- Kept:
+  - the show starts with the show (a7c67cd)
+  - the ticket is the payoff (3769eb0)
+  - locks you can trust (8ea7b87)
+- After the critique (63190dd): the screening room, at the user's request; plus fixes for the five regressions the critique found (curtain restart, face-down leak, night-card cascade, squeezed ticket, 9 px).
+- Impeccable 29/40.
+- Learned:
+  - a measured A/B killed the font-stylesheet idea, so it was reverted;
+  - the reviewers' probes (a delayed app.js, a cascade injection) caught bugs the e2e didn't;
+  - CDP offline emulation, not route aborts, makes the SDK report cache-only lists.
+- Next:
+  - toasts out of the way and one Count me in
+  - the tap and the ticket
+  - "you" and one save model for the host
