@@ -38,7 +38,8 @@ wanted it ("Hal, Jo and you thumbed it up") arrive one after another; a tie's
 reel lands the same way and says what it beat. When it's due as the page opens,
 the curtain parts straight onto the waiting card. It waits until the
 page has everything it needs, so it knows whether you're coming: it ends on
-**See my ticket** if you are (the ticket comes to the top of the screen), and on
+**See my ticket** if you are (Up next comes to the top of the screen, and the
+ticket now carries the poster), and on
 **Count me in** if you aren't (with no
 name yet, the guest list comes to the top of the screen and asks for one (your
 name box first, then the names already on it), its
@@ -72,8 +73,8 @@ tickets with **Add to calendar** (Google Calendar's add-event page, with the
 the marquee, and jump links under it to each section (they scroll without
 adding history). Android's back gesture closes whichever card, overlay or
 hosting slip is open instead of leaving the site. A reveal closed with back
-before it turns stays face down that visit, with **Reveal the movie** in Up
-next. Errors stay on screen until tapped away. A tap counts once the server
+before it turns stays face down that visit: the card back on its night in Up
+next (**Tap to turn it over**) plays it when you're ready. Errors stay on screen until tapped away. A tap counts once the server
 has it: anything still unsent after a few seconds says **Not sent yet** (even
 when the phone thinks it's online), then **Sent.**, and leaving the page with
 something unsent asks first (dropping out and vetoes too, which read the night

@@ -29,7 +29,10 @@ export function revealMovie(movie, { when = '', place = '', doneText = 'OK', inv
         <h2>The movie is…</h2>
         <div class="reveal-stage waiting">
           <button class="reveal-card" type="button" aria-label="Turn the card over">
-            <span class="reveal-face reveal-cover" aria-hidden="true"><span>?</span></span>
+            <span class="reveal-face reveal-cover" aria-hidden="true">
+              <span class="rc-house">Weberplex</span><span class="rc-q">?</span>
+              <span class="rc-night">${esc(when)}${place ? `<br>at ${esc(place)}` : ''}</span>
+            </span>
             <span class="reveal-face reveal-poster">${posterImg(bigPoster(movie.poster), movie.title, '', true)}</span>
           </button>
         </div>

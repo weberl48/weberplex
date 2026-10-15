@@ -458,6 +458,9 @@ def reveal_invite_checks(browser, errors):
     page.click('.reveal-actions [data-r="in"]')
     expect(page.locator('#next .ticket')).to_be_focused(timeout=10000)
     expect(page.locator('#toast')).to_contain_text('in for', timeout=10000)
+    page.wait_for_timeout(900)  # the scroll to the ticket settles under its heading
+    top = page.evaluate("document.querySelector('#nextSec h2').getBoundingClientRect().top")
+    assert 0 <= top <= 40, top
     assert json.loads(emu('GET', f'{DOCS}/free/{day}__nia', owner=True)).get('fields'), 'Nia is on the list'
     page.context.close()
     # Out of the way of the checks that follow (they open a reveal of their own).
@@ -502,7 +505,7 @@ def reveal_ending_checks(browser, errors):
     ctx.close()
 
     # Signed out, Esc on the face-down card ('not now'), then a name: the reveal isn't carried
-    # onto the name as seen, so the next visit doesn't spoil it; it waits behind Reveal the movie.
+    # onto the name as seen, so the next visit doesn't spoil it; it waits behind its card back in Up next.
     try:
         emu('DELETE', f'{DOCS}/people/xavier', owner=True)  # a fresh person, even on a rerun
     except Exception:
@@ -1122,7 +1125,10 @@ def main():
         expect(fresh.locator('#board h1')).to_have_text('The movie is…')
         # Stats don't give it away either: a booked movie isn't "Most wanted".
         expect(fresh.locator('#topWanted')).not_to_contain_text(loser, ignore_case=True)
-        fresh.click('#next [data-action="reveal-now"]')  # Reveal the movie
+        # The card back on the night is how you turn it over now: no extra amber button beside it.
+        expect(fresh.locator('#next .ticket-back[data-action="reveal-now"]')).to_be_visible()
+        expect(fresh.locator('#next .reveal-again')).to_have_count(0)
+        fresh.click('#next [data-action="reveal-now"]')  # the card back: tap to turn it over
         fresh.click('.reveal-card')
         fresh.keyboard.press('Escape')  # once it has turned, Esc just closes it
         expect(fresh.locator('.reveal-overlay')).to_have_count(0)

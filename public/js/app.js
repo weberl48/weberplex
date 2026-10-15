@@ -388,7 +388,7 @@ function unspoiled(c) {
   const rest = c.rest?.map((t) => titles.find(([title]) => t.includes(title))?.[1] || t);
   const n = c.kind === 'locked' && hidden.find((x) => x.day === c.day);
   const next = n && n.day === L.upcomingNights(S.nights)[0]?.day;
-  if (n) return { ...c, rest, text: blank(n), detail: next ? 'It’s face down until you turn it over: Reveal the movie, in Up next.' : 'It stays face down until it’s the next night; you’ll turn it over then.', poster: undefined, title: '' };
+  if (n) return { ...c, rest, text: blank(n), detail: next ? 'It’s face down until you turn it over: tap its card back in Up next.' : 'It stays face down until it’s the next night; you’ll turn it over then.', poster: undefined, title: '' };
   // Elsewhere (a thumbs-up on it, a new-movie card) the title gives way too.
   const scrub = (t) => titles.reduce((s, [title, b]) => s.split(title).join(b.replace(' is locked', '')), t || '');
   const hit = titles.some(([title]) => (c.text || '').includes(title) || (c.detail || '').includes(title));
@@ -571,9 +571,17 @@ function renderNext(upcoming, shelf) {
     const meta = [m.year, m.runtime].filter(Boolean).join(' · ');
     const hide = faceDown(n);
     const title = hide ? 'The movie is…' : m.title || 'The movie';
+    // Face up, the ticket carries the poster; face down, a card back. Backed out
+    // of the reveal, that card back is how you turn it over.
+    const later = pendingShow(n)?.deferred;
+    const art = hide
+      ? (later ? '<button class="ticket-art ticket-back" type="button" data-action="reveal-now" aria-label="Turn the card over: reveal the movie"><span aria-hidden="true">?</span><span class="tap">Tap to turn it over</span></button>'
+        : '<span class="ticket-art ticket-back" aria-hidden="true"><span>?</span></span>')
+      : (m.poster ? `<span class="ticket-art">${posterImg(m.poster, m.title || '')}</span>` : '');
     const ticket = going && S.me ? `
       <div class="ticket">
         <div class="ticket-main">
+          ${art}
           <p class="admit">ADMIT ONE</p>
           <h3>${esc(title)}</h3>
           <dl>
@@ -585,13 +593,12 @@ function renderNext(upcoming, shelf) {
         </div>
         <div class="ticket-stub"><span>No. ${L.ticketNumber(S.me.nameKey, n.day)}</span></div>
       </div>` : `
-      <div class="host-card"><h3>${esc(title)}</h3>
+      <div class="host-card night-face">${art}<h3>${esc(title)}</h3>
         <p class="hint">${esc(L.showtimeLong(n.startsAt))} · at ${esc(L.placeLabel(n.host))}</p>
         ${showing(n) ? '' : `<div class="row">${rsvp(n)}</div>`}
       </div>`;
     body = `
       ${ticket}
-      ${pendingShow(n)?.deferred ? '<div class="row reveal-again"><button class="btn btn-bulb" type="button" data-action="reveal-now">Reveal the movie</button></div>' : ''}
       ${going && !showing(n) ? `<div class="row ticket-actions"><a class="btn btn-bulb" href="${esc(gcalUrl(n, m, hide))}" target="_blank" rel="noopener">Add to calendar</a>${rsvp(n)}</div>
       <p class="hint">Not on Google Calendar? <button class="linkish" type="button" data-action="ics">Download the invite</button></p>` : ''}
       ${hide || !(m.trailer || m.imdbId) ? '' : `<div class="row links-row">
@@ -691,7 +698,7 @@ function play(n, key, show) {
   S.revealing = { key, day: n.day };
   show().then(({ seen, rsvp }) => {
     if (seen) savePrefs({ reels: [...(myDoc()?.reels || []), key] });
-    else S.deferred.add(key); // stays face down; Up next offers "Reveal the movie"
+    else S.deferred.add(key); // stays face down; its card back in Up next turns it over
     S.revealing = null;
     // The reveal is the visit's peak: the news cards don't open over the
     // ticket that follows it (the bar keeps the count).
@@ -722,7 +729,8 @@ function landOnTicket(tries = 30) {
   t.classList.remove('printed');
   void t.offsetWidth;
   t.classList.add('printed');
-  t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  // Under its heading ("Up next"), not cut through it.
+  $('#nextSec').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
 }
 // "Jaws, Alien and Up": a list the way a person says it.
 const andList = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0] || '');

@@ -404,6 +404,19 @@ h3.label, h4.label { margin: 0 0 6px; }
 .ticket-actions { margin-top: 12px; }
 /* after the reveal, the ticket prints in at the top of the screen */
 .ticket { scroll-margin-top: 16px; }
+#nextSec { scroll-margin-top: 12px; }
+/* the ticket's art: the poster once you've seen it, a card back while it's face down */
+.ticket-art { float: right; width: 64px; aspect-ratio: 2 / 3; margin: 0 0 8px 12px; border-radius: 3px; overflow: hidden; box-shadow: 0 6px 14px rgba(10, 4, 7, 0.35); }
+.ticket-art img, .ticket-art .noimg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ticket-back {
+  display: grid; place-items: center; padding: 0; border: 2px solid var(--bulb); background: var(--curtain); color: var(--bulb);
+  font: 400 2rem/1 var(--f-display); box-shadow: inset 0 0 0 3px var(--curtain), inset 0 0 0 4px rgba(255, 199, 110, 0.5), 0 6px 14px rgba(10, 4, 7, 0.35);
+}
+button.ticket-back { width: 76px; min-height: 0; cursor: pointer; grid-template-rows: 1fr auto; padding: 6px 4px 5px; }
+.ticket-back .tap { font: 700 9px/1.2 var(--f-body); font-stretch: 75%; letter-spacing: 0.12em; text-transform: uppercase; }
+.night-face { display: flow-root; } /* not a grid: the art floats beside the heading */
+.night-face > :is(.hint, .row) { margin-top: 10px; }
+.night-face h3 { font: 400 var(--step-1)/1.15 var(--f-display); color: var(--bulb); } /* the night's title in marquee letters, like the ticket's */
 .ticket.printed { animation: printed 0.5s ease-out both; }
 @keyframes printed { from { opacity: 0.2; transform: translateY(-16px); } to { opacity: 1; transform: none; } }
 .links-row { margin-top: 8px; }
@@ -798,7 +811,15 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
   position: absolute; inset: 0; overflow: hidden; border-radius: 8px; border: 3px solid var(--bulb);
   backface-visibility: hidden; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
 }
-.reveal-cover { display: grid; place-items: center; background: var(--curtain); color: var(--bulb); font: 400 4.5rem/1 var(--f-display); }
+/* the card back is a printed ticket back: the house on top, the question, the night at the foot */
+.reveal-cover {
+  display: grid; grid-template-rows: auto 1fr auto; place-items: center; padding: 16px 10px 14px;
+  background: repeating-radial-gradient(circle at 50% 46%, rgba(255, 199, 110, 0.07) 0 1.5px, transparent 1.5px 9px), var(--curtain);
+  box-shadow: inset 0 0 0 6px var(--curtain), inset 0 0 0 7px rgba(255, 199, 110, 0.55);
+  color: var(--bulb); font: 400 4.5rem/1 var(--f-display);
+}
+.rc-house { font: 700 11px/1 var(--f-body); font-stretch: 75%; letter-spacing: 0.32em; text-transform: uppercase; }
+.rc-night { font: 700 12px/1.35 var(--f-body); font-stretch: 75%; letter-spacing: 0.14em; text-transform: uppercase; text-align: center; }
 .reveal-poster { display: block; } /* a span inside the card's button; the cover stays a grid */
 .reveal-poster { transform: rotateY(180deg); background: #050203; }
 .reveal-poster img, .reveal-poster .noimg { width: 100%; height: 100%; object-fit: cover; }
