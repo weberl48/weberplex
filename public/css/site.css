@@ -837,15 +837,24 @@ body:has(.reel-overlay, .reveal-overlay) .toast { visibility: hidden; }
 }
 .curtain.open { pointer-events: none; animation-name: curtain-gone-open; animation-delay: 1.3s; }
 .curtain-l, .curtain-r {
-  flex: 1 1 50%; height: 100%; will-change: transform, opacity;
+  flex: 1 1 50%; height: 100%; will-change: transform, opacity, filter;
   background:
     linear-gradient(180deg, rgba(10, 4, 7, 0.35), transparent 22%, transparent 70%, rgba(10, 4, 7, 0.6)),
     repeating-linear-gradient(90deg, #3e0a19 0, var(--curtain) 1.6rem, var(--curtain-hi) 2.3rem, var(--curtain) 3rem, #3e0a19 4.4rem);
-  animation: 1.25s cubic-bezier(.7, 0, .2, 1) 2.5s both;
+  /* the house lights go down while the page loads, then it parts */
+  animation: house-dims 0.7s ease-in 0.35s both, curtain-part 1.25s cubic-bezier(.7, 0, .2, 1) 2.5s both;
 }
-.curtain.open :is(.curtain-l, .curtain-r) { animation-name: curtain-part-now; animation-delay: 0s; }
-.curtain-l { transform-origin: left center; animation-name: curtain-part; box-shadow: inset -18px 0 26px rgba(10, 4, 7, 0.55); }
-.curtain-r { transform-origin: right center; animation-name: curtain-part; box-shadow: inset 18px 0 26px rgba(10, 4, 7, 0.55); }
+.curtain.open :is(.curtain-l, .curtain-r) { animation-name: house-dims, curtain-part-now; animation-delay: 0.35s, 0s; }
+/* footlights: a warm glow on the curtain's hem that goes out with the house lights */
+.curtain::after {
+  content: ''; position: absolute; inset: auto 0 0; height: 45%; pointer-events: none;
+  background: radial-gradient(ellipse 70% 100% at 50% 100%, rgba(255, 199, 110, 0.32), rgba(255, 199, 110, 0) 70%);
+  animation: footlights-out 0.7s ease-in 0.35s both;
+}
+@keyframes house-dims { to { filter: brightness(0.62); } }
+@keyframes footlights-out { to { opacity: 0; } }
+.curtain-l { transform-origin: left center; box-shadow: inset -18px 0 26px rgba(10, 4, 7, 0.55); }
+.curtain-r { transform-origin: right center; box-shadow: inset 18px 0 26px rgba(10, 4, 7, 0.55); }
 /* the valance: a pleated pelmet edged with a gold rope and a scalloped fringe */
 .curtain::before {
   content: ''; position: absolute; z-index: 1; inset: 0 0 auto; height: clamp(28px, 7vh, 54px);

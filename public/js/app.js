@@ -77,6 +77,10 @@ function openCurtain() {
 setTimeout(openCurtain, 2500);
 const curtainUp = () => curtainState === 'gone';
 let tourAfterCurtain = false;
+// How it works opens by itself for someone new, once the page knows what's on:
+// when a movie is waiting to be turned over, the show comes first and the
+// walkthrough stays a tap away (How it works, top and bottom).
+let tourDue = false;
 
 // ---- your settings (people/{nameKey}) ------------------------------------------
 const myDoc = () => (S.me ? S.people.find((p) => p.id === S.me.nameKey) : null);
@@ -96,7 +100,7 @@ function applyPrefs() {
   // mark that seen.
   setTimeout(() => { if (document.visibilityState === 'visible' && prefsFor === d.id && !unreadNews()) savePrefs({ lastSeen: true }); }, 4000);
   if (!d.toured && S.toured) savePrefs({ toured: true });
-  else if (!d.toured && !document.querySelector('.tour-overlay')) startTour();
+  else if (!d.toured) tourDue = true; // render() decides: the show may come first
 }
 
 // ---- subscriptions ----------------------------------------------------------
@@ -254,6 +258,11 @@ const out = (sel) => ({ set innerHTML(html) { paint($(sel), html); } });function
     renderWho();
     renderPass();
     renderNews();
+    if (tourDue && ready() && knowsMe()) {
+      tourDue = false;
+      const owed = pendingShow(upcoming[0]);
+      if (!(owed && !owed.deferred) && !S.showed) startTour();
+    }
     if (tourAfterCurtain && curtainUp()) startTour();
     // The movie comes first: the reel or reveal plays before the news cards,
     // which then wait for it (a lock card would give the movie away). It waits
@@ -677,6 +686,7 @@ const seenKey = (key) => `${S.me?.nameKey || ''}|${key}`;
 // plays again next visit). The movie stays face down until it closes, and
 // someone coming lands on their ticket.
 function play(n, key, show) {
+  S.showed = true; // this visit had its show: How it works doesn't open over what follows
   S.reelsSeen.add(seenKey(key));
   S.revealing = { key, day: n.day };
   show().then(({ seen, rsvp }) => {
@@ -1214,9 +1224,10 @@ function startTour() {
   tourAfterCurtain = false;
   openTour({ onDone: () => { S.toured = true; savePrefs({ toured: true }); if (!S.me && !$('#pass').hidden) focusPass(); render(); } });
 }
-// No name yet: show the walkthrough now. With a name, applyPrefs decides once
-// your people doc arrives.
-if (!S.me && !S.toured) startTour();
+// No name yet: the walkthrough is due (render() opens it unless a movie is
+// waiting to be turned over). With a name, applyPrefs decides once your people
+// doc arrives.
+if (!S.me && !S.toured) tourDue = true;
 
 // A name that looks like someone already on the list ("Grandma" when there's a
 // "Gma") is probably them on a new phone: ask once before making a second person.

@@ -58,10 +58,13 @@ shows over the reel or the reveal. The link preview in a group text still shows
 the poster once the night locks. A watched movie leaves the shelf. The night
 files itself as watched the morning after.
 
-Also: the house curtain on every load (it stays closed while the page loads,
-at most 2.5 s, then parts onto the lit marquee or the waiting card; How it works,
-the news cards and the reel rise after it; with reduced motion there's none), a
-first-visit walkthrough (four cards; **How it works** replays it;
+Also: the house curtain when you arrive (it stays closed while the page loads,
+at most 2.5 s, while the house lights go down on it, then parts onto the lit
+marquee or the waiting card; How it works, the news cards and the reel rise after
+it; a reload or a trip back from another app skips it; with reduced motion
+there's none), a first-visit walkthrough (four cards, opening by itself for
+someone new, except when a movie is waiting to be turned over: then the show comes
+first and the walkthrough waits behind **How it works**, which replays it;
 its examples are stamped SAMPLE and use no real dates or names, so nobody
 mistakes the sample ticket for the real night),
 tickets with **Add to calendar** (Google Calendar's add-event page, with the

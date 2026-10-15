@@ -21,6 +21,8 @@
 </head>
 <body>
   <div class="curtain" aria-hidden="true"><div class="curtain-l"></div><div class="curtain-r"></div></div>
+  <!-- the curtain is for arriving: a reload or a trip back from Stremio skips it -->
+  <script>try { const t = performance.getEntriesByType('navigation')[0]?.type; if (t === 'reload' || t === 'back_forward') document.querySelector('.curtain').remove(); } catch (e) { /* old browser: keep it */ }</script>
   <div class="wrap">
     <header class="topbar">
       <a class="house" href="/">Weberplex</a>

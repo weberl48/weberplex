@@ -313,14 +313,10 @@ def newcomer(browser, facts):
     g = Phone(browser, 'gma', 360, 800, 3)
     p = g.page
     film(g, 'open', lambda: p.goto(f'{SITE}/?emu'))
-    visible(p, '.tour-overlay')()
+    visible(p, '.reveal-overlay')()  # a movie is waiting: the show comes before How it works
     mark(g, 'open link to the curtain gone', '__curtainGone')
-    mark(g, 'open link to first card', '__tourAt')
-    g.shot('first-screen', 'The first thing she sees: the walkthrough sheet over the marquee.')
-    for i in range(3):
-        g.step(f'tour next {i + 1}', lambda: p.click('[data-tour="next"]'), lambda: p.wait_for_timeout(50))
-        g.shot(f'tour-{i + 2}', f'Walkthrough card {i + 2} of 4.')
-    g.step('tour done to reveal', lambda: p.click('[data-tour="done"]'), visible(p, '.reveal-overlay'))
+    mark(g, 'open link to the reveal', '__revealAt')
+    g.shot('first-screen', 'The first thing she sees once the curtain has parted.')
     reveal(g, 'reveal')
     g.shot('reveal-landed', 'The reveal after it lands (signed out, once per phone): its ending.')
     # Count me in, right there: the name form, then her ticket.
@@ -343,15 +339,18 @@ def newcomer(browser, facts):
     g.shot('day-panel', 'An open evening in the day panel.')
     g.step('i am free that evening', lambda: p.click('#dayDetail [data-action="free"]'), text_in(p, '#toast', 'If someone hosts'))
     g.shot('free-marked', "After I'm free that evening.")
+    # Curious afterwards, she opens How it works from the top bar.
+    p.evaluate('scrollTo(0, 0)')
+    g.step('how it works opens', lambda: p.click('.topbar [data-action="tour"]'), visible(p, '.tour-overlay'))
+    g.shot('tour-1', 'How it works, card 1 of 4 (opened from the top bar).')
+    for i in range(3):
+        g.step(f'tour next {i + 1}', lambda: p.click('[data-tour="next"]'), lambda: p.wait_for_timeout(50))
+        g.shot(f'tour-{i + 2}', f'How it works, card {i + 2} of 4.')
     g.ctx.close()
 
     transcript.append('\n## Gma at 200% text (simulated as a 206 px viewport)')
     z = Phone(browser, 'gma200', 206, 457, 4)
-    z.step('open link to first card', lambda: z.page.goto(f'{SITE}/?emu'), visible(z.page, '.tour-overlay'))
-    z.shot('first-screen', 'First screen at 200% text.')
-    z.page.click('[data-tour="next"]')
-    z.shot('tour-2', 'Walkthrough card 2 at 200%.')
-    z.page.click('[data-tour="skip"]')
+    z.step('open link to the reveal', lambda: z.page.goto(f'{SITE}/?emu'), visible(z.page, '.reveal-overlay'))
     try:
         z.page.locator('.reveal-overlay').wait_for(state='visible', timeout=8000)
         z.page.wait_for_timeout(800)
@@ -365,6 +364,10 @@ def newcomer(browser, facts):
         console.append({'who': 'gma200', 'type': 'scenario-failure', 'text': str(e)[:500]})
     z.page.wait_for_selector('#shelf .card', timeout=20000)
     z.shot('page-top', 'The page at 200%.')
+    z.page.locator('[data-action="tour"]:visible').first.click()  # How it works (the footer's, at this size)
+    z.page.locator('.tour-overlay').wait_for(state='visible', timeout=8000)
+    z.page.click('[data-tour="next"]')
+    z.shot('tour-2', 'How it works, card 2, at 200%.')
     z.ctx.close()
 
 

@@ -313,6 +313,10 @@ def long_name_checks(browser, errors):
     closed = page.evaluate("(() => { const c = document.querySelector('.curtain'); return c && !c.classList.contains('open') ? getComputedStyle(c).pointerEvents : 'already open'; })()")
     assert closed in ('auto', 'already open'), closed
     expect(page.locator('.curtain')).to_have_count(0, timeout=4500)
+    # It's for arriving: a reload (or a trip back from Stremio) doesn't play it again.
+    page.reload(wait_until='commit')
+    page.wait_for_selector('body')
+    assert page.locator('.curtain').count() == 0, 'no curtain on a reload'
     skip_tour(page)
     expect(page.locator('#past .past-row .d', has_text=LONG)).to_have_count(1, timeout=10000)
     expect(page.locator('#rateBox .review .who span:first-child', has_text=LONG)).to_have_count(1)
@@ -1103,17 +1107,15 @@ def main():
         skip_cards(sam)  # Sam never pressed Got it, so the unread news opens again
         reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/sam'))['fields']['reels']['arrayValue']['values']]
         assert any(r.startswith(f'r:{day2}.') for r in reels), reels
-        # Someone new gets the walkthrough first; the reveal waits for it to close, and
-        # until it has played the marquee keeps the movie face down.
+        # Someone new with a movie waiting gets the show first: no walkthrough before it (How
+        # it works is a tap away, and doesn't open over what follows). Until it has played,
+        # the marquee keeps the movie face down.
         fresh = browser.new_context(viewport=PHONE).new_page()
         fresh.on('pageerror', lambda e: errors.append(f'fresh: {e}'))
         fresh.goto(f'{SITE}/?emu')
-        expect(fresh.locator('.tour-overlay')).to_be_visible(timeout=10000)
-        expect(fresh.locator('#board h1')).to_have_text('The movie is…', timeout=10000)
-        fresh.wait_for_timeout(1500)
-        expect(fresh.locator('.reveal-overlay')).to_have_count(0)
-        fresh.click('[data-tour="skip"]')
         expect(fresh.locator('.reveal-overlay')).to_be_visible(timeout=10000)
+        expect(fresh.locator('#board h1')).to_have_text('The movie is…', timeout=10000)
+        expect(fresh.locator('.tour-overlay')).to_have_count(0)
         expect(fresh.locator('#board h1')).to_have_text('The movie is…')  # still face down behind the card
         fresh.keyboard.press('Escape')  # Esc before it turns is 'not now': it stays face down
         expect(fresh.locator('.reveal-overlay')).to_have_count(0)
@@ -1177,9 +1179,8 @@ def main():
         sam.fill('#passName', 'Kim')
         sam.click('#passForm button[type=submit]')
         expect(sam.locator('#whoami')).to_contain_text('Kim')
-        expect(sam.locator('.tour-overlay')).to_be_visible(timeout=10000)  # a new person gets the walkthrough first
-        sam.click('[data-tour="skip"]')
         sam.wait_for_timeout(1500)
+        expect(sam.locator('.tour-overlay')).to_have_count(0)  # this visit had its show: How it works waits for a tap
         expect(sam.locator('.reveal-overlay')).to_have_count(0)
         reels = [v['stringValue'] for v in json.loads(emu('GET', f'{DOCS}/people/kim'))['fields']['reels']['arrayValue']['values']]
         assert any(r.startswith(f'r:{day2}.') for r in reels), reels
