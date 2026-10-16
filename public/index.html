@@ -147,7 +147,7 @@ img,svg{display:block}
 
 /* ---------- shell ---------- */
 .app{max-width:1280px;margin:0 auto;padding-bottom:calc(112px + env(safe-area-inset-bottom))}
-.lobby{display:contents}
+.lobby,.status{display:contents}
 
 .mast{display:flex;align-items:center;gap:var(--s-3);padding:14px var(--gutter) 10px}
 .wordmark{display:flex;gap:2px;text-decoration:none}
@@ -812,40 +812,90 @@ img,svg{display:block}
 .comp-grid > div{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 
 /* ---------- desktop: lobby column + program ---------- */
+/* ---------- desktop: the marquee across the top ----------
+   No sidebar. The lit marquee is the hero with your status and next move
+   beside it; the film strip runs edge to edge under it and sticks to the top;
+   the ballot becomes a row of tall poster tickets punched at the bottom. */
 @media (min-width:980px){
   :root{--gutter:0px}
-  .app{display:grid;grid-template-columns:400px minmax(0,1fr);gap:56px;padding:0 40px 80px}
-  .lobby{display:flex;flex-direction:column;position:sticky;top:0;height:100dvh;overflow:auto;padding:18px 0 24px;scrollbar-width:none}
-  .lobby::-webkit-scrollbar{display:none}
-  .mast{padding:0 0 16px}
-  .reel{position:relative;top:auto;margin-top:auto;grid-template-columns:1fr;gap:6px;padding:12px 18px;border-radius:6px}
-  .reel::before,.reel::after{top:0;bottom:0;left:4px;right:auto;width:5px;height:auto;background:repeating-linear-gradient(180deg,transparent 0 5px,var(--frame-ink-2) 5px 11px,transparent 11px 16px)}
-  .reel::after{left:auto;right:4px}
-  .reel a{flex-direction:row;justify-content:flex-start;gap:12px;padding:0 14px;min-height:46px}
+  .app{
+    display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);column-gap:44px;
+    grid-template-areas:"mast mast" "ribbon ribbon" "marq status" "reel reel" "main main";
+    max-width:1240px;padding:0 48px 80px;
+  }
+  .lobby{display:contents}
+  .mast{grid-area:mast;padding:22px 0 18px}
+  #ribbon{grid-area:ribbon}
+  .ribbon{margin:0 0 18px;width:100%}
+  .marquee-wrap{grid-area:marq;padding:0;align-self:center}
+  .marquee-wrap .marquee{border-radius:14px;padding:24px 26px 26px}
+  .marquee-wrap .board{gap:10px;padding:16px 14px 12px}
+  .marquee-wrap .mrow{--max:46px}
+  .marquee-wrap .mrow.sm{--max:28px}
+  .status{grid-area:status;display:flex;flex-direction:column;justify-content:center;gap:16px;min-width:0}
+  .admit-wrap{padding:0;margin:0}
+  .admit{border-radius:8px;min-height:124px}
+  .next-move{padding:0}
+  .reel{
+    grid-area:reel;margin-top:32px;padding:12px 0;gap:10px;
+    border-image:linear-gradient(var(--frame) 0 0) fill 0/0/0 100vmax; /* edge to edge, painted past the box without widening the page */
+  }
+  .reel::before,.reel::after{background:none;border-image:repeating-linear-gradient(90deg,transparent 0 5px,var(--frame-ink-2) 5px 11px,transparent 11px 16px) fill 0/0/0 100vmax}
+  .reel a{flex-direction:row;gap:12px;min-height:48px}
   .reel a span{font-size:14px}
-  .ribbon{margin:0 0 12px;width:100%}
-  .marquee-wrap,.admit-wrap,.next-move{padding-left:0;padding-right:0}
-  .frame{padding:88px 0 40px}
-  .frame:first-child{padding-top:120px}
-  .frame-title{font-size:52px}
-  .frame-num{font-size:190px;top:-96px}
+  main{grid-area:main;min-width:0}
+  .frame{padding:96px 0 40px}
+  .frame-title{font-size:56px}
+  .frame-num{font-size:200px;top:-104px}
   .splice{margin:0}
-  .shelf-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:34px 16px}
-  .ballot{grid-template-columns:1fr}
-  .bt{grid-template-columns:56px 64px minmax(0,1fr) 84px;--cut:56px}
-  .bt-poster .poster{width:54px}
-  .bt-title{font-size:20px}
-  .bt .veto-stamp{right:96px}
-  .dock{display:none}
-  .lobby-grid{grid-template-columns:1fr 1fr}
-  .lobby-grid > .wide{grid-column:1/-1}
-  .day{aspect-ratio:1/.95}
+
+  /* ballot: tall poster tickets, the vote stub torn off along the bottom */
+  .ballot{grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:22px 18px}
+  .ballot > li{display:flex}
+  .ballot > li > *{flex:1}
+  .bt{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr auto}
+  .bt.notch-y{
+    -webkit-mask:radial-gradient(circle 8px at 0 calc(100% - 60px),#0000 96%,#000),radial-gradient(circle 8px at 100% calc(100% - 60px),#0000 96%,#000);
+    -webkit-mask-composite:source-in;
+    mask:radial-gradient(circle 8px at 0 calc(100% - 60px),#0000 96%,#000),radial-gradient(circle 8px at 100% calc(100% - 60px),#0000 96%,#000);
+    mask-composite:intersect;
+  }
+  /* the rank prints in a header strip above the poster, never over it */
+  .bt-rank{flex-direction:row-reverse;justify-content:flex-end;align-items:baseline;gap:8px;padding:10px 14px 0;border:0}
+  .bt-rank b{font-size:26px}
+  .bt-rank small{font-size:10px}
+  .bt.leading .bt-rank b{color:#b3261e}
+  .bt.leading .bt-rank b::after{display:inline-block;vertical-align:middle;margin:0 0 0 6px}
+  .bt-poster{padding:8px 10px 0}
+  .bt-poster .poster{width:100%}
+  .bt-body{padding:12px 14px 14px;justify-content:flex-start}
+  .bt-title{font-size:19px}
+  .bt-vote{flex-direction:row;justify-content:flex-start;gap:10px;height:60px;padding:0 14px;border-left:0;border-top:2px dashed var(--stub-rule)}
+  .bt-vote .label{font-size:11px}
+  .bt-voters{margin-left:auto;max-width:none;justify-content:flex-end}
+  .bt .veto-stamp{right:auto;left:50%;top:32%;translate:-50% -50%;font-size:18px}
+  .ballot .writein{min-height:320px;flex-direction:column;justify-content:center;text-align:center;gap:12px}
+
+  /* calendar: the program card, with the best night and the subscribe link beside it */
+  #calendar{display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:28px;align-items:start}
+  #calendar > .frame-head{grid-column:1/-1}
+  #calendar > .program{grid-column:1;grid-row:span 3}
+  #calendar > .best-bet{grid-column:2;margin-top:0}
+  #calendar > .foot-row{grid-column:2;margin-top:12px!important}
+  #calendar > .foot-row .btn{white-space:normal;text-align:left;min-height:56px;padding:10px 18px}
+  .day{aspect-ratio:1/.8}
   .day .dn{font-size:20px}
   .day .hb{font-size:10px;padding:4px 0 3px}
-  .sheet{left:50%;right:auto;width:560px;translate:-50% 0;bottom:24px;border-radius:var(--r-4)}
+  .program{padding:20px 18px 16px}
+
+  .add-bar{max-width:640px}
+  .shelf-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:34px 16px}
   .chips.scroll{margin:0;padding:2px 0 6px;flex-wrap:wrap}
   .rack{margin:var(--s-3) 0 0;padding:4px 0 14px}
-  .program{padding:20px 18px 16px}
+  .lobby-grid{grid-template-columns:1fr 1fr;align-items:start}
+  .lobby-grid > .wide{grid-column:1/-1}
+  .dock{display:none}
+  .sheet{left:50%;right:auto;width:560px;translate:-50% 0;bottom:24px;border-radius:var(--r-4)}
   .foot{padding:var(--s-6) 0}
 }
 /* ---------- real posters over the drawn ones (the drawing shows while loading, or if the image fails) ---------- */
@@ -985,8 +1035,10 @@ img,svg{display:block}
     </header>
     <div id="ribbon"></div>
     <div class="marquee-wrap"><div class="marquee" id="marquee"></div></div>
-    <div class="admit-wrap" id="admit"></div>
-    <div class="next-move" id="move"></div>
+    <div class="status">
+      <div class="admit-wrap" id="admit"></div>
+      <div class="next-move" id="move"></div>
+    </div>
     <nav class="reel" id="reel" aria-label="Sections">
       <a href="#tonight" data-spy="tonight"><b>01</b><span>Tonight</span></a>
       <a href="#calendar" data-spy="calendar"><b>02</b><span>Nights</span></a>
