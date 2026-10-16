@@ -18,15 +18,23 @@ shared shelf, and thumbs-up what they'd watch. The site picks the movie.
 | Part | What people do |
 | --- | --- |
 | **Calendar** | Four weeks of evenings, with a printed key under the grid (you're free, how many are free, a movie night). Tapping a day only shows it in the panel below, which scrolls into reach if needed (the arrow keys move between days too); nothing is marked until you tap **I'm free that evening** there, and a toast says so. **‹ ›** beside the panel's date step to the evening before or after, so marking a run of evenings never means going back to the grid. At big text the grid keeps each date, and a night keeps its house mark as well as its gold ring. Being free on an evening and coming to a night held on it are the same thing: if someone hosts it later, you're on its list. Anyone can pick a start time and tap **I can host**, which prints a hosting slip saying who's already free that evening (and so on the list); **Put it on the marquee** confirms it, puts a movie night on the day and counts you in (one per day; first volunteer hosts; the start has to be in the future, and hosting less than a day out locks the movie right away). |
-| **Up next** | The nearest night: when, whose house, who's coming, its theme, snacks, and **If it locked now**: a small card with the poster of the movie that would win right now and why, in people's names (the same rule as the lock; on a themed night it names the pool, "the group's favorite among Drama movies"), with a Veto on it. Its ribbon gives the night's date ("Leading Nov 3"). The marquee always shows it as "Leading:". **Count me in** says you're coming, the same button wherever a night shows; it turns into **You're in ✓**, and dropping out takes a second tap. Everyone coming (and the host) gets one **veto** on a movie for this night and can call snacks. The host (who reads "You're hosting" and "your place"; everyone reads "you" in the coming lists) can change the time or theme (each saves when chosen, with a note saying what changed), lock early, unlock and re-pick (until it starts; past the deadline the clock
+| **Up next** | The nearest night: when, whose house, who's coming, its theme, snacks, and **If it locked now**: a small card with the poster of the movie that would win right now and why, in people's names (the same rule as the lock; on a themed night it names the pool, "the group's favorite among Drama movies"), then **Tonight's ballot**: the top five movies by thumbs from the people coming (a movie nobody coming has seen wins a tie, then thumbs overall), each with its poster, those thumbs, a tag when nobody coming has seen it, its votes and who cast them, and **Vote** and **Veto** buttons; a write-in or a voted movie stays on it even below the top five. **Add your pick** puts one movie of your choice from the shelf on the ballot (a search over what the night can pick; swap it or take it back). Its ribbon gives the night's date ("Leading Nov 3"). The marquee always shows it as "Leading:". **Count me in** says you're coming, the same button wherever a night shows; it turns into **You're in ✓**, and dropping out takes a second tap. Everyone coming (and the host) gets one **vote**, one **write-in** and one **veto** for this night and can call snacks. The host (who reads "You're hosting" and "your place"; everyone reads "you" in the coming lists) can change the time or theme (each saves when chosen, with a note saying what changed), lock early, unlock and re-pick (until it starts; past the deadline the clock
 picks again at once), mark it watched (once it's started), or cancel (until it starts). |
 | **The shelf** | Every movie anyone has added; it only grows. Add by search, Trending, New this year, For you or Surprise me, with an optional "why this one" (written before you pick). **Paste a list** adds many at once: one movie per line, the year if you know it (`It Follows (2014)`; numbering, bullets and quotes are fine; the first 50 lines count). Each line is looked up in Cinemeta and shown as a row with the poster, title and year it matched and what becomes of it: **Ready** (ticked), **Already on the shelf** (added by Sam), **Already watched**, **Listed twice** (kept once) or **Not found** (fix the line and **Try again**). **Wrong movie?** offers the next few matches. **Give them all my thumbs-up** is on by default, as it is when adding one; **Add N movies** writes them in batches of 20 (a movie someone added meanwhile is skipped, and a failure says what did and didn't go in), and the news calls it one card of new movies. It asks for a name at **Find these**. Each card has the poster, then right under it who has seen it (once someone has), the thumbs-up ("I'd watch it"), **Seen it**, the trailer (it plays right here, in the screening room: the house goes dark, the screen's own curtain parts and YouTube's privacy-enhanced player runs on it under a "Now showing" marquee; back or Esc ends the show, and a link opens it on YouTube if it won't play), Stremio and **Plot** (which opens the plot in place and becomes **Hide plot**). The next night still open to the pick crowns its projected pick with a **Leading** ribbon (a locked night's movie never wears it, and a movie still face down for you wears nothing); with no night planned, the overall favorites wear **Most wanted**. Nights further out say what's leading in their Also planned row and their day panel. Thumbs-ups and seen marks are per person and carry over. Sort (one menu) by most wanted, newest, least seen, shortest; show by tag, unseen by me, added by me, or, while a themed night is planned, just the movies it can pick ("Fits Hal's Drama night"). No cap. |
 | **Watched** | Finished nights with ratings and reviews, hours watched, and who has hosted how often. Only the people who were there (free that evening, or hosting) are asked to rate a night, one at a time: the newest unrated night, with the week's others a tap away. Everyone can read the reviews. The stars are one Tab stop; the arrow keys choose. |
 | **Stats** | The long view, worked out in your browser from what the page already has, spelled out on a letter board: nights and hours watched, movies added, thumbs-ups and who gives the most; the most wanted movies on the shelf (a movie booked for an upcoming night leaves the list); whose shelf picks made a watched night (house picks count as "House"; a locked night counts once it's watched, so Stats never give a face-down movie away); and, when you're signed in, who you agree with most (how alike your thumbs-ups are, once you and they have at least three). |
 
-**The pick.** A day before each night, the movie locks itself: the most
-thumbs from the people free that night; if none of them voted, the most
-thumbs overall; if nobody voted, anything on the shelf. A night can have a
+**The pick.** Each night has a **ballot**: the top five movies by thumbs from
+the people free that night (ties go to a movie nobody free has seen, then fewer
+who have, then thumbs from everyone, then title), plus every movie someone
+wrote in or holds a vote. Everyone coming has **one vote** and may put **one
+write-in** on the ballot; both can move or be taken back until the lock (and
+dropping out takes them back, with your veto). A day before each night, the movie
+locks itself: the most votes wins and a tie goes to the reel; with no votes, the
+top of the ballot wins (the reel settles what is still level); if none of the
+people coming has thumbed anything, the most thumbs overall, then anything on the
+shelf. The locked card says how it was decided ("Jaws won the vote, 3–1", "Tied
+2–2, the reel picked Jaws", "No votes, so the most-thumbed pick won"). A night can have a
 **theme** (a shelf tag or a genre, picked when hosting or later from the host
 tools): the pick sticks to movies that fit it, or to the whole shelf when none
 do. A **veto** takes a movie out of that night's pick (one per person, undoable
@@ -99,7 +107,8 @@ asks twice.
 **Since you last looked.** When you come back and other people have done
 something, step-through cards open by themselves (same style as How it works):
 a night hosted, moved, themed, vetoed, cancelled, locked or filed as watched,
-new movies and thumbs-ups, free evenings, snacks and reviews. They come most
+votes and write-ins on a ballot, new movies and thumbs-ups, free evenings,
+snacks and reviews. They come most
 useful first: your own night (one you're coming to or hosting), then what
 needs your tap (new movies, a night you were at to rate), other nights,
 thumbs-ups, free evenings, then snacks and reviews. A night you're not coming
@@ -123,8 +132,8 @@ produced by a fixture.
 
 **Keeping people in the loop.** **Subscribe** (in the calendar section) gives
 every night as a calendar feed, `/calendar.ics`: planned and locked nights
-plus the last month's watched ones, with who's coming, the movie and a
-reminder two hours before. Cancelled nights drop out of it. Everyone who uses
+plus the last month's watched ones, with who's coming, the movie (or, for a
+night still open, its ballot with the vote counts) and a reminder two hours before. Cancelled nights drop out of it. Everyone who uses
 the site is on Android, so the panel is built for Google Calendar: Android
 ignores `webcal://` links and the Calendar app can't add a calendar by URL, so
 **Add to Google Calendar** is Google's web subscribe link
@@ -155,8 +164,11 @@ can't rename), and **`firestore.rules` is the backend**:
   the calendar.
 - `nights/{YYYY-MM-DD}`: one per day, created by its host. The rules allow
   only these changes: new time; a new theme; one person's veto set or taken
-  back (the host's or someone free that evening's; one key per write, at most
-  30 a night); planned → locked (to a movie on the shelf);
+  back, or one person's ballot vote or write-in set, moved or taken back (the
+  host's or someone free that evening's; one key per write, at most 30 a
+  night; a person dropping out takes all three back in one write);
+  planned → locked (to a movie on the shelf, with the ballot's count as
+  `lockedVotes`);
   locked → planned before showtime; locked → done after showtime; cancel;
   and re-hosting a cancelled day. Snacks and reviews live under each night.
 - The owner password (a fresh `hostops/<id>` doc in the same batch, compared
@@ -197,7 +209,9 @@ tests/             logic + rules + server (emulator) and e2e.py (Playwright)
 
 - `sensor.movie_night` (every 30 min): `none` / `planned` / `locked` for the
   next night, with host, start, lock time, attendees, leader or movie, snacks.
-  `/api/status` also reports the night's `theme` and how many `vetoes` it has.
+  `/api/status` also reports the night's `theme` and how many `vetoes` it has,
+  and for a planned night its `ballot` (up to eight rows: title, votes, thumbs);
+  `leader_*` follows the ballot (votes first, then the no-vote fallbacks).
 - Pushes when someone volunteers to host and when a movie locks.
 - `binary_sensor.movie_night_at_home`: the night is in our basement (host is
   Weber or Lucas). Only then does the basement warm up 30 minutes before, and
@@ -232,11 +246,12 @@ in `public/js/config.js` is public by design.
   create), then change it from the console.
 - Read budget: Spark allows 50k reads a day and going over breaks the site
   until the daily reset. Page loads read the whole shelf, thumbs, seen marks
-  and upcoming free marks; HA's status poll reads every thumbs-up while a
-  night is planned (and the whole shelf too while that night has a theme or
-  any veto, so its leader follows the same rule as the lock). Vetoes and themes live on the
-  night doc, so the clock needs no extra reads for them. Watch usage in the
-  Firebase console as the shelf grows. `/calendar.ics` (nights plus the last month's free marks) is cached 15
+  and upcoming free marks; HA's status poll reads every thumbs-up, the whole
+  shelf and every seen mark while a night is planned (its ballot and leader
+  follow the same rule as the lock), and so does the clock when a night is due.
+  Vetoes, themes, votes and write-ins live on the night doc, so the clock needs
+  no extra reads for them. Watch usage in the
+  Firebase console as the shelf grows. `/calendar.ics` (nights plus the last month's free marks, and the shelf, thumbs and seen marks while a night is planned, for its ballot) is cached 15
   minutes and `/api/preview` (the same reads as the status poll) 5 minutes.
 - Link previews: `vercel.json` *redirects* `/` to `/api/preview` only when the
   user-agent is a known preview bot (a redirect, not a rewrite, because Vercel

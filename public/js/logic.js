@@ -149,22 +149,84 @@ export function pickable(shelf = [], { vetoed = new Set(), theme = '' } = {}) {
   return fits.length ? { movies: fits, themeFallback: false } : { movies, themeFallback: true };
 }
 
-// The movie for a night, from what's pickable: most thumbs from the people
-// coming; if none of them voted, most thumbs overall; if nobody voted at all,
-// anything left. Ties go to the reel (rand).
-export function pickMovie({ movies = [], votes = [], watched = new Set(), attendees = [], vetoed = new Set(), theme = '', rand = Math.random }) {
-  const { movies: shelf, themeFallback } = pickable(tallyShelf({ movies, votes, watched }).movies, { vetoed, theme });
-  if (!shelf.length) return null;
+// ---- the ballot -------------------------------------------------------------
+// A planned night's ballot is the top five by thumbs from the people coming, plus
+// every write-in and every movie that holds a vote. Each person coming has one
+// vote and one write-in, kept on the night doc (`ballotVotes`, `writeIns`:
+// nameKey -> imdbId, each with an `...At` stamp map for the news).
+export const BALLOT_SIZE = 5;
+
+// What a night itself brings to its pick: all of it rides on its doc, so the
+// clock needs no extra reads. Old nights have none of it.
+export const nightPick = (n) => ({ vetoed: vetoedFor(n), theme: n?.theme || '', ballotVotes: n?.ballotVotes || {}, writeIns: n?.writeIns || {} });
+
+// The ballot's rows, in ballot order, and what the night can pick from. Thumbs
+// from the people coming rank it; ties go to a movie nobody coming has seen, then
+// fewer people coming who have, then thumbs from everyone, then title. Votes and
+// write-ins from people no longer coming (or on movies the night can't pick) are ignored.
+function draftBallot({ movies, votes, seen, watched, attendees, vetoed, theme, ballotVotes, writeIns }) {
+  const { movies: shelf, themeFallback } = pickable(tallyShelf({ movies, votes, seen, watched }).movies, { vetoed, theme });
   const coming = new Set(attendees);
-  const fromComing = (m) => m.voters.filter((v) => coming.has(v.nameKey)).length;
+  const ranked = shelf
+    .map((m) => ({
+      movie: m, thumbsComing: m.voters.filter((v) => coming.has(v.nameKey)).length,
+      seenComing: m.seenBy.filter((s) => coming.has(s.nameKey)).length, votes: [], writeInBy: null,
+    }))
+    .sort((a, b) => b.thumbsComing - a.thumbsComing || a.seenComing - b.seenComing || b.movie.votes - a.movie.votes || a.movie.title.localeCompare(b.movie.title));
+  const byId = new Map(ranked.map((r) => [r.movie.imdbId, r]));
+  const valid = (map) => Object.entries(map).filter(([k, id]) => coming.has(k) && byId.has(id)).sort((a, b) => a[0].localeCompare(b[0]));
+  for (const [k, id] of valid(ballotVotes)) byId.get(id).votes.push(k);
+  for (const [k, id] of valid(writeIns)) if (!byId.get(id).writeInBy) byId.get(id).writeInBy = k;
+  // Below the top five only what someone put there stays, in the same order.
+  return { rows: ranked.filter((r, i) => i < BALLOT_SIZE || r.votes.length || r.writeInBy), shelf, themeFallback };
+}
+
+// Rows `{ movie, thumbsComing, seenComing, votes: [nameKeys], writeInBy }`.
+// `night` supplies its vetoes, theme, votes and write-ins; `watched` is what
+// the night can't pick (excludedFor).
+export const ballotFor = (night, { movies = [], votes = [], seen = [], attendees = [], watched = new Set() } = {}) =>
+  draftBallot({ movies, votes, seen, watched, attendees, ...nightPick(night) }).rows;
+
+// The movie for a night: the most votes on its ballot from the people coming
+// (a tie goes to the reel, `rand`). With no votes, the top of the ballot: most
+// thumbs from the people coming, then the ballot's tie-breaks; what's still tied
+// goes to the reel. If nobody coming has thumbed anything, most thumbs overall,
+// and if nobody has, anything left. `lockedVotes` is the ballot's count per movie,
+// for the card that says how it was decided.
+export function pickMovie({ movies = [], votes = [], seen = [], watched = new Set(), attendees = [], vetoed = new Set(), theme = '', ballotVotes = {}, writeIns = {}, rand = Math.random }) {
+  const { rows, shelf, themeFallback } = draftBallot({ movies, votes, seen, watched, attendees, vetoed, theme, ballotVotes, writeIns });
+  if (!shelf.length) return null;
+  const most = Math.max(...rows.map((r) => r.votes.length));
+  const standing = (r) => [r.thumbsComing, r.seenComing, r.movie.votes].join();
   let pool;
   let basis;
-  const topComing = Math.max(0, ...shelf.map(fromComing));
-  if (topComing > 0) { pool = shelf.filter((m) => fromComing(m) === topComing); basis = 'coming'; }
+  if (most > 0) { pool = rows.filter((r) => r.votes.length === most).map((r) => r.movie); basis = 'ballot'; }
+  else if (rows[0].thumbsComing > 0) { pool = rows.filter((r) => standing(r) === standing(rows[0])).map((r) => r.movie); basis = 'coming'; }
   else if (shelf[0].votes > 0) { pool = shelf.filter((m) => m.votes === shelf[0].votes); basis = 'everyone'; }
   else { pool = shelf; basis = 'shelf'; }
   const movie = pool[Math.floor(rand() * pool.length) % pool.length];
-  return { movie, tie: pool.length > 1 ? pool.map((m) => m.imdbId) : [], basis, score: basis === 'coming' ? topComing : movie.votes, themeFallback };
+  const score = basis === 'ballot' ? most : basis === 'coming' ? rows[0].thumbsComing : movie.votes;
+  const lockedVotes = Object.fromEntries(rows.slice(0, 40).map((r) => [r.movie.imdbId, r.votes.length]));
+  return { movie, tie: pool.length > 1 ? pool.map((m) => m.imdbId) : [], basis, score, themeFallback, lockedVotes };
+}
+
+// How a locked night was decided, from what the lock recorded (`lockedVotes`):
+// { kind: 'vote'|'tie'|'thumbs'|'shelf', text, short? }. Nights locked before the
+// ballot recorded nothing, and say nothing (null).
+export function howDecided(night) {
+  const counts = night?.lockedVotes;
+  const id = night?.lockedMovieId;
+  if (!counts || !id) return null;
+  const title = night.lockedMovie?.title || 'It';
+  const top = Math.max(0, ...Object.values(counts));
+  const tied = night.lockedTie?.length > 1;
+  if (!top) {
+    if (!(id in counts)) return { kind: 'shelf', text: 'No votes, so it came from the shelf' };
+    return { kind: 'thumbs', text: tied ? `No votes, tied on thumbs-ups, so the reel picked ${title}` : 'No votes, so the most-thumbed pick won' };
+  }
+  if (tied) return { kind: 'tie', text: `Tied ${top}–${top}, the reel picked ${title}` };
+  const next = Math.max(0, ...Object.entries(counts).filter(([k]) => k !== id).map(([, v]) => v));
+  return { kind: 'vote', text: `${title} won the vote, ${top}–${next}`, short: `won the vote, ${top}–${next}` };
 }
 
 // The fields a lock writes, shared by the browser and the server clock.
@@ -174,6 +236,7 @@ export function lockFields(pick) {
     status: 'locked', lockedMovieId: imdbId,
     lockedMovie: { imdbId, title, year, poster, runtime, rating, genres, trailer },
     lockedTie: pick.tie || [],
+    ...(pick.lockedVotes ? { lockedVotes: pick.lockedVotes } : {}),
   };
 }
 
@@ -319,7 +382,7 @@ export const placeLabel = (place) => (place ? `${place}'s` : '');
 // Every kind it can produce is listed in NEWS_KINDS; tests/news.test.mjs fails
 // when a new kind of change is made without being announced here (or marked
 // quiet there), so the walkthrough stays complete as the site grows.
-export const NEWS_KINDS = ['night', 'cancelled', 'moved', 'theme', 'veto', 'locked', 'watched', 'movies', 'votes', 'free', 'snack', 'review'];
+export const NEWS_KINDS = ['night', 'cancelled', 'moved', 'theme', 'veto', 'vote', 'writein', 'locked', 'watched', 'movies', 'votes', 'free', 'snack', 'review'];
 export const MAX_NEWS_CARDS = 8;
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -385,6 +448,26 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
           detail: vetoed.length === 1 ? 'A vetoed movie is out for that night.' : vetoed.map(([k], i) => `${nameOf(n, k)}: ${titles[i]}`).join(' · '),
         });
       }
+      // Votes and write-ins on the ballot, while it is open: one card per night when there are several.
+      const ballot = (field, at) => (n.status !== 'planned' ? [] : Object.entries(n[at] || {}).filter(([k, t]) => fresh(t) && theirs(k) && n[field]?.[k]).map(([k]) => ({ name: nameOf(n, k), title: titleOf(n[field][k]) })));
+      const voted = ballot('ballotVotes', 'ballotVoteAt');
+      if (voted.length) {
+        out.days.add(n.day);
+        push({
+          kind: 'vote', target: '#nextSec', names: voted.map((x) => x.name),
+          text: voted.length === 1 ? `${voted[0].name} voted for ${voted[0].title} for ${dow}` : `${plural(voted.length, 'vote')} for ${dow}`,
+          detail: voted.length === 1 ? 'Votes are open until the movie locks. One each; you can move yours.' : voted.map((x) => `${x.name}: ${x.title}`).join(' · '),
+        });
+      }
+      const wrote = ballot('writeIns', 'writeInAt');
+      if (wrote.length) {
+        out.days.add(n.day);
+        push({
+          kind: 'writein', target: '#nextSec', names: wrote.map((x) => x.name),
+          text: wrote.length === 1 ? `${wrote[0].name} put ${wrote[0].title} on ${dow}'s ballot` : `${plural(wrote.length, 'write-in')} for ${dow}`,
+          detail: wrote.length === 1 ? 'A write-in: you can vote for it too.' : wrote.map((x) => `${x.name}: ${x.title}`).join(' · '),
+        });
+      }
     }
     const sub = subs.get(n.day);
     if (!sub) return;
@@ -440,7 +523,7 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
   out.items = out.items.map((it, i) => [it, i]).sort((a, b) => tier(a[0]) - tier(b[0]) || a[1] - b[1]).map(([it]) => it);
   // A night you're not coming to gets one card for all its changes ("Hal's
   // Tuesday: now 9:00 PM · a Drama night · Cards Movie vetoed"), not one each.
-  const FOLD = ['night', 'moved', 'theme', 'veto'];
+  const FOLD = ['night', 'moved', 'theme', 'veto', 'vote', 'writein'];
   const folded = new Map();
   for (const it of out.items) {
     if (!FOLD.includes(it.kind) || !it.day || mine.has(it.day)) continue;
@@ -449,7 +532,9 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
   const part = (it) => (it.kind === 'night' ? 'a new night'
     : it.kind === 'moved' ? `now ${it.text.replace(/^.* starts at /, '')}`
     : it.kind === 'theme' ? (it.theme ? `${/^[aeiou]/i.test(it.theme) ? 'an' : 'a'} ${it.theme} night` : 'theme cleared')
-    : it.struck ? `${it.struck} vetoed` : it.text.replace(/ for \w+$/, ''));
+    : it.struck ? `${it.struck} vetoed`
+    : it.kind === 'writein' ? it.text.replace(/ on \w+'s ballot$/, ' on the ballot').replace(/ for \w+$/, '')
+    : it.text.replace(/ for \w+$/, ''));
   const cards = [];
   for (const it of out.items) {
     const group = folded.get(it.day);

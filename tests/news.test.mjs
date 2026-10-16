@@ -31,6 +31,8 @@ const CLASSIFIED = {
   setNightTime: announced('moved'),
   setTheme: announced('theme'),
   setVeto: announced('veto'),
+  setBallotVote: announced('vote'),
+  setWriteIn: announced('writein'),
   lockNight: announced('locked'),
   unlockNight: quiet('it is re-locked (and announced) once the movie is picked again'),
   finishNight: announced('watched'),
@@ -69,6 +71,14 @@ const FIXTURES = {
   veto: {
     nights: [night({ vetoes: { sam: 'tt1' }, vetoAt: { sam: at(2000) } })],
     movies: [{ imdbId: 'tt1', title: 'Jaws', by: 'jo', at: at(10) }], people: [{ id: 'sam', name: 'Sam' }],
+  },
+  vote: {
+    nights: [night({ ballotVotes: { sam: 'tt1' }, ballotVoteAt: { sam: at(2000) } })],
+    movies: [{ imdbId: 'tt1', title: 'Jaws', by: 'jo', at: at(10) }], people: [{ id: 'sam', name: 'Sam' }],
+  },
+  writein: {
+    nights: [night({ writeIns: { jo: 'tt3' }, writeInAt: { jo: at(2000) } })],
+    movies: [{ imdbId: 'tt3', title: 'Hereditary', by: 'sam', at: at(10) }],
   },
   locked: { nights: [night({ status: 'locked', lockedAt: at(2000), lockedMovieId: 'tt1', lockedMovie: locked })] },
   watched: { nights: [night({ status: 'done', finishedAt: at(2000), lockedMovieId: 'tt1', lockedMovie: locked })] },
@@ -125,7 +135,10 @@ test('the server clock writes (lib/tick.js) are all announced', () => {
 
 test('your own doing is not news, and nothing is before your last look', () => {
   const mine = {
-    nights: [night({ hostKey: 'me', createdAt: at(2000), movedAt: at(2000), themeAt: at(2000), theme: 'Horror', vetoes: { me: 'tt1' }, vetoAt: { me: at(2000) } })],
+    nights: [night({
+      hostKey: 'me', createdAt: at(2000), movedAt: at(2000), themeAt: at(2000), theme: 'Horror', vetoes: { me: 'tt1' }, vetoAt: { me: at(2000) },
+      ballotVotes: { me: 'tt1' }, ballotVoteAt: { me: at(2000) }, writeIns: { me: 'tt1' }, writeInAt: { me: at(2000) },
+    })],
     movies: [{ imdbId: 'tt1', title: 'Jaws', by: 'me', at: at(2000) }],
     votes: [{ movie: 'tt1', nameKey: 'me', at: at(2000) }],
     free: [{ day: '2026-10-20', nameKey: 'me', name: 'Me', at: at(2000) }],
@@ -151,6 +164,41 @@ test('what each new kind says', () => {
   assert.match(cleared.text, /^\w+'s theme was cleared$/);
   // A veto that was taken back (its stamp goes with it) is not news.
   assert.deepEqual(kindsOf({ nights: [night({ vetoes: {}, vetoAt: {} })] }), []);
+  assert.match(text('vote').text, /^Sam voted for Jaws for \w+$/);
+  assert.deepEqual(text('vote').names, ['Sam']);
+  assert.match(text('writein').text, /^Jo put Hereditary on \w+'s ballot$/); // the host is named on the night
+  assert.deepEqual(text('writein').names, ['Jo']);
+  assert.equal(text('vote').target, '#nextSec');
+  // A vote or write-in that was taken back (its stamp goes with it) is not news.
+  assert.deepEqual(kindsOf({ nights: [night({ ballotVotes: {}, ballotVoteAt: {}, writeIns: {}, writeInAt: {} })] }), []);
+});
+
+test('votes and write-ins on a night are one card each, with who and what; and fold into a night you are not on', () => {
+  const movies = [{ imdbId: 'tt1', title: 'Jaws', by: 'jo', at: at(10) }, { imdbId: 'tt2', title: 'Alien', by: 'jo', at: at(10) }, { imdbId: 'tt3', title: 'Hereditary', by: 'jo', at: at(10) }];
+  const people = [{ id: 'sam', name: 'Sam' }, { id: 'al', name: 'Al' }, { id: 'bo', name: 'Bo' }];
+  const busy = night({
+    ballotVotes: { sam: 'tt1', al: 'tt2', bo: 'tt1' }, ballotVoteAt: { sam: at(2000), al: at(2000), bo: at(500) }, // Bo's was before your last look
+    writeIns: { sam: 'tt3', al: 'tt2' }, writeInAt: { sam: at(2000), al: at(2000) },
+  });
+  const n = sinceLastLook({ ...base, nights: [busy], movies, people, free: [{ day: '2026-10-17', nameKey: 'me', name: 'Me', at: at(10) }] });
+  assert.deepEqual(n.items.map((i) => i.kind), ['vote', 'writein']);
+  assert.match(n.items[0].text, /^2 votes for \w+$/);
+  assert.equal(n.items[0].detail, 'Sam: Jaws · Al: Alien');
+  assert.deepEqual(n.items[0].names, ['Sam', 'Al']);
+  assert.match(n.items[1].text, /^2 write-ins for \w+$/);
+  assert.equal(n.items[1].detail, 'Sam: Hereditary · Al: Alien');
+  assert.ok(n.days.has('2026-10-17'));
+  assert.equal(n.cards.length, 2, 'on a night you are coming to, each keeps its card');
+  // On a night you are not on the list for, everything that changed is one card.
+  const other = sinceLastLook({ ...base, nights: [{ ...busy, host: 'Hal', hostKey: 'hal' }], movies, people });
+  assert.equal(other.items.length, 2);
+  assert.equal(other.cards.length, 1);
+  assert.match(other.cards[0].text, /^Hal's \w+: 2 votes · 2 write-ins$/);
+  const one = sinceLastLook({ ...base, nights: [{ ...night({ host: 'Hal', hostKey: 'hal', ballotVotes: { sam: 'tt1' }, ballotVoteAt: { sam: at(2000) }, writeIns: { al: 'tt3' }, writeInAt: { al: at(2000) } }) }], movies, people });
+  assert.match(one.cards[0].text, /^Hal's \w+: Sam voted for Jaws · Al put Hereditary on the ballot$/);
+  // A vote for a movie that left the shelf still reads, and a vote after the night locked is no news.
+  assert.match(sinceLastLook({ ...base, nights: [busy], movies: [], people }).items[0].detail, /a movie that left the shelf/);
+  assert.deepEqual(kindsOf({ nights: [{ ...busy, status: 'locked', lockedMovieId: 'tt1', lockedMovie: locked, lockedAt: at(10) }], movies, people }), []);
 });
 
 test('news comes most useful first: your night, other nights, the shelf, free evenings, then snacks and reviews', () => {

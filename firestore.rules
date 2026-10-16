@@ -161,49 +161,86 @@ service cloud.firestore {
 
     // ---- nights ---------------------------------------------------------------
     // One per day, created by its volunteer host. Allowed changes:
-    //   planned -> planned   new start time, a theme, or one person's veto (set or cleared),
-    //                        each with its own stamp for "Since you last looked"
-    //   planned -> locked    the movie is picked (by a phone or the server clock)
+    //   planned -> planned   new start time, a theme, one person's veto (set or cleared), one person's
+    //                        ballot vote or write-in (set, moved or cleared), each with its own stamp
+    //                        for "Since you last looked"; or a person dropping out, who takes all three back
+    //   planned -> locked    the movie is picked (by a phone or the server clock), with the ballot's count
     //   locked  -> planned   unlock before showtime
     //   locked  -> done      after showtime
     //   planned/locked -> cancelled, and cancelled -> planned (someone re-hosts)
     // A theme is free text (a shelf tag or genre); nights from before themes
     // and vetoes existed have neither field, so every rule reads them with get().
-    // Three server-stamped fields feed "Since you last looked": `movedAt` (the
-    // start time changed), `themeAt` (the theme changed) and `vetoAt` (when
-    // each person's veto was set), all equal to request.time when written.
+    // Server-stamped fields feed "Since you last looked": `movedAt` (the start
+    // time changed), `themeAt` (the theme changed), and `vetoAt`, `ballotVoteAt`,
+    // `writeInAt` (when each person's veto, vote and write-in was set), all equal to
+    // request.time when written.
     function validTheme(t) { return t is string && t.size() <= 40; }
     function newNight(day) {
       let d = request.resource.data;
       return validDay(day) && d.day == day
         && d.keys().hasOnly(['day', 'startsAt', 'host', 'hostKey', 'status', 'createdAt',
             'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt', 'finishedAt', 'theme', 'vetoes',
-            'themeAt', 'movedAt', 'vetoAt'])
+            'themeAt', 'movedAt', 'vetoAt', 'ballotVotes', 'ballotVoteAt', 'writeIns', 'writeInAt'])
         && d.status == 'planned' && d.startsAt is timestamp && d.startsAt > request.time
         && validName(d.host) && validKey(d.hostKey)
         && d.createdAt == request.time && d.lockedMovieId == null && d.lockedAt == null
         && validTheme(d.get('theme', '')) && d.get('vetoes', {}) == {}
-        && d.get('themeAt', null) == null && d.get('movedAt', null) == null && d.get('vetoAt', {}) == {};
+        && d.get('themeAt', null) == null && d.get('movedAt', null) == null && d.get('vetoAt', {}) == {}
+        && d.get('ballotVotes', {}) == {} && d.get('ballotVoteAt', {}) == {}
+        && d.get('writeIns', {}) == {} && d.get('writeInAt', {}) == {};
     }
-    // One person's veto, set or cleared: exactly one key of `vetoes` appears or
-    // disappears (nothing else moves), it belongs to the host or to someone free
-    // that evening, and it names a movie on the shelf. At most 30 vetoes a night.
-    // `vetoAt` moves with it: that same key (and no other) is stamped with the
-    // request time when the veto is set, and removed when the veto is cleared.
-    function vetoOk(day, before, after) {
-      let was = before.get('vetoes', {});
-      let added = after.vetoes.keys().removeAll(was.keys());
-      let gone = was.keys().removeAll(after.vetoes.keys());
+    // One person's entry in a per-person map on the night (`vetoes`, `ballotVotes`,
+    // `writeIns`: nameKey -> movie id), kept with its stamp map (`vetoAt`, ...). Exactly
+    // one key of the map changes, and its stamp changes with it: to the request time when
+    // the entry is set, gone when it is cleared. At most 30 entries.
+    //   set or clear: the key belongs to the host or to someone free that evening, and a
+    //   set value is a movie on the shelf.
+    //   moved (`inPlace`, for votes and write-ins): the same key holds a new movie. A rule
+    //   can't pull one key out of a changed set, so the new movie (the one value the map
+    //   didn't hold before) must be on the shelf; whose key it is was checked when it was set.
+    function entrySetOrCleared(day, before, after, field, stamps, canSet) {
+      let was = before.get(field, {});
+      let now = after.get(field, {});
+      let added = now.keys().removeAll(was.keys());
+      let gone = was.keys().removeAll(now.keys());
       let k = added.size() == 1 ? added[0] : gone[0];
-      return after.vetoes is map && after.vetoes.size() <= 30
-        && after.vetoes.diff(was).affectedKeys().size() == 1 && added.size() + gone.size() == 1
+      return now.diff(was).affectedKeys().size() == 1 && added.size() + gone.size() == 1
+        && (canSet || gone.size() == 1)
         && validKey(k)
         && (k == before.hostKey || exists(/databases/$(database)/documents/free/$(day + '__' + k)))
-        && (gone.size() == 1 || (after.vetoes[k] is string && movieExists(after.vetoes[k])))
-        && after.get('vetoAt', {}) is map
-        && after.get('vetoAt', {}).diff(before.get('vetoAt', {})).affectedKeys().hasOnly([k])
-        && (gone.size() == 1 ? !(k in after.get('vetoAt', {})) : after.vetoAt[k] == request.time);
+        && (gone.size() == 1 || (now[k] is string && movieExists(now[k])))
+        && after.get(stamps, {}).diff(before.get(stamps, {})).affectedKeys().hasOnly([k])
+        && (gone.size() == 1 ? !(k in after.get(stamps, {})) : after[stamps][k] == request.time);
     }
+    function entryMoved(before, after, field, stamps) {
+      let was = before.get(field, {});
+      let now = after.get(field, {});
+      let touched = now.diff(was).affectedKeys();
+      let fresh = now.values().removeAll(was.values());
+      let newStamps = after.get(stamps, {}).values().removeAll(before.get(stamps, {}).values());
+      return touched.size() == 1 && now.keys().removeAll(was.keys()).size() == 0 && was.keys().removeAll(now.keys()).size() == 0
+        && fresh.size() <= 1 && (fresh.size() == 0 || (fresh[0] is string && movieExists(fresh[0])))
+        && after.get(stamps, {}).diff(before.get(stamps, {})).affectedKeys().size() == 1
+        && touched.hasAll(after.get(stamps, {}).diff(before.get(stamps, {})).affectedKeys())
+        && newStamps.size() == 1 && newStamps[0] == request.time;
+    }
+    function personEntryOk(day, before, after, field, stamps, inPlace) {
+      return after.get(field, {}) is map && after.get(stamps, {}) is map
+        && before.get(field, {}) is map && before.get(stamps, {}) is map
+        && after.get(field, {}).size() <= 30
+        && (entrySetOrCleared(day, before, after, field, stamps, true)
+            || (inPlace && entryMoved(before, after, field, stamps)));
+    }
+    // Dropping out of a night takes your veto, vote and write-in in one write: each of the
+    // three maps is left alone or has one entry cleared (the same checks as clearing it alone).
+    function entryDropped(day, before, after, field, stamps) {
+      return (after.get(field, {}) == before.get(field, {}) && after.get(stamps, {}) == before.get(stamps, {}))
+        || (after.get(field, {}) is map && after.get(stamps, {}) is map
+            && before.get(field, {}) is map && before.get(stamps, {}) is map
+            && entrySetOrCleared(day, before, after, field, stamps, false));
+    }
+    // An unlock leaves lockedVotes null; the next lock may leave it as it is.
+    function lockedVotesOk(d) { return d.get('lockedVotes', null) == null || (d.lockedVotes is map && d.lockedVotes.size() <= 40); }
     function nightChangeOk(day) {
       let before = resource.data;
       let after = request.resource.data;
@@ -215,13 +252,22 @@ service cloud.firestore {
             && changed.hasOnly(['theme', 'themeAt']) && validTheme(after.get('theme', ''))
             && (!('themeAt' in changed) || after.themeAt == request.time))
         || (before.status == 'planned' && after.status == 'planned'
-            && changed.hasOnly(['vetoes', 'vetoAt']) && vetoOk(day, before, after))
+            && changed.hasOnly(['vetoes', 'vetoAt']) && personEntryOk(day, before, after, 'vetoes', 'vetoAt', false))
+        || (before.status == 'planned' && after.status == 'planned'
+            && changed.hasOnly(['ballotVotes', 'ballotVoteAt']) && personEntryOk(day, before, after, 'ballotVotes', 'ballotVoteAt', true))
+        || (before.status == 'planned' && after.status == 'planned'
+            && changed.hasOnly(['writeIns', 'writeInAt']) && personEntryOk(day, before, after, 'writeIns', 'writeInAt', true))
+        || (before.status == 'planned' && after.status == 'planned'
+            && changed.hasOnly(['vetoes', 'vetoAt', 'ballotVotes', 'ballotVoteAt', 'writeIns', 'writeInAt'])
+            && entryDropped(day, before, after, 'vetoes', 'vetoAt')
+            && entryDropped(day, before, after, 'ballotVotes', 'ballotVoteAt')
+            && entryDropped(day, before, after, 'writeIns', 'writeInAt'))
         || (before.status == 'planned' && after.status == 'locked'
-            && changed.hasOnly(['status', 'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt'])
-            && after.lockedAt == request.time && movieExists(after.lockedMovieId))
+            && changed.hasOnly(['status', 'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt', 'lockedVotes'])
+            && after.lockedAt == request.time && movieExists(after.lockedMovieId) && lockedVotesOk(after))
         || (before.status == 'locked' && after.status == 'planned' && request.time < before.startsAt
-            && changed.hasOnly(['status', 'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt'])
-            && after.lockedMovieId == null)
+            && changed.hasOnly(['status', 'lockedMovieId', 'lockedMovie', 'lockedTie', 'lockedAt', 'lockedVotes'])
+            && after.lockedMovieId == null && after.get('lockedVotes', null) == null)
         || (before.status == 'locked' && after.status == 'done' && request.time > before.startsAt
             && changed.hasOnly(['status', 'finishedAt']) && after.finishedAt == request.time)
         || (before.status in ['planned', 'locked'] && after.status == 'cancelled' && request.time < before.startsAt

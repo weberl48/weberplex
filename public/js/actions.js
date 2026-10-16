@@ -43,12 +43,27 @@ export function makeActions(db, F) {
   }
 
   const freeDoc = (who, day) => ({ day, nameKey: who.nameKey, name: who.name, at: serverTimestamp() });
-  // One person's key in a night's vetoes map, as a field path: the write
-  // touches only that key, so it can't collide with anyone else's veto.
-  const vetoPath = (who) => `vetoes.${who.nameKey}`;
-  // Its stamp rides in the same update (set with the veto, gone with it): the
-  // rules require both, and "Since you last looked" reads it.
-  const vetoAtPath = (who) => `vetoAt.${who.nameKey}`;
+  // A night's per-person maps, each with a stamp map beside it (`vetoes`/`vetoAt`,
+  // `ballotVotes`/`ballotVoteAt`, `writeIns`/`writeInAt`). A write is a field path
+  // for one person's key, so it touches nobody else's; the stamp rides in the
+  // same update (set with the entry, gone with it): the rules require both, and
+  // "Since you last looked" reads it.
+  const PER_PERSON = [['vetoes', 'vetoAt'], ['ballotVotes', 'ballotVoteAt'], ['writeIns', 'writeInAt']];
+  const entryWrite = (who, [field, stamp], movieId) => ({
+    [`${field}.${who.nameKey}`]: movieId || deleteField(),
+    [`${stamp}.${who.nameKey}`]: movieId ? serverTimestamp() : deleteField(),
+  });
+
+  // One person's entry in one of those maps (a veto, a vote, a write-in), with
+  // their own key only, so two people writing at once both keep theirs (rewriting
+  // the whole map would look like a change to someone else's key to the rules).
+  async function setEntry(day, who, entry, movieId) {
+    const snap = await getDoc(night(day));
+    if (!snap.exists() || snap.data().status !== 'planned') return false;
+    if ((movieId || null) === (snap.data()[entry[0]]?.[who.nameKey] || null)) return true; // nothing to change
+    await batched((b) => b.update(night(day), entryWrite(who, entry, movieId)));
+    return true;
+  }
 
   return {
     me,
@@ -152,20 +167,21 @@ export function makeActions(db, F) {
     },
 
     // ---- the calendar --------------------------------------------------------
-    // Dropping out of a planned night also takes back your veto there, in the
-    // same batch (the rules look at the free mark as it was before the batch,
-    // so the veto is still allowed to go).
+    // Dropping out of a planned night also takes back your veto, vote and
+    // write-in there, in the same batch and as one write to the night (the
+    // rules look at the free mark as it was before the batch, so they are
+    // still allowed to go).
     async setFree(day, who, isFree) {
       const ref = doc(db, 'free', `${day}__${who.nameKey}`);
-      let vetoed = false;
+      let held = [];
       if (!isFree) {
         const snap = await getDoc(night(day));
-        vetoed = snap.exists() && snap.data().status === 'planned' && !!snap.data().vetoes?.[who.nameKey];
+        held = snap.exists() && snap.data().status === 'planned' ? PER_PERSON.filter(([field]) => !!snap.data()[field]?.[who.nameKey]) : [];
       }
       await batched((b) => {
         if (isFree) { b.set(ref, freeDoc(who, day)); return; }
         b.delete(ref);
-        if (vetoed) b.update(night(day), { [vetoPath(who)]: deleteField(), [vetoAtPath(who)]: deleteField() });
+        if (held.length) b.update(night(day), Object.assign({}, ...held.map((entry) => entryWrite(who, entry, null))));
       });
     },
 
@@ -183,7 +199,7 @@ export function makeActions(db, F) {
         b.set(ref, {
           day, startsAt, host: who.name, hostKey: who.nameKey, status: 'planned', createdAt: serverTimestamp(),
           lockedMovieId: null, lockedMovie: null, lockedTie: [], lockedAt: null, finishedAt: null,
-          theme: cleanTheme(theme), vetoes: {},
+          theme: cleanTheme(theme), vetoes: {}, ballotVotes: {}, writeIns: {},
         });
         if (!isFree) b.set(free, freeDoc(who, day));
       });
@@ -203,33 +219,40 @@ export function makeActions(db, F) {
     // whole map would look like a change to someone else's key to the rules).
     // False if the night has moved on (locked, cancelled) in the meantime.
     async setVeto(day, who, movieId) {
-      const snap = await getDoc(night(day));
-      if (!snap.exists() || snap.data().status !== 'planned') return false;
-      if (!movieId && !snap.data().vetoes?.[who.nameKey]) return true; // nothing to take back
-      await batched((b) => b.update(night(day), {
-        [vetoPath(who)]: movieId || deleteField(),
-        [vetoAtPath(who)]: movieId ? serverTimestamp() : deleteField(),
-      }));
-      return true;
+      return setEntry(day, who, PER_PERSON[0], movieId);
+    },
+
+    // Your one vote on a night's ballot, and your one write-in (a movie of your
+    // choice put on it): the same shape as a veto, except that either can move
+    // to another movie in one write. movieId = null takes it back. False if the
+    // night has moved on (locked, cancelled) in the meantime.
+    async setBallotVote(day, who, movieId) {
+      return setEntry(day, who, PER_PERSON[1], movieId);
+    },
+
+    async setWriteIn(day, who, movieId) {
+      return setEntry(day, who, PER_PERSON[2], movieId);
     },
 
     // Lock the movie. A transaction, so two phones noticing the deadline at
-    // once can't lock different movies. `expect`: the vetoes and theme the pick
-    // was made from; if the night has changed since, nothing is locked (the
-    // next pass picks again from what's there).
+    // once can't lock different movies. `expect`: the vetoes, theme, votes and
+    // write-ins the pick was made from; if the night has changed since, nothing
+    // is locked (the next pass picks again from what's there).
     async lockNight(day, pick, expect = null) {
       const same = (a = {}, b = {}) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
       return runTransaction(db, async (tx) => {
         const snap = await tx.get(night(day));
         if (!snap.exists() || snap.data().status !== 'planned') return false;
-        if (expect && (!same(snap.data().vetoes || {}, expect.vetoes) || (snap.data().theme || '') !== (expect.theme || ''))) return false;
+        const d = snap.data();
+        if (expect && (!same(d.vetoes || {}, expect.vetoes) || (d.theme || '') !== (expect.theme || '')
+          || !same(d.ballotVotes || {}, expect.ballotVotes) || !same(d.writeIns || {}, expect.writeIns))) return false;
         tx.update(night(day), { ...lockFields(pick), lockedAt: serverTimestamp() });
         return true;
       });
     },
 
     async unlockNight(day) {
-      await batched((b) => b.update(night(day), { status: 'planned', lockedMovieId: null, lockedMovie: null, lockedTie: [], lockedAt: null }));
+      await batched((b) => b.update(night(day), { status: 'planned', lockedMovieId: null, lockedMovie: null, lockedTie: [], lockedAt: null, lockedVotes: null }));
     },
 
     async finishNight(day) {

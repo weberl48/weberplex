@@ -623,8 +623,6 @@ button.ticket-back { width: 84px; min-height: 0; cursor: pointer; grid-template-
 .tour-window { margin-top: 0; padding: 10px 12px; gap: 6px; }
 .tour-window .btn { justify-self: start; }
 .tour-window .dd-head h3 { font-size: var(--step-0); }
-.tour-ticket { grid-template-columns: 1fr 52px; }
-.tour-ticket h3 { font-size: var(--step-1); }
 /* big text on a phone: the words carry the card; the example would crowd them */
 @media (max-width: 300px) {
   .tour-demo { display: none; }
@@ -676,6 +674,34 @@ h4 .veto-note { margin-left: 6px; }
 .leaders li { overflow-wrap: anywhere; }
 .leaders .v { display: inline-flex; align-items: center; gap: 3px; font-family: var(--f-mono); color: var(--bulb); font-size: var(--step--1); margin-left: 6px; }
 .leaders .v svg { width: 13px; height: 13px; }
+/* tonight's ballot: a poster, the title with its thumbs, who has voted, and the buttons */
+.ballot { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.ballot-row { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px; border-radius: var(--radius); background: var(--velvet-3); }
+.ballot-row.mine { box-shadow: inset 0 0 0 1px var(--go); }
+.ballot-poster { aspect-ratio: 2 / 3; overflow: hidden; border-radius: 2px; background: var(--velvet); }
+.ballot-poster img { width: 100%; height: 100%; object-fit: cover; }
+.ballot-poster .noimg { height: 100%; display: grid; place-items: center; padding: 2px; text-align: center; font: 400 0.6rem/1.1 var(--f-display); color: var(--faint); overflow: hidden; }
+.ballot-body { display: grid; gap: 4px; min-width: 0; }
+.ballot-body p { margin: 0; }
+.ballot-title { overflow-wrap: anywhere; }
+.ballot-title .v { display: inline-flex; align-items: center; gap: 3px; font-family: var(--f-mono); color: var(--bulb); font-size: var(--step--1); margin-left: 6px; }
+.ballot-title .v svg { width: 13px; height: 13px; }
+.ballot-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.ballot-tag {
+  padding: 2px 7px; border-radius: 3px; border: 1px solid var(--rule-strong);
+  font: 700 11px/1.4 var(--f-body); font-stretch: 80%; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); overflow-wrap: anywhere;
+}
+.ballot-votes { color: var(--dim); font-size: var(--step--1); overflow-wrap: anywhere; }
+.ballot-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ballot-actions .mini.veto { margin-left: 0; }
+.tour-ballot { margin: 0; }
+.tour-ballot .ballot-row { grid-template-columns: minmax(0, 1fr); }
+/* Add your pick: a search over the shelf, under the ballot */
+.writein { margin-top: 10px; display: grid; gap: 8px; }
+.writein .hint, .writein .row { margin: 0; }
+.writein-panel { display: grid; gap: 6px; padding: 10px; border-radius: var(--radius); background: var(--velvet-3); }
+.writein-list { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.writein-list .hint { margin: 0; }
 .host-tools { margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--rule); }
 .theme-line { margin: 6px 0 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .theme-line .label { margin: 0; }

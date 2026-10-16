@@ -19,6 +19,10 @@ from zoneinfo import ZoneInfo
 
 from playwright.sync_api import expect, sync_playwright
 
+# One phone's tap reaches another phone's screen through the emulator: on a busy machine that can take
+# longer than the 5 s default, so every check that names no timeout of its own gets 15 s.
+expect.set_options(timeout=15000)
+
 SITE = 'http://localhost:5173'
 EMU = 'http://127.0.0.1:8181'
 PROJECT = 'speakeasy-picture-show'
@@ -107,12 +111,17 @@ def add_by_search(page, term, pitch=''):
     expect(first).to_be_visible(timeout=10000)
     title = first.locator('.t').inner_text()
     first.click()
-    expect(page.locator('#pickMsg')).to_contain_text('Added', timeout=10000)
+    expect(page.locator('#pickMsg')).to_contain_text('Added', timeout=30000)
     return title
 
 
 def card(page, title):
     return page.locator('#shelf .card', has=page.locator('h3', has_text=title)).first
+
+
+def row(page, title):
+    """A row of tonight's ballot in Up next, by its exact title."""
+    return page.locator('#next .ballot-row', has=page.locator('.ballot-title b', has_text=re.compile(f'^{re.escape(title)}$'))).first
 
 # ---- UI behaviour checks -----------------------------------------------------------
 # Small, direct checks of how the page treats a repaint, a landscape phone, the owner
@@ -347,6 +356,215 @@ def as_person(browser, errors, label, name):
     page = ctx.new_page()
     page.on('pageerror', lambda e: errors.append(f'{label}: {e}'))
     return page
+
+
+def ballot_checks(browser, errors):
+    """Tonight's ballot on four phones. Cal hosts a Ballot-themed night (so only the seven movies seeded here
+    can be picked) and Ana and Ben are coming; Eve is not, yet. Seven movies, thumbs from the people coming
+    rank them: the top five make the ballot, with Ballot One unseen-by-nobody (Ben has seen it). Votes (one
+    each, moved in one tap, undone), a write-in (added, swapped, taken back), a vote that beats thumbs,
+    Eve counting in, voting and dropping out (her vote and write-in leave with her), and the lock: the vote
+    winner, with the tally on the locked card and in the reveal. Then a second night with no votes, where the
+    most-thumbed movie wins. Everything seeded here is taken out again at the end."""
+    now = datetime.now(timezone.utc)
+    day = (now + timedelta(days=9)).strftime('%Y-%m-%d')
+    day2 = (now + timedelta(days=10)).strftime('%Y-%m-%d')
+    stamp = now - timedelta(days=3)
+    keys = ['ana', 'ben', 'cal', 'eve']
+    ids = [f'tt999100{i}' for i in range(1, 8)]
+    titles = ['Ballot One', 'Ballot Two', 'Ballot Three', 'Ballot Four', 'Ballot Five', 'Ballot Six', 'Ballot Seven']
+    thumbs = {0: ['ana', 'ben', 'cal'], 1: ['ana', 'ben'], 2: ['cal'], 3: ['ana'], 4: ['ben']}  # Six and Seven have none
+    docs = []
+
+    def seed(path, data):
+        docs.append(path)
+        emu('PATCH', f'{DOCS}/{path}', {'fields': fields(data)}, owner=True)
+
+    for k in keys:
+        # (Last looked an hour from now: nothing counts as news, so no cards open over the taps below.)
+        seed(f'people/{k}', {'name': k.title(), 'at': now, 'toured': True, 'lastSeen': now + timedelta(hours=1)})
+    for i, (mid, title) in enumerate(zip(ids, titles)):
+        seed(f'movies/{mid}', {'imdbId': mid, 'title': title, 'year': '2001', 'poster': '', 'runtime': '100 min', 'rating': '', 'genres': ['Ballot'],
+                               'trailer': '', 'description': '', 'pitch': '', 'shelf': [], 'by': 'cal', 'byName': 'Cal', 'at': stamp})
+        for k in thumbs.get(i, []):
+            seed(f'votes/{mid}__{k}', {'movie': mid, 'title': title, 'nameKey': k, 'name': k.title(), 'at': stamp})
+    seed(f'seen/{ids[0]}__ben', {'movie': ids[0], 'nameKey': 'ben', 'name': 'Ben', 'at': stamp})
+
+    def night(d, offset):
+        for k in ('ana', 'ben', 'cal'):
+            seed(f'free/{d}__{k}', {'day': d, 'nameKey': k, 'name': k.title(), 'at': stamp})
+        seed(f'nights/{d}', {'day': d, 'startsAt': now + timedelta(days=offset), 'host': 'Cal', 'hostKey': 'cal', 'status': 'planned',
+                             'createdAt': now - timedelta(days=2), 'theme': 'Ballot', 'vetoes': {}, 'ballotVotes': {}, 'writeIns': {}, 'lockedTie': []})
+    night(day, 9)
+
+    pages = {k: as_person(browser, errors, k, k.title()) for k in keys}
+    ana, ben, cal, eve = (pages[k] for k in keys)
+    for page in pages.values():
+        page.goto(f'{SITE}/?emu')
+    for page in (ana, ben, cal):
+        expect(page.locator('#next .ballot-row')).to_have_count(5, timeout=20000)
+
+    # The ballot: thumbs from the people coming rank it (a tie at one thumb falls to title), the top five.
+    order = lambda page: page.locator('#next .ballot-row .ballot-title b').all_inner_texts()
+    assert order(ana) == ['Ballot One', 'Ballot Two', 'Ballot Five', 'Ballot Four', 'Ballot Three'], order(ana)
+    expect(ana.locator('#next .ballot-row').first.locator('.ballot-title .v')).to_contain_text('3')
+    expect(ana.locator('#next .ballot-tag', has_text='Nobody coming has seen it')).to_have_count(4)  # Ben has seen One
+    expect(row(ana, titles[0])).not_to_contain_text('Nobody coming has seen it')
+    expect(ana.locator('#next .ballot-row', has_text='No votes yet')).to_have_count(5)
+    expect(ana.locator('#next .ballot-votes').first).to_have_text('No votes yet')
+    shot(ana, '03b-ballot')
+    # Everything about the ballot reads right at phone width.
+    over = ana.evaluate('document.documentElement.scrollWidth - document.documentElement.clientWidth')
+    assert over <= 0, f'ballot page is {over}px too wide'
+
+    # Eve is not coming yet: she sees the ballot but can't vote or write in, and is told how.
+    expect(eve.locator('#next .ballot-row')).to_have_count(5, timeout=20000)
+    expect(eve.locator('#next [data-action="ballot-vote"]')).to_have_count(0)
+    expect(eve.locator('#next .writein')).to_have_count(0)
+    expect(eve.locator('#next .night-card')).to_contain_text('Count yourself in to vote, veto a movie and call a snack')
+
+    # Ana votes for Two, then moves it to Four: one vote each, moved in one tap.
+    row(ana, titles[1]).locator('[data-action="ballot-vote"]').click()
+    expect(ana.locator('#toast')).to_contain_text(f'Voted for {titles[1]}', timeout=10000)
+    expect(row(ana, titles[1])).to_contain_text('1 vote: you')
+    expect(row(ana, titles[1]).locator('[data-action="ballot-vote"]')).to_have_attribute('aria-pressed', 'true')
+    expect(row(ben, titles[1])).to_contain_text('1 vote: Ana', timeout=10000)
+    row(ana, titles[3]).locator('[data-action="ballot-vote"]').click()
+    expect(ana.locator('#toast')).to_contain_text(f'Moved your vote to {titles[3]}', timeout=10000)
+    expect(row(ana, titles[1])).to_contain_text('No votes yet')
+    expect(row(ana, titles[3])).to_contain_text('1 vote: you')
+    expect(ana.locator('#next [data-action="ballot-vote"][aria-pressed="true"]')).to_have_count(1)
+    expect(row(ben, titles[3])).to_contain_text('1 vote: Ana', timeout=10000)
+    # Tapping your own vote again takes it back (and Ana can vote again after).
+    row(ana, titles[3]).locator('[data-action="ballot-vote"]').click()
+    expect(ana.locator('#toast')).to_contain_text('Vote taken back', timeout=10000)
+    expect(row(ana, titles[3])).to_contain_text('No votes yet')
+    row(ana, titles[3]).locator('[data-action="ballot-vote"]').click()
+    expect(row(ana, titles[3])).to_contain_text('1 vote: you', timeout=10000)
+    # Ben votes for Four too, Cal for Two: Four leads 2-1 with one thumb against Two's two. Votes beat thumbs.
+    row(ben, titles[3]).locator('[data-action="ballot-vote"]').click()
+    expect(ben.locator('#toast')).to_contain_text(f'Voted for {titles[3]}', timeout=10000)
+    row(cal, titles[1]).locator('[data-action="ballot-vote"]').click()
+    expect(cal.locator('#toast')).to_contain_text(f'Voted for {titles[1]}', timeout=10000)
+    expect(row(cal, titles[3])).to_contain_text('2 votes: Ana and Ben', timeout=10000)
+    expect(row(ana, titles[3])).to_contain_text('2 votes: you and Ben')
+    expect(row(ana, titles[1])).to_contain_text('1 vote: Cal', timeout=10000)
+    expect(ana.locator('#next .pick-now')).to_contain_text(titles[3])
+    expect(ana.locator('#next .pick-now')).to_contain_text('Leading the vote with 2 votes')
+    expect(ana.locator('#board')).to_contain_text(f'Leading: {titles[3]}')
+    shot(cal, '03c-ballot-votes')
+
+    # A write-in: Ana searches the shelf for Six (off the ballot: no thumbs), puts it on, swaps it for
+    # Seven, and takes it back. Everyone sees whose pick it is.
+    ana.click('#next [data-action="writein-open"]')
+    expect(ana.locator('#writeInQ')).to_be_focused()
+    ana.fill('#writeInQ', 'six')
+    expect(ana.locator('#next .writein-list li')).to_have_count(1)
+    expect(ana.locator('#writeInQ')).to_be_focused()  # typing keeps the field, even as the list repaints
+    ana.locator('#next .writein-list [data-action="writein"]').click()
+    expect(ana.locator('#toast')).to_contain_text(f'Put {titles[5]} on the ballot', timeout=10000)
+    expect(ana.locator('#next .ballot-row')).to_have_count(6)
+    expect(row(ana, titles[5])).to_contain_text('Your pick')
+    expect(row(ben, titles[5])).to_contain_text('Ana’s pick', timeout=10000)
+    expect(row(ben, titles[5])).to_contain_text('No votes yet')
+    expect(ana.locator('#next .writein')).to_contain_text(f'Your pick: {titles[5]}')
+    expect(ana.locator('#writeInQ')).to_have_count(0)  # the search closed itself
+    ana.click('#next [data-action="writein-open"]')
+    ana.fill('#writeInQ', 'seven')
+    ana.locator('#next .writein-list [data-action="writein"]').click()
+    expect(ana.locator('#toast')).to_contain_text(f'Swapped your pick for {titles[6]}', timeout=10000)
+    expect(row(ben, titles[6])).to_contain_text('Ana’s pick', timeout=10000)
+    expect(ben.locator('#next .ballot-row .ballot-title b', has_text=titles[5])).to_have_count(0)  # Six dropped off with the swap
+    expect(ben.locator('#next .ballot-row')).to_have_count(6)
+    shot(ben, '03d-ballot-writein')
+    ana.click('#next [data-action="writein-undo"]')
+    expect(ana.locator('#toast')).to_contain_text('Took your pick off the ballot', timeout=10000)
+    expect(ben.locator('#next .ballot-row')).to_have_count(5, timeout=10000)
+    # A vote keeps a movie on the ballot even after its write-in goes: Ben votes for Seven's search result
+    # and it stays when the write-in is gone; then he takes it back.
+    ben.click('#next [data-action="writein-open"]')
+    ben.fill('#writeInQ', 'seven')
+    ben.locator('#next .writein-list [data-action="writein"]').click()
+    expect(row(cal, titles[6])).to_contain_text('Ben’s pick', timeout=10000)
+    row(ben, titles[6]).locator('[data-action="ballot-vote"]').click()  # moves his vote from Four to Seven
+    expect(row(ben, titles[6])).to_contain_text('1 vote: you', timeout=10000)
+    ben.click('#next [data-action="writein-undo"]')
+    expect(row(cal, titles[6])).not_to_contain_text('Ben’s pick', timeout=10000)
+    expect(row(cal, titles[6])).to_contain_text('1 vote: Ben')  # still on: it holds a vote
+    row(ben, titles[6]).locator('[data-action="ballot-vote"]').click()  # back off Seven...
+    expect(ben.locator('#toast')).to_contain_text('Vote taken back', timeout=10000)  # (sent: the next tap is a new one)
+    expect(ben.locator('#next .ballot-row')).to_have_count(5, timeout=10000)
+    row(ben, titles[3]).locator('[data-action="ballot-vote"]').click()  # ...and onto Four again
+    expect(row(cal, titles[3])).to_contain_text('2 votes: Ana and Ben', timeout=10000)
+
+    # Eve counts in, votes for Three and writes in Six; then she drops out (a second tap): her vote and
+    # her write-in leave with her, on everyone's phone.
+    eve.click('#next [data-action="free"]')
+    expect(eve.locator('#next [data-action="ballot-vote"]').first).to_be_visible(timeout=10000)
+    row(eve, titles[2]).locator('[data-action="ballot-vote"]').click()
+    expect(row(ben, titles[2])).to_contain_text('1 vote: Eve', timeout=10000)
+    eve.click('#next [data-action="writein-open"]')
+    eve.fill('#writeInQ', 'six')
+    eve.locator('#next .writein-list [data-action="writein"]').click()
+    expect(row(ben, titles[5])).to_contain_text('Eve’s pick', timeout=10000)
+    drop = eve.locator('#next .rsvp-row [data-action="free"]')
+    drop.click()
+    expect(drop).to_have_text('Tap again: can’t make it')
+    drop.click()
+    expect(eve.locator('#toast')).to_contain_text('off the list', timeout=10000)
+    expect(row(ben, titles[2])).to_contain_text('No votes yet', timeout=10000)
+    expect(ben.locator('#next .ballot-row .ballot-title b', has_text=titles[5])).to_have_count(0, timeout=10000)
+    expect(eve.locator('#next [data-action="ballot-vote"]')).to_have_count(0)
+    night1 = json.loads(emu('GET', f'{DOCS}/nights/{day}', owner=True))['fields']
+    assert set(night1['ballotVotes']['mapValue']['fields']) == {'ana', 'ben', 'cal'}, night1['ballotVotes']
+    assert not night1['writeIns']['mapValue'].get('fields'), night1['writeIns']
+
+    # The host locks it: Four wins the vote 2-1 over Two, though Two has more thumbs. The reveal says so,
+    # and so does the locked card, once the card is face up.
+    lock = cal.locator('#next [data-action="lock-now"]')
+    lock.click()
+    lock.click()
+    for page in (ana, ben, cal):
+        expect(page.locator('.reveal-overlay')).to_be_visible(timeout=15000)
+    expect(ana.locator('#next .decided')).to_have_count(0)  # face down: nothing names the movie yet
+    ana.locator('.reveal-card').click(timeout=15000)
+    expect(ana.locator('.reveal-title')).to_have_text(titles[3], timeout=10000)
+    expect(ana.locator('.reveal-why')).to_contain_text('won the vote, 2–1')
+    ana.keyboard.press('Escape')
+    expect(ana.locator('#next .decided')).to_have_text(f'{titles[3]} won the vote, 2–1')
+    shot(ana, '03e-ballot-locked')
+    lv = json.loads(emu('GET', f'{DOCS}/nights/{day}', owner=True))['fields']['lockedVotes']['mapValue']['fields']
+    assert (lv[ids[3]]['integerValue'], lv[ids[1]]['integerValue'], lv[ids[0]]['integerValue']) == ('2', '1', '0'), lv
+
+    # Without votes the most-thumbed wins. The first night is watched; a second one has no votes at all.
+    cal.keyboard.press('Escape')  # Cal's reveal of the first night: not now
+    emu('PATCH', f'{DOCS}/nights/{day}?updateMask.fieldPaths=status&updateMask.fieldPaths=finishedAt',
+        {'fields': {'status': {'stringValue': 'done'}, 'finishedAt': {'timestampValue': now.isoformat().replace('+00:00', 'Z')}}}, owner=True)
+    night(day2, 10)
+    expect(cal.locator('#next .ballot-row').first).to_be_visible(timeout=15000)
+    expect(cal.locator('#next .ballot-row .ballot-title b', has_text=titles[3])).to_have_count(0)  # Four was watched
+    expect(cal.locator('#next .pick-now')).to_contain_text(titles[0])
+    expect(cal.locator('#next .pick-now')).to_contain_text('No votes yet')
+    lock = cal.locator('#next [data-action="lock-now"]')
+    lock.click()
+    lock.click()
+    expect(cal.locator('.reveal-overlay')).to_be_visible(timeout=15000)
+    cal.locator('.reveal-card').click(timeout=15000)
+    expect(cal.locator('.reveal-title')).to_have_text(titles[0], timeout=10000)
+    cal.keyboard.press('Escape')
+    expect(cal.locator('#next .decided')).to_have_text('No votes, so the most-thumbed pick won')
+    n2 = json.loads(emu('GET', f'{DOCS}/nights/{day2}', owner=True))['fields']
+    assert n2['lockedMovieId']['stringValue'] == ids[0], n2['lockedMovieId']
+    assert all(v['integerValue'] == '0' for v in n2['lockedVotes']['mapValue']['fields'].values()), n2['lockedVotes']
+
+    for page in pages.values():
+        page.context.close()
+    # Out of the way of the checks that follow.
+    for path in [f'nights/{day}', f'nights/{day2}'] + docs:
+        try:
+            emu('DELETE', f'{DOCS}/{path}', owner=True)
+        except Exception:
+            pass
 
 
 def honest_sending_checks(browser, errors):
@@ -820,7 +1038,7 @@ def news_cards_checks(browser, errors):
     wren.wait_for_timeout(1500)
     wren.reload()
     expect(wren.locator('#whoami')).to_contain_text('Wren', timeout=10000)
-    wren.wait_for_timeout(2000)
+    wren.wait_for_timeout(4800)  # past the page's 4 s look: with nothing unread it saves lastSeen, so the change below can't race it
     expect(wren.locator('.tour-overlay')).to_have_count(0)
     expect(wren.locator('#news')).to_be_hidden()
     # A change made while Wren is on the page only reaches the slim bar: no cards pop up mid-visit.
@@ -1031,7 +1249,7 @@ def main():
         tile = jo.locator('#browseGrid .tile:not(.taken) .add').first
         expect(tile).to_be_visible(timeout=15000)
         tile.click()
-        expect(jo.locator('#pickMsg')).to_contain_text('Added', timeout=10000)
+        expect(jo.locator('#pickMsg')).to_contain_text('Added', timeout=30000)
         card(jo, alien).locator('.vote').click()
         expect(card(sam, alien).locator('.vote .n')).to_have_text('2')
 
@@ -1077,7 +1295,7 @@ def main():
         sam.click('#next [data-action="free"]')  # Count me in
         expect(sam.locator('#next')).to_contain_text('coming: ')
         expect(sam.locator('#next .dd-line', has_text='coming: ')).to_contain_text('you')  # Sam is "you" on his own phone
-        expect(sam.locator('#next .leaders')).to_contain_text(alien)
+        expect(sam.locator('#next .ballot')).to_contain_text(alien)
         expect(sam.locator('#next .host-tools')).to_have_count(0)  # only the host gets tools
         expect(jo.locator('#next .host-tools')).to_have_count(1)
         shot(sam, '01-guest-planned')
@@ -1140,11 +1358,38 @@ def main():
         expect(sam.locator('.tour-overlay')).to_have_count(0)  # nothing new: no cards
         expect(sam.locator('#news')).to_be_hidden()
 
-        # The host locks the movie: the favorite of the people coming.
+        # Tonight's ballot: all five movies on the shelf are on it, thumbs from the people coming
+        # first (Alien and Jaws have both of theirs), and nobody coming has seen Alien.
+        expect(sam.locator('#next .ballot-row')).to_have_count(5)
+        expect(sam.locator('#next .ballot-row').first.locator('.ballot-title .v')).to_contain_text('2')
+        expect(row(sam, alien)).to_contain_text('Nobody coming has seen it')
+        expect(row(sam, jaws)).not_to_contain_text('Nobody coming has seen it')  # Sam has
+        expect(row(sam, alien)).to_contain_text('No votes yet')
+        # Sam votes for Alien and moves the vote to Jaws and back (one vote each, one write each);
+        # Jo sees it land and votes for Jaws: one vote apiece.
+        row(sam, alien).locator('[data-action="ballot-vote"]').click()
+        expect(sam.locator('#toast')).to_contain_text(f'Voted for {alien}', timeout=10000)
+        expect(row(sam, alien).locator('[data-action="ballot-vote"]')).to_have_attribute('aria-pressed', 'true')
+        expect(row(sam, alien)).to_contain_text('1 vote: you')
+        expect(row(jo, alien)).to_contain_text('1 vote: Sam', timeout=10000)
+        row(sam, jaws).locator('[data-action="ballot-vote"]').click()
+        expect(sam.locator('#toast')).to_contain_text(f'Moved your vote to {jaws}', timeout=10000)
+        expect(row(sam, alien)).to_contain_text('No votes yet')
+        expect(row(sam, jaws)).to_contain_text('1 vote: you')
+        expect(sam.locator('#next [data-action="ballot-vote"][aria-pressed="true"]')).to_have_count(1)  # one vote each
+        expect(row(jo, jaws)).to_contain_text('1 vote: Sam', timeout=10000)
+        row(sam, alien).locator('[data-action="ballot-vote"]').click()
+        expect(row(sam, alien)).to_contain_text('1 vote: you', timeout=10000)
+        row(jo, jaws).locator('[data-action="ballot-vote"]').click()
+        expect(jo.locator('#toast')).to_contain_text(f'Voted for {jaws}', timeout=10000)
+        expect(row(sam, jaws)).to_contain_text('1 vote: Jo', timeout=10000)
+        shot(sam, '03a-guest-ballot')
+
+        # The host locks the movie: one vote each, so it's a tie on the ballot.
         lock = jo.locator('#next [data-action="lock-now"]')
         lock.click()
         lock.click()
-        # Alien and Jaws are tied among the people coming: the reel settles it,
+        # Alien and Jaws are tied on votes: the reel settles it,
         # and plays once on each phone.
         expect(sam.locator('.reel-overlay button')).to_be_visible(timeout=15000)
         expect(sam.locator('.reel-overlay .reveal-why')).to_contain_text('Won the reel over')
@@ -1152,6 +1397,7 @@ def main():
         sam.locator('.reel-overlay button').click()
         expect(sam.locator('#next .ticket')).to_contain_text('ADMIT ONE', timeout=10000)
         expect(sam.locator('#next .ticket h3')).not_to_have_text('The movie is…')  # face up once the reel has played
+        expect(sam.locator('#next .decided')).to_contain_text('Tied 1–1, the reel picked')  # how it was decided, once it is face up
         expect(sam.locator('.reveal-overlay')).to_have_count(0)  # a tie lock gets the reel, not the reveal
         shown = sam.locator('#next .ticket h3').inner_text().lower()  # uppercased by CSS
         winner = next((t for t in (alien, jaws) if t.lower() == shown), None)
@@ -1251,7 +1497,7 @@ def main():
         jo.wait_for_timeout(1000)
         expect(jo.locator('#next .theme-chip')).to_have_count(0)
         expect(sam.locator('#next .theme-chip')).to_have_count(0)
-        expect(sam.locator('#next .leaders li')).to_have_count(3)  # Paddington, the other finalist, Jo's trending pick
+        expect(sam.locator('#next .ballot-row')).to_have_count(4)  # the other finalist, Paddington, Jo's trending pick, and the house pick: all four are on it
 
         # The snack chips share an action and a day: the one you tapped keeps focus when the
         # list repaints, not the first chip.
@@ -1262,23 +1508,23 @@ def main():
         # Sam vetoes Paddington (it would have tied with the other finalist): struck
         # through for everyone, one veto each, and only its owner can undo it.
         def veto_button(page, action):
-            return page.locator('#next .leaders li', has_text=paddington).locator(f'[data-action="{action}"]')
+            return row(page, paddington).locator(f'[data-action="{action}"]')
         veto_button(sam, 'veto').click()
         expect(sam.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
         expect(sam.locator('#next')).to_be_focused()  # the Veto button became "Undo veto" (a new key): focus stays in the card
         expect(sam.locator('#next .vetoes s')).to_have_text(paddington)
-        expect(sam.locator('#next .leaders')).not_to_contain_text(paddington)
+        expect(sam.locator('#next .ballot')).not_to_contain_text(paddington)  # a vetoed movie is off the ballot
         expect(sam.locator('#next [data-action="veto"]')).to_have_count(0)  # one veto each
         expect(sam.locator('#next [data-action="unveto"]')).to_have_count(1)
         expect(jo.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
-        expect(jo.locator('#next [data-action="veto"]')).to_have_count(2)  # Jo has not used a veto yet
+        expect(jo.locator('#next [data-action="veto"]')).to_have_count(3)  # Jo has not used a veto yet
         expect(jo.locator('#next [data-action="unveto"]')).to_have_count(0)  # Sam's is Sam's to undo
         expect(jo.locator('#next .veto-note')).to_have_text('one veto each')  # said beside the Vetoes, while you still have yours
         expect(sam.locator('#next .veto-note')).to_have_count(0)
         shot(sam, '04c-guest-veto')
         sam.click('#next [data-action="unveto"]')
         expect(sam.locator('#next .vetoes')).to_have_count(0)
-        expect(sam.locator('#next [data-action="veto"]')).to_have_count(3)
+        expect(sam.locator('#next [data-action="veto"]')).to_have_count(4)
         expect(sam.locator('#toast')).to_contain_text('Veto taken back')  # the write landed, not just the local echo
         veto_button(sam, 'veto').click()
         expect(sam.locator('#next .vetoes')).to_contain_text('vetoed by Sam')
@@ -1487,6 +1733,7 @@ def main():
         expect(newbie.locator('#whoami')).to_contain_text('Newbie')
 
         paint_checks(newbie)
+        ballot_checks(browser, errors)
         news_cards_checks(browser, errors)
         honest_sending_checks(browser, errors)
         reveal_invite_checks(browser, errors)

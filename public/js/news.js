@@ -38,7 +38,7 @@ const headline = (c) => {
   return name && t.includes(name) ? t.replace(name, `<span class="news-name">${name}</span>`) : t;
 };
 // Cards about a night: what changed, or a new one.
-const NIGHT_KINDS = new Set(['changes', 'night', 'moved', 'theme', 'veto']);
+const NIGHT_KINDS = new Set(['changes', 'night', 'moved', 'theme', 'veto', 'vote', 'writein']);
 
 // `voted`: the movies this person has already thumbed up. `rsvp(day)`: a
 // Count me in for a night they're not on the list for ('' otherwise). With

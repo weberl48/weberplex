@@ -7,6 +7,7 @@ import {
   dayKey, dayFromKey, calendarDays, tallyDays, sinceLastLook, shelfTags, excludedFor,
   icsEvent, icsCalendar, icsFold, icsEscape,
   tasteMatch, pickLeaders, mostWanted, recap,
+  ballotFor, nightPick, howDecided, BALLOT_SIZE,
   vetoedFor, pickable, fitsTheme, themeOptions, cleanTheme, showtimeShort, showtimeLong, looksLike, whenWords, sinceWords, googleCalendarUrl,
   parseMovieList, matchMovie, pasteStates, releaseYear, PASTE_MAX,
 } from '../public/js/logic.js';
@@ -118,8 +119,15 @@ test('the pick: thumbs from the people coming, then everyone, then anything', ()
   const nobody = pickMovie({ movies, votes: [], watched, attendees: [], rand: () => 0.99 });
   assert.equal(nobody.basis, 'shelf');
   assert.equal(nobody.tie.length, 3);
-  const tie = pickMovie({ movies, votes, watched, attendees: ['al', 'jo'], rand: () => 0.99 });
+  // Thumbs from the people coming are level (Al thumbed Alpha, Jo thumbed Bravo), so thumbs
+  // from everyone break it: Alpha has three, Bravo two. Nothing left to tie.
+  const level = pickMovie({ movies, votes, watched, attendees: ['al', 'jo'], rand: () => 0.99 });
+  assert.equal(level.movie.imdbId, 'tt1');
+  assert.deepEqual(level.tie, []);
+  // Level on everything the ballot weighs (thumbs from them, who has seen it, thumbs overall): the reel.
+  const tie = pickMovie({ movies, votes: [votes[0], votes[3]], watched, attendees: ['al', 'jo'], rand: () => 0.99 });
   assert.deepEqual(tie.tie.sort(), ['tt1', 'tt2']);
+  assert.equal(tie.basis, 'coming');
   assert.equal(pickMovie({ movies: [], votes }), null);
   const f = lockFields(coming);
   assert.equal(f.status, 'locked');
@@ -420,6 +428,169 @@ test('a theme nothing fits falls back to the whole shelf and says so', () => {
   assert.equal(pickable(shelf, { vetoed: new Set(['tt1']) }).movies.length, 3);
   assert.equal(pickable(shelf, { vetoed: new Set(shelf.map((m) => m.imdbId)) }).movies.length, 4);
   assert.equal(pickMovie({ movies: [], votes: [], theme: 'Horror' }), null);
+});
+
+// ---- the ballot -------------------------------------------------------------------
+// Seven movies. Thumbs from the people coming (al, bo, cy): Alpha 3, Bravo 2, Charlie 1,
+// Delta 1, Echo 1, Foxtrot 1 (and one more from someone not coming), Golf 0. Alpha has
+// been seen by someone coming (Bo); Bravo only by someone who isn't.
+const bmovies = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf'].map((title, i) => ({ imdbId: `tt${i + 1}`, title, at: at(i + 1), genres: i === 6 ? ['Horror'] : ['Comedy'] }));
+const bthumbs = [
+  ...['al', 'bo', 'cy'].map((k) => ({ movie: 'tt1', nameKey: k, name: k })),
+  ...['al', 'bo'].map((k) => ({ movie: 'tt2', nameKey: k, name: k })),
+  { movie: 'tt3', nameKey: 'al', name: 'al' }, { movie: 'tt4', nameKey: 'bo', name: 'bo' },
+  { movie: 'tt5', nameKey: 'cy', name: 'cy' }, { movie: 'tt6', nameKey: 'cy', name: 'cy' },
+  { movie: 'tt6', nameKey: 'zed', name: 'zed' }, // Foxtrot: one more thumb overall, from someone not coming
+];
+const bseen = [{ movie: 'tt1', nameKey: 'bo', name: 'bo' }, { movie: 'tt2', nameKey: 'zed', name: 'zed' }];
+const COMING = ['al', 'bo', 'cy'];
+const ids = (rows) => rows.map((r) => r.movie.imdbId);
+const ballot = (night = {}, extra = {}) => ballotFor(night, { movies: bmovies, votes: bthumbs, seen: bseen, attendees: COMING, ...extra });
+const bpick = (extra) => pickMovie({ movies: bmovies, votes: bthumbs, seen: bseen, attendees: COMING, rand: () => 0, ...extra });
+const thumb = (movie, nameKey) => ({ movie, nameKey, name: nameKey });
+
+test('the ballot: thumbs from the people coming rank it, top five, ties by who has seen it, then thumbs overall, then title', () => {
+  const rows = ballot();
+  assert.equal(BALLOT_SIZE, 5);
+  // Alpha 3 and Bravo 2 lead. At one thumb each, Foxtrot has the most thumbs overall; then
+  // Charlie, Delta and Echo by title, and Echo is sixth. Golf has no thumbs: off the ballot.
+  assert.deepEqual(ids(rows), ['tt1', 'tt2', 'tt6', 'tt3', 'tt4']);
+  assert.deepEqual(rows.map((r) => r.thumbsComing), [3, 2, 1, 1, 1]);
+  // Row shape: how many of the people coming have seen it, who voted, who wrote it in.
+  assert.deepEqual(rows[0], { movie: rows[0].movie, thumbsComing: 3, seenComing: 1, votes: [], writeInBy: null });
+  assert.equal(rows[0].movie.title, 'Alpha');
+  assert.equal(rows[1].seenComing, 0, 'Bravo was seen by someone who is not coming');
+  // At equal thumbs a movie nobody coming has seen comes before one somebody has...
+  const same = ballotFor({}, { movies: bmovies.slice(0, 2), votes: [thumb('tt1', 'al'), thumb('tt2', 'al')], seen: [{ movie: 'tt1', nameKey: 'bo', name: 'bo' }], attendees: ['al', 'bo'] });
+  assert.deepEqual(ids(same), ['tt2', 'tt1']);
+  // ...and fewer people coming who have seen it come before more.
+  const fewer = ballotFor({}, { movies: bmovies.slice(0, 3), votes: [thumb('tt1', 'al'), thumb('tt2', 'al'), thumb('tt3', 'al')], seen: [{ movie: 'tt1', nameKey: 'bo', name: 'bo' }, { movie: 'tt1', nameKey: 'cy', name: 'cy' }, { movie: 'tt2', nameKey: 'bo', name: 'bo' }], attendees: COMING });
+  assert.deepEqual(ids(fewer), ['tt3', 'tt2', 'tt1']);
+  // Nobody has thumbed anything: the ballot is still five, in title order.
+  assert.deepEqual(ids(ballotFor({}, { movies: bmovies, votes: [], attendees: COMING })), ['tt1', 'tt2', 'tt3', 'tt4', 'tt5']);
+  assert.deepEqual(ballotFor({}, { movies: [] }), []);
+});
+
+test('the ballot keeps write-ins and voted movies that fell out of the top five, once each', () => {
+  const night = { ballotVotes: { al: 'tt7', bo: 'tt7', cy: 'tt2' }, writeIns: { al: 'tt7', bo: 'tt5', cy: 'tt3' } };
+  const rows = ballot(night);
+  // Golf is off the top five but holds two votes and a write-in; Echo is sixth and written in.
+  assert.deepEqual(ids(rows), ['tt1', 'tt2', 'tt6', 'tt3', 'tt4', 'tt5', 'tt7']);
+  const byId = Object.fromEntries(rows.map((r) => [r.movie.imdbId, r]));
+  assert.deepEqual(byId.tt7.votes, ['al', 'bo']);
+  assert.equal(byId.tt7.writeInBy, 'al');
+  assert.equal(byId.tt5.writeInBy, 'bo');
+  assert.equal(byId.tt3.writeInBy, 'cy', 'a write-in already in the top five just wears the tag');
+  assert.deepEqual(byId.tt2.votes, ['cy']);
+  assert.equal(byId.tt1.writeInBy, null);
+  assert.equal(new Set(ids(rows)).size, rows.length, 'nothing twice');
+  // Two people writing in one movie: the first name (by key) is the one shown.
+  assert.equal(ballot({ writeIns: { cy: 'tt7', al: 'tt7' } }).at(-1).writeInBy, 'al');
+});
+
+test('the ballot leaves out vetoed and off-theme movies, and ignores people who are not coming', () => {
+  // A vetoed movie is gone, and so is a write-in or vote for it; the next one moves up.
+  const vetoed = ballot({ vetoes: { al: 'tt1' }, ballotVotes: { bo: 'tt1' }, writeIns: { cy: 'tt1' } });
+  assert.deepEqual(ids(vetoed), ['tt2', 'tt6', 'tt3', 'tt4', 'tt5']);
+  assert.ok(vetoed.every((r) => !r.votes.length && !r.writeInBy));
+  // A theme narrows the pool first (Golf is the only Horror, and has no thumbs).
+  assert.deepEqual(ids(ballot({ theme: 'Horror' })), ['tt7']);
+  assert.deepEqual(ids(ballot({ theme: 'horror', writeIns: { al: 'tt1' } })), ['tt7'], 'a write-in that does not fit the theme is off too');
+  // Someone who dropped out: their vote and write-in count for nothing, and do not keep a movie on.
+  const out = ballot({ ballotVotes: { zed: 'tt7', al: 'tt2' }, writeIns: { zed: 'tt7' } });
+  assert.deepEqual(ids(out), ['tt1', 'tt2', 'tt6', 'tt3', 'tt4']);
+  assert.deepEqual(out.find((r) => r.movie.imdbId === 'tt2').votes, ['al']);
+  // Watched movies and other nights' picks are not pickable.
+  assert.deepEqual(ids(ballot({}, { watched: new Set(['tt1']) })), ['tt2', 'tt6', 'tt3', 'tt4', 'tt5']);
+  // An old night (no ballot fields) works as before.
+  assert.deepEqual(ids(ballotFor({ day: 'old' }, { movies: bmovies, votes: bthumbs, attendees: COMING })), ['tt1', 'tt2', 'tt6', 'tt3', 'tt4']);
+  assert.deepEqual(ids(ballotFor(undefined, { movies: bmovies, votes: bthumbs, attendees: COMING })), ['tt1', 'tt2', 'tt6', 'tt3', 'tt4']);
+  assert.deepEqual(nightPick({}), { vetoed: new Set(), theme: '', ballotVotes: {}, writeIns: {} });
+});
+
+test('the pick: the most votes on the ballot wins, even over more thumbs', () => {
+  assert.equal(bpick().movie.imdbId, 'tt1', 'no votes: the top of the ballot');
+  const v = bpick({ ballotVotes: { al: 'tt4', bo: 'tt4', cy: 'tt2' } });
+  assert.equal(v.movie.imdbId, 'tt4', 'Delta has one thumb, but two votes');
+  assert.equal(v.basis, 'ballot');
+  assert.equal(v.score, 2);
+  assert.deepEqual(v.tie, []);
+  assert.deepEqual(v.lockedVotes, { tt1: 0, tt2: 1, tt6: 0, tt3: 0, tt4: 2 });
+  // A voted movie that fell out of the top five is on the ballot, and can win.
+  const g = bpick({ ballotVotes: { al: 'tt7' } });
+  assert.equal(g.movie.imdbId, 'tt7');
+  assert.equal(g.lockedVotes.tt7, 1);
+  assert.equal(Object.keys(g.lockedVotes).length, 6);
+  // Votes from people who are not coming, or for a vetoed movie, count for nothing.
+  assert.equal(bpick({ ballotVotes: { zed: 'tt4' } }).basis, 'coming');
+  assert.equal(bpick({ ballotVotes: { al: 'tt4' }, vetoed: new Set(['tt4']) }).movie.imdbId, 'tt1');
+  assert.equal(bpick({ ballotVotes: { al: 'tt4', bo: 'tt4' }, attendees: ['cy'] }).basis, 'coming');
+  // A theme that fits nothing drops back to the whole shelf, and the votes still count.
+  const w = bpick({ ballotVotes: { al: 'tt2' }, theme: 'Western' });
+  assert.equal(w.themeFallback, true);
+  assert.equal(w.movie.imdbId, 'tt2');
+});
+
+test('the pick: a tie in votes goes to the reel among the tied', () => {
+  const two = bpick({ ballotVotes: { al: 'tt2', bo: 'tt4' }, rand: () => 0.99 });
+  assert.equal(two.basis, 'ballot');
+  assert.equal(two.score, 1);
+  assert.deepEqual([...two.tie].sort(), ['tt2', 'tt4']);
+  assert.ok(two.tie.includes(two.movie.imdbId));
+  // The reel's pick is one of the tied; the other end of the dial gives the other.
+  assert.notEqual(two.movie.imdbId, bpick({ ballotVotes: { al: 'tt2', bo: 'tt4' }, rand: () => 0 }).movie.imdbId);
+  // A third voter breaks it: no tie.
+  const clear = bpick({ ballotVotes: { al: 'tt2', bo: 'tt4', cy: 'tt4' }, rand: () => 0.99 });
+  assert.equal(clear.movie.imdbId, 'tt4');
+  assert.deepEqual(clear.tie, []);
+});
+
+test('the pick with no votes: the top of the ballot, ties to the reel, then the old fallbacks', () => {
+  const top = bpick();
+  assert.equal(top.basis, 'coming');
+  assert.equal(top.movie.imdbId, 'tt1');
+  assert.deepEqual(top.tie, []);
+  assert.equal(top.score, 3);
+  // Level on thumbs from them, on who has seen it and on thumbs overall: the reel among those.
+  const level = pickMovie({ movies: bmovies.slice(0, 3), votes: [thumb('tt2', 'al'), thumb('tt3', 'bo')], attendees: ['al', 'bo'], rand: () => 0.99 });
+  assert.equal(level.basis, 'coming');
+  assert.deepEqual([...level.tie].sort(), ['tt2', 'tt3']);
+  // Level on thumbs but one of them was seen by someone coming: the unseen one, outright.
+  const unseen = pickMovie({ movies: bmovies.slice(0, 3), votes: [thumb('tt2', 'al'), thumb('tt3', 'bo')], seen: [{ movie: 'tt2', nameKey: 'bo', name: 'bo' }], attendees: ['al', 'bo'], rand: () => 0 });
+  assert.equal(unseen.movie.imdbId, 'tt3');
+  assert.deepEqual(unseen.tie, []);
+  // Nobody coming has thumbed anything: the old ladder (most thumbs overall, then anything).
+  const everyone = bpick({ attendees: ['qq'] });
+  assert.equal(everyone.basis, 'everyone');
+  assert.equal(everyone.movie.imdbId, 'tt1');
+  const shelf = pickMovie({ movies: bmovies, votes: [], attendees: COMING, rand: () => 0.99 });
+  assert.equal(shelf.basis, 'shelf');
+  assert.equal(shelf.tie.length, 7);
+  // Votes still win when nobody coming has any thumbs.
+  const votedZero = pickMovie({ movies: bmovies, votes: [], attendees: COMING, ballotVotes: { al: 'tt3' }, rand: () => 0 });
+  assert.equal(votedZero.basis, 'ballot');
+  assert.equal(votedZero.movie.imdbId, 'tt3');
+  assert.equal(pickMovie({ movies: [], votes: [], ballotVotes: { al: 'tt3' } }), null);
+});
+
+test('a lock records the ballot for the card that says how it was decided', () => {
+  const won = bpick({ ballotVotes: { al: 'tt4', bo: 'tt4', cy: 'tt2' } });
+  assert.deepEqual(lockFields(won).lockedVotes, { tt1: 0, tt2: 1, tt6: 0, tt3: 0, tt4: 2 });
+  assert.equal('lockedVotes' in lockFields({ movie: bmovies[0], tie: [] }), false, 'a bare pick (an old caller) writes none');
+  const night = (pick, extra = {}) => ({ ...lockFields(pick), status: 'locked', ...extra });
+  assert.deepEqual(howDecided(night(won)), { kind: 'vote', text: 'Delta won the vote, 2–1', short: 'won the vote, 2–1' });
+  const tie = bpick({ ballotVotes: { al: 'tt2', bo: 'tt4' }, rand: () => 0.99 });
+  assert.equal(howDecided(night(tie)).text, `Tied 1–1, the reel picked ${tie.movie.title}`);
+  assert.equal(howDecided(night(bpick({ ballotVotes: { al: 'tt2' } }))).text, 'Bravo won the vote, 1–0');
+  assert.equal(howDecided(night(bpick())).text, 'No votes, so the most-thumbed pick won');
+  assert.equal(howDecided(night(bpick({ attendees: ['qq'] }))).text, 'No votes, so the most-thumbed pick won', 'with nobody coming, the ballot is the most-thumbed five');
+  const level = pickMovie({ movies: bmovies.slice(0, 3), votes: [thumb('tt2', 'al'), thumb('tt3', 'bo')], attendees: ['al', 'bo'], rand: () => 0.99 });
+  assert.match(howDecided(night(level)).text, /^No votes, tied on thumbs-ups, so the reel picked /);
+  // Off the ballot altogether (a theme's fallback could do it): said plainly.
+  assert.equal(howDecided({ status: 'locked', lockedMovieId: 'tt9', lockedMovie: { title: 'Hotel' }, lockedTie: [], lockedVotes: { tt1: 0 } }).text, 'No votes, so it came from the shelf');
+  // Nights locked before the ballot said nothing.
+  assert.equal(howDecided({ status: 'locked', lockedMovieId: 'tt1', lockedMovie: { title: 'Alpha' }, lockedTie: [] }), null);
+  assert.equal(howDecided(undefined), null);
 });
 
 test('the theme menu: shelf tags first, then genres, each once', () => {

@@ -47,6 +47,8 @@ const S = {
   stars: {},                         // day -> stars picked but not yet posted
   hostSlip: null,                    // the day whose hosting slip is open (confirm before hosting)
   hostTheme: '',                     // the theme picked in the day panel's hosting block
+  writeInDay: null,                  // the day whose "Add your pick" search is open
+  writeInQ: '',                      // what has been typed in it
   rateDay: null,                     // which of this week's nights the rating stub is showing
 };
 // Overlays add history entries (Android back closes them); coming back through
@@ -178,8 +180,8 @@ async function clock() {
       try {
         if (L.lockDue(n)) {
           const watched = new Set([...L.excludedFor(S.nights, n.day), ...lockedNow]);
-          const pick = L.pickMovie({ movies: S.movies, votes: S.votes, watched, attendees: comingTo(n.day).map((f) => f.nameKey), vetoed: L.vetoedFor(n), theme: n.theme || '' });
-          if (pick && await A.lockNight(n.day, pick, { vetoes: n.vetoes || {}, theme: n.theme || '' })) { lockedNow.add(pick.movie.imdbId); lockingNow.add(n.day); }
+          const pick = pickFor(n, watched);
+          if (pick && await A.lockNight(n.day, pick, lockExpect(n))) { lockedNow.add(pick.movie.imdbId); lockingNow.add(n.day); }
         } else if (L.doneDue(n)) {
           await A.finishNight(n.day);
         }
@@ -220,25 +222,27 @@ function hostTools(n, scope) {
   return tools.length ? `<div class="row host-tools"><span class="label">You’re hosting</span>${tools.join('')}</div>` : '';
 }
 
-// What the people coming would watch, best first (thumbs from them). Vetoed
-// movies are out and a theme narrows the field, exactly as in the pick.
-function leadersFor(n, shelf) {
-  const coming = new Set(comingTo(n.day).map((f) => f.nameKey));
-  return L.pickable(shelf.movies, { vetoed: L.vetoedFor(n), theme: n.theme }).movies
-    .map((m) => ({ m, n: m.voters.filter((v) => coming.has(v.nameKey)).length }))
-    .filter((x) => x.n > 0)
-    .sort((a, b) => b.n - a.n || b.m.votes - a.m.votes)
-    .slice(0, 3);
-}
+// A night's pick, made the same way by the clock, Lock now and "If it locked
+// now": the night brings its vetoes, theme, votes and write-ins, and the page
+// the shelf, thumbs and seen marks. `lockExpect` is what the lock checks the
+// night still holds, so a vote tapped just before can't be overtaken.
+const pickFor = (n, watched, rand) => L.pickMovie({
+  movies: S.movies, votes: S.votes, seen: S.seen, watched, attendees: comingTo(n.day).map((f) => f.nameKey), ...L.nightPick(n), ...(rand ? { rand } : {}),
+});
+const lockExpect = (n) => ({ vetoes: n.vetoes || {}, theme: n.theme || '', ballotVotes: n.ballotVotes || {}, writeIns: n.writeIns || {} });
+
+// Tonight's ballot: the top five by thumbs from the people coming, and what has
+// been voted or written in. Vetoed movies are out and a theme narrows the field,
+// exactly as in the pick.
+const ballotOf = (n) => L.ballotFor(n, {
+  movies: S.movies, votes: S.votes, seen: S.seen, attendees: comingTo(n.day).map((f) => f.nameKey), watched: L.excludedFor(S.nights, n.day),
+});
 
 // What a planned night would lock to right now: the same pick the lock makes
 // (ties held still so the page doesn't flicker; the reel settles them).
 function projection(n) {
   if (n?.status !== 'planned') return null;
-  return L.pickMovie({
-    movies: S.movies, votes: S.votes, watched: L.excludedFor(S.nights, n.day),
-    attendees: comingTo(n.day).map((f) => f.nameKey), vetoed: L.vetoedFor(n), theme: n.theme || '', rand: () => 0,
-  });
+  return pickFor(n, L.excludedFor(S.nights, n.day), () => 0);
 }
 const titlesOf = (ids) => ids.map((id) => S.movies.find((m) => m.imdbId === id)?.title).filter(Boolean);
 // "Jaws", or "Alien or Jaws" for a tie.
@@ -519,6 +523,60 @@ function namesList(names) {
   return `${names[0]}, ${names[1]} and ${names.length - 2} others`;
 }
 
+// One row of the ballot: the poster, the title with the thumbs from the people
+// coming, a tag when none of them has seen it (or someone wrote it in), its votes
+// and who cast them, and the buttons. Names come from other people: escaped.
+function ballotRow(n, r, { canVote, canVeto, vetoBtn }) {
+  const m = r.movie;
+  const meKey = S.me?.nameKey;
+  const mine = !!meKey && r.votes.includes(meKey);
+  const names = [...(mine ? ['you'] : []), ...r.votes.filter((k) => k !== meKey).map((k) => nameOf(n, k)).sort((a, b) => a.localeCompare(b))];
+  const wrote = r.writeInBy ? (r.writeInBy === meKey ? 'Your pick' : `${nameOf(n, r.writeInBy)}’s pick`) : '';
+  const tags = [wrote, comingTo(n.day).length && !r.seenComing ? 'Nobody coming has seen it' : ''].filter(Boolean);
+  return `
+    <li class="ballot-row${mine ? ' mine' : ''}">
+      <div class="ballot-poster">${posterImg(m.poster, m.title)}</div>
+      <div class="ballot-body">
+        <p class="ballot-title"><b>${esc(m.title)}</b> ${thumbs(r.thumbsComing)}</p>
+        ${tags.length ? `<p class="ballot-tags">${tags.map((t) => `<span class="ballot-tag">${esc(t)}</span>`).join('')}</p>` : ''}
+        <p class="ballot-votes">${r.votes.length ? `${r.votes.length} ${r.votes.length === 1 ? 'vote' : 'votes'}: ${esc(andList(names))}` : 'No votes yet'}</p>
+        ${canVote || canVeto ? `<p class="ballot-actions">
+          ${canVote ? `<button class="mini${mine ? ' on' : ''}" type="button" data-action="ballot-vote" data-day="${n.day}" data-id="${esc(m.imdbId)}" aria-pressed="${mine}" aria-label="${mine ? 'Take back your vote for' : 'Vote for'} ${esc(m.title)}">${mine ? `Your vote ${CHECK}` : 'Vote'}</button>` : ''}
+          ${canVeto ? vetoBtn('veto', 'Veto', m.imdbId, m.title) : ''}</p>` : ''}
+      </div>
+    </li>`;
+}
+
+// "Add your pick": one movie of your choice from the shelf, put on the ballot
+// (swap it or take it back). A search over the movies the night can pick.
+function writeInBox(n, rows) {
+  const mineId = n.writeIns?.[S.me.nameKey];
+  const mine = mineId && S.movies.find((m) => m.imdbId === mineId);
+  const open = S.writeInDay === n.day;
+  const q = S.writeInQ.trim().toLowerCase();
+  const all = L.tallyShelf({ movies: S.movies, votes: S.votes, watched: L.excludedFor(S.nights, n.day) }).movies;
+  const pickable = L.pickable(all, { vetoed: L.vetoedFor(n), theme: n.theme }).movies
+    .filter((m) => !q || m.title.toLowerCase().includes(q))
+    .sort((a, b) => a.title.localeCompare(b.title));
+  const shown = pickable.slice(0, 8);
+  return `
+    <div class="writein">
+      ${mine ? `<p class="hint">Your pick: <b>${esc(mine.title)}</b>${rows.some((r) => r.movie.imdbId === mineId) ? '' : ' (off the ballot for now)'}</p>` : ''}
+      <div class="row">
+        <button class="btn btn-ghost btn-small" type="button" data-action="${open ? 'writein-close' : 'writein-open'}" data-day="${n.day}" aria-expanded="${open}">${open ? 'Done' : mine ? 'Swap your pick' : 'Add your pick'}</button>
+        ${mine ? `<button class="mini" type="button" data-action="writein-undo" data-day="${n.day}">Take it back</button>` : ''}
+      </div>
+      ${open ? `<div class="writein-panel">
+        <label class="field-label" for="writeInQ">A movie of your choice from the shelf</label>
+        <input class="field" id="writeInQ" type="search" autocomplete="off" maxlength="60" placeholder="Search by title" value="${esc(S.writeInQ)}">
+        <ul class="writein-list">${shown.length ? shown.map((m) => `
+          <li><button class="mini" type="button" data-action="writein" data-day="${n.day}" data-id="${esc(m.imdbId)}">${esc(m.title)}${m.year ? ` <span class="hint">${esc(m.year)}</span>` : ''}</button></li>`).join('')
+          : '<li class="hint">Nothing on the shelf matches.</li>'}</ul>
+        ${pickable.length > shown.length ? `<p class="hint">${pickable.length - shown.length} more: type to narrow it down.</p>` : ''}
+      </div>` : ''}
+    </div>`;
+}
+
 function renderNext(upcoming, shelf) {
   const n = upcoming[0];
   if (!ready()) { out('#next').innerHTML = ''; return; }
@@ -532,16 +590,18 @@ function renderNext(upcoming, shelf) {
   const sub = S.nightSub.get(n.day) || { snacks: [], reviews: [] };
   let body;
   if (n.status === 'planned') {
-    const leads = leadersFor(n, shelf);
+    const rows = ballotOf(n);
     const vetoes = vetoesFor(n, shelf);
     const myVeto = S.me && n.vetoes?.[S.me.nameKey];
     const canVeto = !!S.me && (isMine(n) || going);
+    // Everyone coming has one vote and one write-in (the host is counted in when hosting).
+    const canVote = !!S.me && going;
     const noFit = n.theme && L.pickable(shelf.movies, { vetoed: L.vetoedFor(n), theme: n.theme }).themeFallback;
     // The theme's movies exist but every one is vetoed (as opposed to none fitting).
     const allVetoed = noFit && shelf.movies.some((m) => L.fitsTheme(m, n.theme));
     // The people coming have thumbs, but all on movies that are vetoed or off-theme.
     const comingKeys = new Set(coming.map((f) => f.nameKey));
-    const thumbsOut = !leads.length && shelf.movies.some((m) => m.voters.some((v) => comingKeys.has(v.nameKey)));
+    const thumbsOut = !rows.some((r) => r.thumbsComing > 0) && shelf.movies.some((m) => m.voters.some((v) => comingKeys.has(v.nameKey)));
     const vetoBtn = (action, label, id, title) => `<button class="mini veto" type="button" data-action="${action}" data-day="${n.day}" data-id="${esc(id)}" aria-label="${label}: ${esc(title)}">${label}</button>`;
     // If it locked now: the movie, and why it's that one. Its Veto sits here
     // unless it's already in the list of what the people coming want.
@@ -554,8 +614,10 @@ function renderNext(upcoming, shelf) {
     // the pool: "the group's favorite among Drama movies", not the shelf's.
     const themed = n.theme && !noFit;
     const pool = themed ? ` among ${n.theme} movies` : '';
+    const nVotes = (k) => `${k} ${k === 1 ? 'vote' : 'votes'}`;
     const why = !p ? 'The shelf is empty. Add a movie to give it something to pick.'
-      : p.basis === 'coming' ? (tie ? `Tied on thumbs-ups from ${who}${pool}: the reel decides at the lock.` : `The most thumbs-ups from ${who}${pool}.`)
+      : p.basis === 'ballot' ? (tie ? `Tied at ${nVotes(p.score)} on the ballot: the reel decides at the lock.` : `Leading the vote with ${nVotes(p.score)}.`)
+      : p.basis === 'coming' ? (tie ? `No votes yet, and tied on thumbs-ups from ${who}${pool}: the reel decides at the lock.` : `No votes yet, so the most thumbs-ups from ${who}${pool}.`)
       : p.basis === 'everyone' ? `${thumbsOut ? `${Who} only thumbed up vetoed or off-theme movies` : who ? `No thumbs-ups from ${who} yet` : 'Nobody has said they’re in yet'}, so it goes to the group’s favorite${pool}.`
       : `${thumbsOut ? `${Who} only thumbed up vetoed or off-theme movies` : `Nobody has thumbed up anything${themed ? ' that fits' : ''} yet`}, so it’s any ${themed ? `${n.theme} movie` : 'movie on the shelf'}.`;
     const vetoNote = canVeto && !myVeto ? ' <span class="veto-note">one veto each</span>' : '';
@@ -568,7 +630,7 @@ function renderNext(upcoming, shelf) {
             <h4 class="label">If it locked now</h4>
             <p class="pick-line"><b>${esc(pickName(p))}</b></p>
             <p class="hint">${esc(why)}</p>
-            ${canVeto && !myVeto && !tie && p.basis !== 'coming' ? `<p class="pick-veto">${vetoBtn('veto', 'Veto', p.movie.imdbId, p.movie.title)}${vetoNote}</p>` : ''}
+            ${canVeto && !myVeto && !tie && !rows.some((r) => r.movie.imdbId === p.movie.imdbId) ? `<p class="pick-veto">${vetoBtn('veto', 'Veto', p.movie.imdbId, p.movie.title)}${vetoNote}</p>` : ''}
           </div>
         </div>` : `<p class="hint">${esc(why)}</p>`;
     body = `
@@ -579,11 +641,13 @@ function renderNext(upcoming, shelf) {
         </div>
         <div class="rsvp-row">${rsvp(n)}
           <p class="dd-line">${coming.length ? `${coming.length} coming: ${faces(coming, S.me?.nameKey, 8, { named: false })} ${esc(nameList(coming, 8))}` : 'Nobody has said they’re in yet.'}</p></div>
-        ${canVeto ? '' : `<p class="hint">${S.me ? 'Count yourself in' : 'Put your name down and count yourself in'} to veto a movie and call a snack.</p>`}
+        ${canVeto ? '' : `<p class="hint">${S.me ? 'Count yourself in' : 'Put your name down and count yourself in'} to vote, veto a movie and call a snack.</p>`}
         ${pickNow}
         <div>
-          ${leads.length ? `<h4 class="label">What the people coming want${vetoNote}</h4>
-          <ol class="leaders">${leads.map((x) => `<li>${esc(x.m.title)} ${thumbs(x.n)}${canVeto && !myVeto ? ` ${vetoBtn('veto', 'Veto', x.m.imdbId, x.m.title)}` : ''}</li>`).join('')}</ol>` : ''}
+          ${rows.length ? `<h4 class="label">Tonight’s ballot${vetoNote}</h4>
+          <p class="hint">Thumbs from the people coming made the short list. One vote and one write-in each: the most votes wins, and a tie goes to the reel.</p>
+          <ol class="ballot">${rows.map((r) => ballotRow(n, r, { canVote, canVeto: canVeto && !myVeto, vetoBtn })).join('')}</ol>
+          ${canVote ? writeInBox(n, rows) : ''}` : ''}
           ${vetoes.length ? `<ul class="vetoes">${vetoes.map((x) => `<li><s>${esc(x.title)}</s> <span class="hint">vetoed by ${esc(x.names.join(', '))}</span>${canVeto && myVeto === x.id ? ` ${vetoBtn('unveto', 'Undo veto', x.id, x.title)}` : ''}</li>`).join('')}</ul>` : ''}
         </div>
         ${hostTools(n, 'next')}
@@ -629,6 +693,7 @@ function renderNext(upcoming, shelf) {
       </div>`}
       <p class="dd-line" style="margin-top:10px">${coming.length} coming: ${faces(coming, S.me?.nameKey, 8, { named: false })} ${esc(nameList(coming, 8))}</p>
       ${n.theme ? `<p class="dd-line">Theme: <span class="theme-chip">${esc(n.theme)}</span></p>` : ''}
+      ${!hide && L.howDecided(n) ? `<p class="dd-line decided">${esc(L.howDecided(n).text)}</p>` : ''}
       ${hostTools(n, 'next')}
       ${showing(n) ? reviewBox(n, sub.reviews) : ''}`;
   }
@@ -730,6 +795,9 @@ function play(n, key, show) {
     const when = L.dayFromKey(n.day).toLocaleDateString(undefined, { weekday: 'long' });
     if (rsvp && S.me) once(`free:${n.day}`, async () => { await A.setFree(n.day, S.me, true); toast(`You’re in for ${when}.`); });
     render();
+    // The overlay fades out for a moment after this; anything that was waiting
+    // behind it (another night's reveal, the news cards) gets its turn then.
+    setTimeout(render, 450);
     if (rsvp && !S.me) {
       // No name yet: the name form first, then Count me in goes through and
       // lands on the ticket.
@@ -768,10 +836,12 @@ function peopleLine(n) {
   return coming.length ? `${coming.length} coming: ${nameList(coming)}` : '';
 }
 const facesFor = (n) => faces(comingTo(n.day), S.me?.nameKey, 6, { named: false });
-// Why it won, by name: "Hal, Jo and you thumbed it up" (the people coming who
-// did), "everyone coming thumbed it up", or with nobody coming behind it, "the
-// group's favorite".
+// Why it won, by name: "won the vote, 3–1", "Hal, Jo and you thumbed it up" (the
+// people coming who did), "everyone coming thumbed it up", or with nobody coming
+// behind it, "the group's favorite".
 function whyLine(n) {
+  const decided = L.howDecided(n);
+  if (decided?.kind === 'vote') return decided.short;
   const coming = comingTo(n.day);
   const fans = coming.filter((c) => S.votes.some((v) => v.movie === n.lockedMovieId && v.nameKey === c.nameKey));
   const pool = n.theme ? ` (a ${n.theme} night)` : '';
@@ -1392,6 +1462,13 @@ async function copyFeed() {
   toast('Link copied. Paste it in Google Calendar under Other calendars → From URL.');
 }
 
+// "Add your pick" filters the shelf as you type.
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'writeInQ') return;
+  S.writeInQ = e.target.value;
+  render();
+});
+
 document.addEventListener('click', (e) => {
   const tab = e.target.closest('#browseTabs [data-tab]');
   if (tab) { openTab(tab.dataset.tab); return; }
@@ -1488,12 +1565,9 @@ document.addEventListener('click', (e) => {
     case 'rate-night': S.rateDay = day; render(); break;
     case 'lock-now': {
       if (!armed(el, 'Tap again to lock')) return;
-      const pickNow = () => {
-        const n = S.nights.find((x) => x.day === day);
-        return L.pickMovie({ movies: S.movies, votes: S.votes, watched: L.excludedFor(S.nights, day), attendees: comingTo(day).map((f) => f.nameKey), vetoed: L.vetoedFor(n), theme: n.theme || '' });
-      };
+      const pickNow = () => pickFor(S.nights.find((x) => x.day === day), L.excludedFor(S.nights, day));
       if (!pickNow()) { toast('The shelf is empty. Add a movie first.', true); return; }
-      // A theme or veto tapped just before goes to the server first: the lock
+      // A theme, veto or vote tapped just before goes to the server first: the lock
       // is a transaction and would overtake it, and the change would bounce off
       // a locked night. Then pick from what the server has.
       // Not the title: the host gets their reveal too.
@@ -1502,8 +1576,8 @@ document.addEventListener('click', (e) => {
         const pick = pickNow();
         if (!pick) return;
         const n = S.nights.find((x) => x.day === day);
-        if (!(await A.lockNight(day, pick, { vetoes: n.vetoes || {}, theme: n.theme || '' }))) {
-          toast('The night changed just now (a veto or the theme). Lock again to pick from what’s there.', true);
+        if (!(await A.lockNight(day, pick, lockExpect(n)))) {
+          toast('The night changed just now (a vote, a veto or the theme). Lock again to pick from what’s there.', true);
           return false;
         }
         toast(pick.tie.length > 1 ? 'Locked. The reel decides, next.' : 'Locked. Your reveal is next.');
@@ -1517,6 +1591,45 @@ document.addEventListener('click', (e) => {
       once(`veto:${day}`, async () => {
         if (!(await A.setVeto(day, me, on ? id : null))) { toast('That night has already locked.', true); return; }
         toast(on ? `Vetoed ${title}. It can’t be picked this night.` : 'Veto taken back.');
+      });
+      break;
+    }
+    // One vote each: another row moves it, your own row again takes it back.
+    case 'ballot-vote': {
+      const title = S.movies.find((x) => x.imdbId === id)?.title || 'that movie';
+      const me = requireMe(el, `Your vote for ${title} counts.`); if (!me) return;
+      const had = S.nights.find((x) => x.day === day)?.ballotVotes?.[me.nameKey];
+      once(`ballot:${day}`, async () => {
+        if (!(await A.setBallotVote(day, me, had === id ? null : id))) { toast('That night has already locked.', true); return; }
+        toast(had === id ? 'Vote taken back.' : had ? `Moved your vote to ${title}.` : `Voted for ${title}.`);
+      });
+      break;
+    }
+    case 'writein-open':
+      S.writeInDay = day; render();
+      setTimeout(() => $('#writeInQ')?.focus(), 0);
+      break;
+    case 'writein-close':
+      S.writeInDay = null; S.writeInQ = ''; render();
+      setTimeout(() => document.querySelector('#next [data-action="writein-open"]')?.focus(), 0);
+      break;
+    case 'writein': {
+      const me = requireMe(el); if (!me) return;
+      const title = S.movies.find((x) => x.imdbId === id)?.title || 'that movie';
+      const had = S.nights.find((x) => x.day === day)?.writeIns?.[me.nameKey];
+      once(`writein:${day}`, async () => {
+        if (!(await A.setWriteIn(day, me, id))) { toast('That night has already locked.', true); return; }
+        S.writeInDay = null; S.writeInQ = ''; render();
+        setTimeout(() => document.querySelector('#next [data-action="writein-open"]')?.focus(), 0);
+        toast(had ? `Swapped your pick for ${title}.` : `Put ${title} on the ballot.`);
+      });
+      break;
+    }
+    case 'writein-undo': {
+      const me = requireMe(el); if (!me) return;
+      once(`writein:${day}`, async () => {
+        if (!(await A.setWriteIn(day, me, null))) { toast('That night has already locked.', true); return; }
+        toast('Took your pick off the ballot.');
       });
       break;
     }

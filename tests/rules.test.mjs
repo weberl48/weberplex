@@ -514,6 +514,283 @@ test('cancelling and re-hosting starts a night clean: no old vetoes or theme', a
   assert.equal(n.host, 'Sam');
 });
 
+// ---- the ballot: votes and write-ins ------------------------------------------------
+// Jo hosts a night four days out; Sam and Al are free that evening, Bo is not.
+async function ballotNight() {
+  const jo = await A.join('Jo'); const sam = await A.join('Sam'); const al = await A.join('Al'); const bo = await A.join('Bo');
+  for (const i of [1, 2, 3]) await A.addMovie(jo, movie(i));
+  const d = day(4);
+  await A.hostNight(jo, d, new Date(Date.now() + 4 * 86400000));
+  await A.setFree(d, sam, true);
+  await A.setFree(d, al, true);
+  const id = (n) => movie(n).imdbId;
+  const read = async () => (await getDoc(doc(db, 'nights', d))).data();
+  return { jo, sam, al, bo, d, id, read, night: () => doc(db, 'nights', d) };
+}
+const put = (field, stamp, k, id) => ({ [`${field}.${k}`]: id, [`${stamp}.${k}`]: serverTimestamp() });
+const take = (field, stamp, k) => ({ [`${field}.${k}`]: deleteField(), [`${stamp}.${k}`]: deleteField() });
+
+test('a night starts with no votes or write-ins, and a forged one cannot carry any', async () => {
+  const jo = await A.join('Jo');
+  const d = day(5);
+  await A.hostNight(jo, d, new Date(Date.now() + 5 * 86400000));
+  const n = (await getDoc(doc(db, 'nights', d))).data();
+  assert.deepEqual([n.ballotVotes, n.writeIns], [{}, {}]);
+  assert.equal('lockedVotes' in n, false);
+  const forgedDay = day(7);
+  const start = new Date(Date.now() + 7 * 86400000);
+  const forged = (extra) => setDoc(doc(db, 'nights', forgedDay), { ...nightDoc(forgedDay, 'Jo', { startsAt: start }), createdAt: serverTimestamp(), theme: '', vetoes: {}, ...extra });
+  await assertFails(forged({ ballotVotes: { jo: 'tt0000001' } }));
+  await assertFails(forged({ writeIns: { jo: 'tt0000001' } }));
+  await assertFails(forged({ ballotVoteAt: { jo: serverTimestamp() } }));
+  await assertFails(forged({ writeInAt: { jo: serverTimestamp() } }));
+  await assertFails(forged({ lockedVotes: { tt0000001: 1 } }));
+  await assertSucceeds(forged({ ballotVotes: {}, ballotVoteAt: {}, writeIns: {}, writeInAt: {} }));
+});
+
+test('people coming vote once, move their vote in one write, and take it back', async () => {
+  const { jo, sam, al, d, id, read } = await ballotNight();
+  assert.equal(await A.setBallotVote(d, sam, id(1)), true);
+  assert.deepEqual((await read()).ballotVotes, { sam: id(1) });
+  assert.ok((await read()).ballotVoteAt.sam.toMillis() > Date.now() - 60000);
+  // The host votes too; everyone's vote is their own key.
+  assert.equal(await A.setBallotVote(d, jo, id(2)), true);
+  assert.deepEqual((await read()).ballotVotes, { sam: id(1), jo: id(2) });
+  // Moving your vote is a single write (the same key, another movie), with a fresh stamp.
+  const first = (await read()).ballotVoteAt.sam.toMillis();
+  await new Promise((r) => setTimeout(r, 15));
+  assert.equal(await A.setBallotVote(d, sam, id(3)), true);
+  assert.deepEqual((await read()).ballotVotes, { sam: id(3), jo: id(2) });
+  assert.ok((await read()).ballotVoteAt.sam.toMillis() > first, 'the stamp moved with the vote');
+  // A vote onto the movie someone else already holds is a move too.
+  assert.equal(await A.setBallotVote(d, sam, id(2)), true);
+  assert.deepEqual((await read()).ballotVotes, { sam: id(2), jo: id(2) });
+  // Taking it back clears the stamp with it, and nobody else's.
+  assert.equal(await A.setBallotVote(d, sam, null), true);
+  assert.deepEqual((await read()).ballotVotes, { jo: id(2) });
+  assert.deepEqual(Object.keys((await read()).ballotVoteAt), ['jo']);
+  // Taking back a vote you never cast, or casting the one you already hold, changes nothing.
+  assert.equal(await A.setBallotVote(d, al, null), true);
+  assert.equal(await A.setBallotVote(d, jo, id(2)), true);
+  assert.deepEqual((await read()).ballotVotes, { jo: id(2) });
+});
+
+test('a vote needs someone coming, a movie on the shelf, one key per write and its stamp at the server time', async () => {
+  const { sam, bo, al, d, id, read, night } = await ballotNight();
+  // Bo is not free that evening and not hosting.
+  await assertFails(A.setBallotVote(d, bo, id(1)));
+  await assertFails(updateDoc(night(), put('ballotVotes', 'ballotVoteAt', 'bo', id(1))));
+  await A.setFree(d, bo, true);
+  await A.setFree(d, bo, false); // someone who was free and no longer is
+  await assertFails(A.setBallotVote(d, bo, id(1)));
+  // A movie that isn't on the shelf, and odd shapes.
+  await assertFails(A.setBallotVote(d, sam, 'tt9999999'));
+  await assertFails(updateDoc(night(), put('ballotVotes', 'ballotVoteAt', 'sam', 42)));
+  await assertFails(updateDoc(night(), { ballotVotes: 'everyone', ballotVoteAt: {} }));
+  await assertFails(updateDoc(night(), put('ballotVotes', 'ballotVoteAt', 'Bad Key', id(1))));
+  // The stamp: required, the server's time, for that key only.
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': id(1) }));
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': id(1), 'ballotVoteAt.sam': new Date(Date.now() - 60000) }));
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': id(1), 'ballotVoteAt.al': serverTimestamp() }));
+  await assertFails(updateDoc(night(), { 'ballotVoteAt.sam': serverTimestamp() })); // a stamp with no vote
+  // One key per write, in a set, a clear and a move.
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': id(1), 'ballotVotes.al': id(1), 'ballotVoteAt.sam': serverTimestamp(), 'ballotVoteAt.al': serverTimestamp() }));
+  await assertFails(updateDoc(night(), { ballotVotes: { sam: id(1), al: id(2) }, ballotVoteAt: { sam: serverTimestamp(), al: serverTimestamp() } }));
+  await assertSucceeds(updateDoc(night(), put('ballotVotes', 'ballotVoteAt', 'sam', id(1))));
+  await assertSucceeds(updateDoc(night(), put('ballotVotes', 'ballotVoteAt', 'al', id(2))));
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': id(3), 'ballotVotes.al': id(3), 'ballotVoteAt.sam': serverTimestamp(), 'ballotVoteAt.al': serverTimestamp() }));
+  await assertFails(updateDoc(night(), { ballotVotes: {}, ballotVoteAt: {} })); // two cleared at once
+  await assertFails(updateDoc(night(), { ...take('ballotVotes', 'ballotVoteAt', 'sam'), ...put('ballotVotes', 'ballotVoteAt', 'bo', id(1)) })); // one swapped for another person's
+  // A move needs a movie on the shelf, the server time and the same key's stamp.
+  await assertFails(updateDoc(night(), put('ballotVotes', 'ballotVoteAt', 'sam', 'tt9999999')));
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': id(3) })); // no fresh stamp
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': id(3), 'ballotVoteAt.sam': new Date(Date.now() - 60000) }));
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': id(3), 'ballotVoteAt.al': serverTimestamp() })); // someone else's stamp
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': 42, 'ballotVoteAt.sam': serverTimestamp() }));
+  await assertSucceeds(updateDoc(night(), put('ballotVotes', 'ballotVoteAt', 'sam', id(3))));
+  // A clear takes its own stamp and nobody else's.
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': deleteField() })); // stamp left behind
+  await assertFails(updateDoc(night(), { 'ballotVotes.sam': deleteField(), 'ballotVoteAt.al': deleteField() }));
+  await assertSucceeds(updateDoc(night(), take('ballotVotes', 'ballotVoteAt', 'sam')));
+  assert.deepEqual((await read()).ballotVotes, { al: id(2) });
+  // Votes and write-ins are separate: neither rides along with the other, a theme or a veto.
+  await assertFails(updateDoc(night(), { ...put('ballotVotes', 'ballotVoteAt', 'sam', id(1)), ...put('writeIns', 'writeInAt', 'sam', id(1)) }));
+  await assertFails(updateDoc(night(), { ...put('ballotVotes', 'ballotVoteAt', 'sam', id(1)), theme: 'Mixed in' }));
+  await assertFails(updateDoc(night(), { ...put('ballotVotes', 'ballotVoteAt', 'sam', id(1)), ...put('vetoes', 'vetoAt', 'sam', id(1)) }));
+  // Vetoes are still set or clear only: no moving one in place.
+  await assertSucceeds(updateDoc(night(), put('vetoes', 'vetoAt', 'sam', id(1))));
+  await assertFails(updateDoc(night(), put('vetoes', 'vetoAt', 'sam', id(2))));
+  await assertFails(A.setVeto(d, sam, id(2)));
+  // A locked night takes no more votes.
+  await A.lockNight(d, { movie: movie(1), tie: [] });
+  assert.equal(await A.setBallotVote(d, al, id(3)), false);
+  await assertFails(updateDoc(night(), put('ballotVotes', 'ballotVoteAt', 'al', id(3))));
+});
+
+test('people voting at the same moment all keep their vote', async () => {
+  const { jo, sam, al, d, id, read } = await ballotNight();
+  assert.deepEqual(await Promise.all([A.setBallotVote(d, jo, id(1)), A.setBallotVote(d, sam, id(2)), A.setBallotVote(d, al, id(3))]), [true, true, true]);
+  assert.deepEqual((await read()).ballotVotes, { jo: id(1), sam: id(2), al: id(3) });
+  assert.deepEqual(await Promise.all([A.setBallotVote(d, jo, id(3)), A.setBallotVote(d, sam, id(3)), A.setBallotVote(d, al, id(1))]), [true, true, true]);
+  assert.deepEqual((await read()).ballotVotes, { jo: id(3), sam: id(3), al: id(1) });
+  assert.deepEqual(await Promise.all([A.setBallotVote(d, sam, null), A.setBallotVote(d, al, null)]), [true, true]);
+  assert.deepEqual((await read()).ballotVotes, { jo: id(3) });
+});
+
+test('a write-in: one movie each, swapped in one write, taken back, by people coming', async () => {
+  const { jo, sam, bo, d, id, read, night } = await ballotNight();
+  assert.equal(await A.setWriteIn(d, sam, id(3)), true);
+  assert.deepEqual((await read()).writeIns, { sam: id(3) });
+  assert.ok((await read()).writeInAt.sam.toMillis() > Date.now() - 60000);
+  // Swapping it is one write, with a fresh stamp; so is the host's own.
+  const first = (await read()).writeInAt.sam.toMillis();
+  await new Promise((r) => setTimeout(r, 15));
+  assert.equal(await A.setWriteIn(d, sam, id(2)), true);
+  assert.equal(await A.setWriteIn(d, jo, id(1)), true);
+  assert.deepEqual((await read()).writeIns, { sam: id(2), jo: id(1) });
+  assert.ok((await read()).writeInAt.sam.toMillis() > first);
+  assert.equal(await A.setWriteIn(d, sam, null), true);
+  assert.deepEqual((await read()).writeIns, { jo: id(1) });
+  assert.deepEqual(Object.keys((await read()).writeInAt), ['jo']);
+  // Not for people who are not coming; not a movie that isn't on the shelf; one key per write.
+  await assertFails(A.setWriteIn(d, bo, id(1)));
+  await assertFails(A.setWriteIn(d, sam, 'tt9999999'));
+  await assertFails(updateDoc(night(), { ...put('writeIns', 'writeInAt', 'sam', id(1)), ...put('writeIns', 'writeInAt', 'jo', id(2)) }));
+  await assertFails(updateDoc(night(), { 'writeIns.sam': id(1) })); // no stamp
+  // Votes and write-ins are each their own: a write-in does not vote.
+  assert.equal((await read()).ballotVotes ? Object.keys((await read()).ballotVotes).length : 0, 0);
+  // Concurrent write-ins both stay.
+  assert.deepEqual(await Promise.all([A.setWriteIn(d, sam, id(3)), A.setWriteIn(d, jo, id(3))]), [true, true]);
+  assert.deepEqual((await read()).writeIns, { sam: id(3), jo: id(3) });
+});
+
+test('dropping out of a night takes your veto, vote and write-in with you, in one batch', async () => {
+  const { jo, sam, al, d, id, read } = await ballotNight();
+  await A.setVeto(d, sam, id(1));
+  await A.setBallotVote(d, sam, id(2));
+  await A.setWriteIn(d, sam, id(3));
+  await A.setVeto(d, al, id(2));
+  await A.setBallotVote(d, al, id(2));
+  await A.setWriteIn(d, al, id(1));
+  await assertSucceeds(A.setFree(d, sam, false));
+  assert.equal((await getDoc(doc(db, 'free', `${d}__sam`))).exists(), false, 'the free mark is gone');
+  const n = await read();
+  assert.deepEqual([n.vetoes, n.ballotVotes, n.writeIns], [{ al: id(2) }, { al: id(2) }, { al: id(1) }], 'and all three of Sam’s entries');
+  assert.deepEqual([n.vetoAt, n.ballotVoteAt, n.writeInAt].map((m) => Object.keys(m)), [['al'], ['al'], ['al']], 'their stamps too');
+  // One write can only take things back, one entry from each map: no sets, no two people at once.
+  await A.setFree(d, sam, true);
+  await A.setVeto(d, sam, id(1));
+  const night = doc(db, 'nights', d);
+  await assertFails(updateDoc(night, { ...take('vetoes', 'vetoAt', 'sam'), ...put('ballotVotes', 'ballotVoteAt', 'sam', id(1)) }));
+  await assertFails(updateDoc(night, { ...take('vetoes', 'vetoAt', 'sam'), ...take('vetoes', 'vetoAt', 'al') }));
+  await assertFails(updateDoc(night, { ...take('vetoes', 'vetoAt', 'sam'), ...take('ballotVotes', 'ballotVoteAt', 'al'), 'writeIns.al': id(3) }));
+  await assertSucceeds(updateDoc(night, { ...take('vetoes', 'vetoAt', 'sam'), ...take('ballotVotes', 'ballotVoteAt', 'al'), ...take('writeIns', 'writeInAt', 'al') }));
+  await A.setVeto(d, al, id(2));
+  await A.setBallotVote(d, al, id(2));
+  await A.setWriteIn(d, al, id(1));
+  // Someone who holds only a vote drops just that; someone with nothing, nothing.
+  await A.setBallotVote(d, sam, id(3));
+  await assertSucceeds(A.setFree(d, sam, false));
+  await assertSucceeds(A.setFree(d, sam, false));
+  assert.deepEqual((await read()).ballotVotes, { al: id(2) });
+  // The host dropping out takes theirs too.
+  await A.setBallotVote(d, jo, id(1));
+  await A.setWriteIn(d, jo, id(2));
+  await assertSucceeds(A.setFree(d, jo, false));
+  assert.deepEqual([(await read()).ballotVotes, (await read()).writeIns], [{ al: id(2) }, { al: id(1) }]);
+  // On a locked night they no longer matter: dropping out just drops the mark.
+  await A.lockNight(d, { movie: movie(1), tie: [] });
+  await assertSucceeds(A.setFree(d, al, false));
+  assert.deepEqual((await read()).ballotVotes, { al: id(2) });
+});
+
+test('the lock records the ballot, and unlocking clears it; votes and write-ins survive an unlock', async () => {
+  const { sam, al, d, id, read, night } = await ballotNight();
+  await A.setBallotVote(d, sam, id(2));
+  await A.setBallotVote(d, al, id(2));
+  await A.setWriteIn(d, al, id(3));
+  const pick = pickMovie({ movies: [movie(1), movie(2), movie(3)], votes: [], attendees: ['sam', 'al'], ballotVotes: { sam: id(2), al: id(2) }, writeIns: { al: id(3) }, rand: () => 0 });
+  assert.equal(pick.movie.imdbId, id(2));
+  assert.equal(await A.lockNight(d, pick, { vetoes: {}, theme: '', ballotVotes: { sam: id(2), al: id(2) }, writeIns: { al: id(3) } }), true);
+  assert.deepEqual((await read()).lockedVotes, pick.lockedVotes);
+  assert.equal((await read()).lockedVotes[id(2)], 2);
+  // A pick made from votes that have changed since is refused, not locked.
+  await A.unlockNight(d);
+  assert.equal((await read()).lockedVotes, null);
+  assert.deepEqual((await read()).ballotVotes, { sam: id(2), al: id(2) }, 'votes survive an unlock');
+  assert.deepEqual((await read()).writeIns, { al: id(3) });
+  await A.setBallotVote(d, al, id(1));
+  assert.equal(await A.lockNight(d, pick, { vetoes: {}, theme: '', ballotVotes: { sam: id(2), al: id(2) }, writeIns: { al: id(3) } }), false, 'stale votes');
+  await A.setWriteIn(d, al, id(1));
+  assert.equal(await A.lockNight(d, pick, { vetoes: {}, theme: '', ballotVotes: { sam: id(2), al: id(1) }, writeIns: { al: id(3) } }), false, 'stale write-ins');
+  assert.equal(await A.lockNight(d, pick), true, 'no expectation, no check');
+  // lockedVotes: a map of at most 40 entries; nothing else rides along.
+  await A.unlockNight(d);
+  const forged = (lockedVotes) => updateDoc(night(), { status: 'locked', lockedMovieId: id(2), lockedMovie: movie(2), lockedTie: [], lockedAt: serverTimestamp(), lockedVotes });
+  await assertFails(forged('lots'));
+  await assertFails(forged(Object.fromEntries(Array.from({ length: 41 }, (_, i) => [`tt${i}`, 1]))));
+  await assertSucceeds(forged(Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`tt${i}`, 1]))));
+  await assertFails(updateDoc(night(), { status: 'planned', lockedMovieId: null, lockedMovie: null, lockedTie: [], lockedAt: null, lockedVotes: { tt1: 1 } }));
+  await assertSucceeds(A.unlockNight(d));
+});
+
+test('nights from before the ballot still take votes, lock, unlock and finish', async () => {
+  const jo = await A.join('Jo');
+  await A.addMovie(jo, movie(1));
+  const d = day(3);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', d), nightDoc(d, 'Jo', { startsAt: new Date(Date.now() + 3 * 86400000), theme: '', vetoes: {} })));
+  const n = (await getDoc(doc(db, 'nights', d))).data();
+  assert.equal('ballotVotes' in n || 'writeIns' in n, false, 'an old doc has neither field');
+  // The first vote or write-in on an old doc adds the field.
+  assert.equal(await A.setBallotVote(d, jo, movie(1).imdbId), true);
+  assert.deepEqual((await getDoc(doc(db, 'nights', d))).data().ballotVotes, { jo: movie(1).imdbId });
+  const old2 = day(4);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', old2), nightDoc(old2, 'Jo', { startsAt: new Date(Date.now() + 4 * 86400000) })));
+  assert.equal(await A.setWriteIn(old2, jo, movie(1).imdbId), true);
+  // Dropping out of an old night is the plain delete.
+  const old3 = day(5);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', old3), nightDoc(old3, 'Jo', { startsAt: new Date(Date.now() + 5 * 86400000) })));
+  await A.setFree(old3, jo, true);
+  await assertSucceeds(A.setFree(old3, jo, false));
+  // Lock (with the new lockedVotes), unlock, lock bare (as an old client would), finish.
+  const old4 = day(6);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', old4), nightDoc(old4, 'Jo', { startsAt: new Date(Date.now() + 6 * 86400000) })));
+  const pick = pickMovie({ movies: [movie(1)], votes: [], attendees: [] });
+  assert.equal(await A.lockNight(old4, pick), true);
+  await assertSucceeds(A.unlockNight(old4));
+  assert.equal((await getDoc(doc(db, 'nights', old4))).data().lockedVotes, null);
+  assert.equal(await A.lockNight(old4, { movie: movie(1), tie: [] }), true);
+  const past = day(-2);
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', past), nightDoc(past, 'Jo', {
+    startsAt: new Date(Date.now() - 3 * H), status: 'locked', lockedMovieId: movie(1).imdbId, lockedMovie: movie(1), lockedAt: new Date(Date.now() - 30 * H),
+  })));
+  assert.equal(await A.finishNight(past), true);
+  // Cancelling and re-hosting starts a night clean: no old votes or write-ins.
+  const sam = await A.join('Sam');
+  const rehost = day(8);
+  const start = new Date(Date.now() + 8 * 86400000);
+  await A.hostNight(jo, rehost, start);
+  await A.setBallotVote(rehost, jo, movie(1).imdbId);
+  await A.setWriteIn(rehost, jo, movie(1).imdbId);
+  await A.cancelNight(rehost);
+  await assertSucceeds(A.hostNight(sam, rehost, start));
+  const clean = (await getDoc(doc(db, 'nights', rehost))).data();
+  assert.deepEqual([clean.ballotVotes, clean.writeIns, 'ballotVoteAt' in clean, 'lockedVotes' in clean], [{}, {}, false, false]);
+});
+
+test('at most 30 votes or write-ins on a night', async () => {
+  const jo = await A.join('Jo');
+  await A.addMovie(jo, movie(1));
+  const d = day(4);
+  const id = movie(1).imdbId;
+  const thirty = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`guest-${i}`, id]));
+  await asAdmin((admin) => setDoc(doc(admin, 'nights', d), nightDoc(d, 'Jo', { theme: '', vetoes: {}, ballotVotes: thirty, writeIns: thirty })));
+  await assertFails(A.setBallotVote(d, jo, id));
+  await assertFails(A.setWriteIn(d, jo, id));
+  await asAdmin((admin) => updateDoc(doc(admin, 'nights', d), { ballotVotes: Object.fromEntries(Object.entries(thirty).slice(1)) }));
+  await assertSucceeds(A.setBallotVote(d, jo, id));
+});
+
 test('a reveal is remembered on your people doc next to the tie reels', async () => {
   const sam = await A.join('Sam');
   await assertSucceeds(A.savePrefs(sam, { reels: ['2026-10-31.tt0000001', 'r:2026-11-07.tt0000002'] }));

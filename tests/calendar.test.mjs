@@ -114,6 +114,28 @@ test('the feed has exactly the planned, locked and recent done nights, with who 
   for (const l of ics.split('\r\n')) assert.ok(new TextEncoder().encode(l).length <= 75, l);
 });
 
+test('a planned night lists its ballot with vote counts; a locked one does not', async () => {
+  const sam = await A.join('Sam'); const jo = await A.join('Jo'); const al = await A.join('Al');
+  for (const n of [1, 2, 3]) await A.addMovie(jo, movie(n));
+  const now = new Date();
+  const planned = new Date(now.getTime() + 5 * D);
+  const d = dayOf(planned);
+  await A.hostNight(jo, d, planned);
+  await A.setFree(d, sam, true);
+  const plan = async () => events(await buildCalendar({ ...where, siteUrl: SITE, now }))[0];
+  // Everyone coming has the same thumbs here, so the ballot reads in title order, with no votes yet.
+  assert.equal((await plan()).DESCRIPTION, `Coming: Jo\\, Sam\\nBallot:\\nMovie 1: 0 votes\\nMovie 2: 0 votes\\nMovie 3: 0 votes\\n${SITE}`);
+  await A.setBallotVote(d, sam, movie(2).imdbId);
+  await A.setBallotVote(d, jo, movie(2).imdbId);
+  await assert.rejects(A.setBallotVote(d, al, movie(1).imdbId)); // Al isn't coming: refused
+  assert.equal((await plan()).DESCRIPTION, `Coming: Jo\\, Sam\\nBallot:\\nMovie 1: 0 votes\\nMovie 2: 2 votes\\nMovie 3: 0 votes\\n${SITE}`);
+  await A.setBallotVote(d, jo, movie(1).imdbId);
+  assert.match((await plan()).DESCRIPTION, /Movie 1: 1 vote\\nMovie 2: 1 vote\\n/);
+  // A locked night says the movie instead: no ballot.
+  await A.lockNight(d, { movie: movie(2), tie: [] });
+  assert.equal((await plan()).DESCRIPTION, `Coming: Jo\\, Sam\\n2001 · 101 min\\n${SITE}`);
+});
+
 test('an empty database still gives a valid, empty calendar', async () => {
   const ics = await buildCalendar({ ...where, siteUrl: SITE });
   assert.deepEqual(events(ics), []);

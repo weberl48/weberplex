@@ -36,11 +36,15 @@ const STEPS = [
       <span class="mini">Trailer</span><span class="tag-chip" data-tag="Foreign">Foreign</span></div>`,
   },
   {
-    title: 'The movie picks itself',
-    body: 'Before each night, the movie locks: the one the people coming want most (everyone coming gets a veto; a tie spins the reel). Then the house lights go down on everyone’s phone.',
-    demo: `<div class="ticket tour-ticket"><div class="ticket-main"><p class="admit">ADMIT ONE</p><h3>The movie is…</h3>
-      <dl><dt>When</dt><dd>Fri · 8:00&nbsp;PM</dd><dt>Where</dt><dd>Ava's</dd></dl></div>
-      <div class="ticket-stub"><span>No. 004213</span></div></div>`,
+    title: 'Vote on the ballot',
+    body: 'Thumbs from the people coming draft a night’s ballot, the top five movies plus one write-in from each person; everyone coming gets one vote and one veto. A day before, the most votes wins (a tie spins the reel), and the house lights go down on everyone’s phone.',
+    demo: `<ol class="ballot tour-ballot">
+      <li class="ballot-row mine"><div class="ballot-body"><p class="ballot-title"><b>Sample A</b> <span class="v">3${THUMB}</span></p>
+        <p class="ballot-votes">2 votes: Ava and you</p><p class="ballot-actions"><span class="mini on">Your vote ${CHECK}</span></p></div></li>
+      <li class="ballot-row"><div class="ballot-body"><p class="ballot-title"><b>Sample B</b> <span class="v">2${THUMB}</span></p>
+        <p class="ballot-tags"><span class="ballot-tag">Ben’s pick</span></p>
+        <p class="ballot-votes">1 vote: Ben</p><p class="ballot-actions"><span class="mini">Vote</span></p></div></li>
+    </ol>`,
   },
 ];
 
