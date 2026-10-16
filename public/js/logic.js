@@ -389,7 +389,8 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const nameList = (names) => {
   const u = [...new Set(names)];
   if (u.length <= 2) return u.join(' and ');
-  return `${u.slice(0, 2).join(', ')} and ${u.length - 2} more`;
+  if (u.length === 3) return `${u[0]}, ${u[1]} and ${u[2]}`;
+  return `${u.slice(0, 3).join(', ')} and ${u.length - 3} more`;
 };
 // "Friday" for a night's start (local time, like showtimeLong).
 const dayName = (when) => toDate(when).toLocaleDateString(undefined, { weekday: 'long' });
@@ -502,8 +503,12 @@ export function sinceLastLook({ nights = [], movies: allMovies = [], votes = [],
   const newVotes = votes.filter((v) => fresh(v.at) && theirs(v.nameKey) && live.has(v.movie));
   for (const v of newVotes) out.votes.set(v.movie, (out.votes.get(v.movie) || 0) + 1);
   if (newVotes.length) {
-    const titles = [...out.votes.keys()].slice(0, 3).map(titleOf);
-    push({ kind: 'votes', text: `${plural(newVotes.length, 'new thumbs-up', 'new thumbs-up')} on ${plural(out.votes.size, 'movie')}`, detail: `${titles.join(', ')}${out.votes.size > 3 ? '…' : ''}`, target: '#shelfSec' });
+    // Who thumbed up what, in names: "Gma thumbed up Alien", "Gma and Hal
+    // thumbed up Alien and Jaws", "… Alien, Jaws, Up and 2 more".
+    const titles = [...out.votes.keys()].map(titleOf);
+    const shown = titles.length > 4 ? [...titles.slice(0, 3), `${titles.length - 3} more`] : titles;
+    const what = shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}` : shown[0];
+    push({ kind: 'votes', text: `${nameList(newVotes.map((v) => v.name || people.find((x) => x.id === v.nameKey)?.name || v.nameKey))} thumbed up ${what}`, detail: 'Thumbs-up any you’d watch too.', target: '#shelfSec' });
   }
   const marks = free.filter((f) => fresh(f.at) && theirs(f.nameKey));
   for (const f of marks) out.days.add(f.day);

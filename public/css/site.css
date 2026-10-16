@@ -361,7 +361,27 @@ h3.label, h4.label { margin: 0 0 6px; }
 .card h3 { margin: 0; font-size: var(--step-0); line-height: 1.25; overflow-wrap: anywhere; }
 .meta { margin: 0; color: var(--dim); font-size: 12px; }
 .by { margin: 0; color: var(--faint); font-size: 12px; }
-.card-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 2px; }
+/* two fixed rows: the thumb and Seen it, then the trailer, Stremio and the
+   plot as one segmented strip, so a card at 360 doesn't grow a row per pill */
+.card-actions { display: grid; gap: 6px; padding-top: 2px; }
+.card-main { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 6px; }
+.card-main > * { min-width: 0; justify-content: center; padding: 0 8px; white-space: nowrap; }
+.card-more {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  border: 1px solid var(--rule-strong); border-radius: 999px; overflow: hidden;
+}
+.card-more > * {
+  min-width: 0; min-height: 36px; display: grid; place-items: center; padding: 0 2px;
+  background: transparent; border: 0; color: var(--dim); font: 600 11px/1 var(--f-body); letter-spacing: 0.02em;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.card-more > * + * { border-left: 1px solid var(--rule); }
+.card-more > :hover { color: var(--screen); background: var(--velvet-3); }
+.card-more > [aria-expanded="true"] { color: var(--board-ink); background: var(--screen); }
+.voters-thumb { display: inline-grid; color: var(--faint); }
+.voters-thumb svg { width: 13px; height: 13px; }
+/* booked for a night: the oxblood ribbon, the date */
+.ribbon.booked { background: var(--curtain); color: #fff3e6; }
 .plot { margin: 0; font-size: 12px; line-height: 1.45; color: var(--dim); overflow-wrap: anywhere; }
 .voters { display: flex; align-items: center; gap: 6px; min-height: 24px; }
 .voters .faces .face { border-color: var(--velvet-2); }
@@ -591,6 +611,9 @@ button.ticket-back { width: 84px; min-height: 0; cursor: pointer; grid-template-
 /* news headlines are sentences: the body face, with a movie's name in marquee letters */
 .tour-card.news h2 { font: 600 var(--step-1)/1.3 var(--f-body); color: var(--screen); }
 .news-name { font: 400 1.05em/1 var(--f-display); color: var(--bulb); }
+/* names on a news card: inert tags with a face, not buttons */
+.name-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 999px; background: var(--velvet-3); color: var(--screen); font-size: var(--step--1); }
+.name-tag .faces .face { margin-left: 0; }
 .tour-card > p { margin: 0; color: var(--dim); }
 .tour-foot {
   /* -18px, not 0: a sticky box stops at the card's padding edge, so 0 would

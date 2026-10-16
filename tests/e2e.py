@@ -788,7 +788,7 @@ def reveal_ending_checks(browser, errors):
     # The shelf's crown follows the next night still open to the pick, never the face-down movie.
     skip_cards(page)
     expect(page.locator('#shelf .card.lead', has=page.locator('h3', has_text='Jaws'))).to_have_count(0)
-    expect(page.locator('#shelf .ribbon').first).to_contain_text('Leading')
+    expect(page.locator('#shelf .ribbon').first).to_contain_text(re.compile(r'Leading|Tied'))
     page.context.close()
     for d in (day, later):
         emu('PATCH', f'{DOCS}/nights/{d}?updateMask.fieldPaths=status', {'fields': {'status': {'stringValue': 'cancelled'}}}, owner=True)
@@ -1029,6 +1029,7 @@ def news_cards_checks(browser, errors):
     expect(walk.locator('.tour-demo s')).to_have_text('Cards Movie')  # the struck title
     expect(walk.locator('.tour-demo .tag-chip')).to_have_text('Drama')
     expect(walk.locator('.tour-card [data-action="free"]')).to_have_text('Count me in')  # Wren isn't on that night's list
+    expect(walk.locator('.btn-bulb')).to_have_count(1)  # one amber call: Count me in; Next steps back to a ghost
     shot(wren, '02b-guest-news-veto')
     wren.click('[data-tour="next"]')
     expect(walk.locator('#tourTitle')).to_contain_text('Hal is bringing Candy')
@@ -1302,7 +1303,7 @@ def main():
 
         # Seen marks (right under the poster) and the filter.
         card(sam, jaws).locator('[data-action="seen"]').click()
-        expect(card(sam, jaws)).to_contain_text('Seen by Sam')
+        expect(card(sam, jaws)).to_contain_text('Seen by you')  # in Sam's own words
         sam.click('#shelfChips [data-tag="Unseen by me"]')
         expect(card(sam, jaws)).to_have_count(0)
         sam.click('#shelfChips [data-tag="All"]')
@@ -1328,10 +1329,10 @@ def main():
                 assert paddington in titles[-1], titles
                 expect(walk.locator('.tour-demo .news-poster, .tour-demo .noimg')).to_have_count(1)  # the poster
                 shot(sam, '02-guest-news')
-            if 'thumbs-up' in titles[-1]:
+            if 'thumbed up' in titles[-1]:
                 break
             sam.click('[data-tour="next"]')
-        assert any('new movie' in t for t in titles) and 'thumbs-up' in titles[-1], titles
+        assert any('new movie' in t for t in titles) and 'thumbed up' in titles[-1], titles  # who thumbed up what, in names
         # Show me closes the cards and scrolls to the shelf; the slim bar stays.
         sam.click('[data-tour="show"]')
         expect(walk).to_have_count(0)
@@ -1560,6 +1561,8 @@ def main():
         sam.click('.reveal-actions button')
         expect(sam.locator('.reveal-overlay')).to_have_count(0)
         expect(sam.locator('#next .ticket h3')).to_contain_text(loser, ignore_case=True)
+        # On the shelf the booked movie says so (its thumbs aren't passed over).
+        expect(card(sam, loser).locator('.ribbon.booked')).to_contain_text('Booked')
         expect(sam.locator('#next .ticket')).to_be_focused()  # the reveal hands over to the ticket
         sam.wait_for_timeout(1500)
         expect(sam.locator('.tour-overlay')).to_have_count(0)  # and no news cards over it

@@ -160,6 +160,7 @@ test('what each new kind says', () => {
   assert.equal(text('watched').target, '#watchedSec');
   assert.match(text('snack').text, /^Sam is bringing nachos on \w+$/);
   assert.match(text('review').text, /^Jo gave Alien 4 stars$/); // words, not ★ glyphs a screen reader spells out
+  assert.match(text('votes').text, /^\w[\w ,]* thumbed up \S/); // names, not "1 new thumbs-up on 1 movie"
   const cleared = sinceLastLook({ ...base, nights: [night({ theme: '', themeAt: at(2000) })] }).items[0];
   assert.match(cleared.text, /^\w+'s theme was cleared$/);
   // A veto that was taken back (its stamp goes with it) is not news.
