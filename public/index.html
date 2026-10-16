@@ -230,21 +230,23 @@ img,svg{display:block}
 /* ---------- the marquee ---------- */
 .marquee-wrap{padding:0 var(--gutter)}
 .marquee{
-  position:relative;padding:22px 16px 14px;border-radius:12px 12px 4px 4px;
+  position:relative;isolation:isolate;padding:18px 18px 20px;border-radius:12px;
   background:var(--frame);
   box-shadow:0 0 0 1px rgba(0,0,0,.45),0 22px 60px -18px var(--glow),0 0 90px -30px var(--glow);
 }
-.marquee::before,.marquee::after{ /* bulb chaser: two offset rows alternate */
-  content:"";position:absolute;left:12px;right:12px;top:7px;bottom:auto;height:8px;pointer-events:none;
-  background:radial-gradient(circle at 4px 4px,var(--bulb) 0 2.6px,rgba(255,194,90,.0) 3.4px) 0 0/16px 8px repeat-x;
-  filter:drop-shadow(0 0 3px var(--bulb));
-  animation:chase 1.1s steps(1) infinite;
+.marquee-wrap .marquee{border-radius:12px 12px 4px 4px} /* the admit stub hangs off its bottom edge */
+.marquee::before,.marquee::after{ /* bulbs: a dotted frame on all four edges; two offset sets alternate (the chase) */
+  content:"";position:absolute;inset:4px;border-radius:9px;z-index:-1;pointer-events:none;
+  --b:radial-gradient(circle,#fff3d1 0 2.2px,var(--bulb) 3px,rgba(255,194,90,0) 6px);
+  background:
+    var(--b) 0 0/18px 12px repeat-x,
+    var(--b) 0 100%/18px 12px repeat-x,
+    var(--b) 0 0/12px 18px repeat-y,
+    var(--b) 100% 0/12px 18px repeat-y;
+  animation:chase 1.2s steps(1) infinite;
 }
-.marquee::after{background-position:8px 0;animation-delay:-.55s}
-.marquee .bulbs-low{position:absolute;left:12px;right:12px;bottom:-4px;height:8px;pointer-events:none;
-  background:radial-gradient(circle at 4px 4px,var(--bulb) 0 2.6px,transparent 3.4px) 0 0/16px 8px repeat-x;
-  filter:drop-shadow(0 0 3px var(--bulb));animation:chase 1.1s steps(1) infinite reverse}
-@keyframes chase{0%{opacity:1}50%{opacity:.28}}
+.marquee::after{background-position:9px 0,9px 100%,0 9px,100% 9px;animation-delay:-.6s}
+@keyframes chase{0%{opacity:1}50%{opacity:.25}}
 .board{
   position:relative;container-type:inline-size;
   background:var(--board);border-radius:3px;padding:10px 8px 8px;display:grid;gap:7px;
@@ -654,17 +656,38 @@ img,svg{display:block}
 .review p{margin:2px 0 0;font-size:14.5px}
 .review .mono{font-size:11px;color:var(--ink-3)}
 .score{font:800 44px/1 var(--f-display);font-variation-settings:"opsz" 144,"SOFT" 100,"WONK" 1}
-.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.stat{background:var(--wall);border-radius:10px;padding:14px;box-shadow:var(--shadow-1);min-width:0}
-.stat.wide{grid-column:1/-1}
-.stat .label{color:var(--ink-3);font-size:10.5px;display:block;margin-bottom:8px}
-.stat .big{font:800 24px/1.05 var(--f-display);font-variation-settings:"opsz" 60,"SOFT" 80,"WONK" 1}
-.stat p{margin:4px 0 0;font-size:13px;color:var(--ink-2)}
-.agree{display:grid;gap:8px;margin-top:4px}
-.agree-row{display:grid;grid-template-columns:62px minmax(0,1fr) 38px;gap:8px;align-items:center;font-size:13.5px;font-weight:600}
-.agree-bar{height:14px;border-radius:3px;background:var(--room-2);overflow:hidden}
-.agree-bar i{display:block;height:100%;background:var(--c);border-radius:3px}
-.agree-row .mono{font-size:12px;text-align:right;color:var(--ink-2)}
+.stats-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 12px}
+.stats-head h3{margin:0;font:800 26px/1 var(--f-display);font-variation-settings:"opsz" 96,"SOFT" 60,"WONK" 1}
+.stats-head .label{color:var(--ink-3)}
+.stat-board{ /* the long view, spelled out on a letter board: one grooved line per number, unlit */
+  margin:0;padding:8px 14px;list-style:none;text-align:center;border-radius:4px;
+  background:var(--board);color:var(--board-ink);box-shadow:inset 0 0 0 2px rgba(60,35,15,.1),var(--shadow-1);
+  font:400 17px/36px var(--f-marquee);letter-spacing:.06em;text-transform:uppercase;
+}
+.stat-board li{overflow-wrap:anywhere}
+.stat-board li+li{border-top:1.5px solid rgba(60,35,15,.13)}
+.stat-board b{font-weight:400;color:#b3261e;font-variant-numeric:tabular-nums}
+.stat-hint{margin:10px 0 0;font-size:14px;color:var(--ink-2)}
+.stat-grid{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(13rem,100%),1fr));gap:10px}
+.stat-card{min-width:0;display:grid;gap:10px;align-content:start;padding:14px;border-radius:10px;background:var(--wall);box-shadow:var(--shadow-1)}
+.stat-card h4{margin:0;color:var(--ink-3)}
+.stat-card .hint{margin:0;font-size:13.5px;color:var(--ink-2)}
+.leaders{margin:0;padding-left:22px;display:grid;gap:7px;font-size:15px;font-weight:600}
+.leaders li{overflow-wrap:anywhere}
+.leaders li::marker{font-family:var(--f-mono);color:var(--ink-3)}
+.leaders .v{display:inline-flex;align-items:center;gap:4px;margin-left:4px;font:500 12.5px/1 var(--f-mono);color:var(--ink-2)}
+.leaders .v svg{width:13px;height:13px;color:var(--amber)}
+.taste-list{margin:0;padding:0;list-style:none;display:grid;gap:12px}
+.taste{display:grid;gap:5px;font-size:15px;overflow-wrap:anywhere}
+.taste .v{font:500 13px/1 var(--f-mono);color:var(--curtain);margin-left:4px}
+.taste .meter{height:6px;border-radius:3px;background:var(--room-2);overflow:hidden}
+.taste .meter::before{content:"";display:block;height:100%;width:var(--p);background:var(--amber)}
+.taste .hint{font-size:12.5px;color:var(--ink-3)}
+@media (min-width:640px){
+  .stat-board{columns:2;column-gap:24px}
+  .stat-board li{break-inside:avoid}
+  .stat-board li:nth-child(3){border-top:0}
+}
 .stubs{display:grid;gap:8px}
 .past-stub{--cut:64px;display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:center;background:var(--stub);color:var(--stub-ink);border-radius:5px;min-height:62px}
 .past-stub .d{border-right:2px dashed var(--stub-rule);height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;font:500 10px/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--stub-ink-2)}
@@ -816,7 +839,6 @@ img,svg{display:block}
   .dock{display:none}
   .lobby-grid{grid-template-columns:1fr 1fr}
   .lobby-grid > .wide{grid-column:1/-1}
-  .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
   .day{aspect-ratio:1/.95}
   .day .dn{font-size:20px}
   .day .hb{font-size:10px;padding:4px 0 3px}
@@ -902,7 +924,7 @@ img,svg{display:block}
 @keyframes lights-up{to{opacity:0}}
 .screen-room{position:relative;z-index:1;width:min(60rem,100%,calc((100dvh - 290px) * 16 / 9));min-width:min(100%,300px);display:grid;gap:16px;justify-items:center;animation:comes-up .5s ease-out .3s both}
 @keyframes comes-up{from{opacity:0;transform:translateY(10px)}}
-.screen-marquee{width:min(100%,440px);padding:18px 12px 10px}
+.screen-marquee{width:min(100%,440px)}
 .screen-frame{
   position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;
   border:6px solid var(--gilt);border-radius:4px;background:#000;
@@ -1359,7 +1381,7 @@ function renderMarquee(){
   }
   const label = rows.map(r => r[0]).join('. ');
   const el = $('#marquee');
-  el.innerHTML = `<div class="board" role="img" aria-label="Marquee: ${esc(label)}">${rows.map(([t, c]) => tiles(t, c)).join('')}</div><div class="bulbs-low" aria-hidden="true"></div><div class="marquee-foot"><span>${esc(left)}</span><span class="flicker">● ${esc(S.season)}</span></div>`;
+  el.innerHTML = `<div class="board" role="img" aria-label="Marquee: ${esc(label)}">${rows.map(([t, c]) => tiles(t, c)).join('')}</div><div class="marquee-foot"><span>${esc(left)}</span><span class="flicker">● ${esc(S.season)}</span></div>`;
   if (lastBoard && lastBoard !== label && !reduced()){ el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap'); }
   lastBoard = label;
 }
@@ -1770,20 +1792,35 @@ function snackBoard(n){
     <form data-form="snack"><label class="sr" for="sn">What you’re bringing</label><input id="sn" maxlength="60" placeholder="I’ll bring…"><button class="btn btn-primary btn-sm" type="submit">Claim it</button></form></div>`;
 }
 function statsBlock(){
-  const ag = agreement().slice(0, 4), top = ag[0];
   const watched = new Set(S.history.map(h => h.movie));
-  const wanted = S.shelf.filter(id => !watched.has(id)).sort((a, b) => (S.thumbs[b] || []).length - (S.thumbs[a] || []).length)[0];
-  const picks = Object.entries(PICK_RECORD).sort((a, b) => b[1][1] - a[1][1] || a[1][0] - b[1][0]).slice(0, 3);
-  const given = S.shelf.reduce((a, id) => a + (S.thumbs[id] || []).length, 0);
-  return `<div class="wide"><p class="label faint" style="margin:0 0 10px">The numbers</p><div class="stats">
-    <div class="stat wide"><span class="label">Who you agree with</span>${top && top.pct
-      ? `<div class="big">${esc(P(top.p).name)}, mostly.</div><p>You both gave thumbs to ${plural(top.inter, 'movie')}.</p>`
-      : `<div class="big">Too soon to say.</div><p>Give a few thumbs on the shelf and this fills in.</p>`}
-      <div class="agree" style="margin-top:12px">${ag.map(a => `<div class="agree-row"><span>${esc(P(a.p).name)}</span><span class="agree-bar"><i style="width:${Math.max(a.pct, 3)}%;--c:${P(a.p).c}"></i></span><span class="mono">${a.pct}%</span></div>`).join('')}</div></div>
-    ${wanted ? `<div class="stat"><span class="label">Most wanted</span><div class="big">${esc(movie(wanted).t)}</div><p>${plural((S.thumbs[wanted] || []).length, 'thumb')}. ${(S.seen[wanted] || []).length} of you have seen it.</p></div>` : ''}
-    ${S.history.length ? `<div class="stat"><span class="label">Whose picks get screened</span><div class="big">${esc(P(picks[0][0]).name)}</div><p>${picks.map(([p, [m, s]]) => `${esc(P(p).name)}: ${s} of ${m} write-ins`).join('<br>')}</p></div>` : ''}
-    <div class="stat"><span class="label">Season so far</span><div class="big">${plural(S.history.length, 'screening')}</div><p>${plural(S.shelf.length, 'movie')} on the shelf, ${plural(given, 'thumb')} given.</p></div>
-  </div></div>`;
+  const minutes = S.history.reduce((a, h) => a + (movie(h.movie)?.rt || 0), 0);
+  const per = {};
+  for (const id of S.shelf) for (const p of (S.thumbs[id] || [])) per[p] = (per[p] || 0) + 1;
+  const given = Object.values(per).reduce((a, b) => a + b, 0), mine = per[S.me] || 0;
+  const topV = Object.entries(per).sort((a, b) => b[1] - a[1] || P(a[0]).name.localeCompare(P(b[0]).name))[0];
+  const line = (n, one, many) => `<li><b>${n}</b> ${n === 1 ? one : many}</li>`;
+  // A picture locked for an upcoming night isn't "wanted" any more (and ranking it would give the face-down movie away).
+  const n = next(), r = n && phase(n) === 'locked' ? result(n) : null, booked = r ? r.win.id : null;
+  const th = id => (S.thumbs[id] || []).length;
+  const wanted = S.shelf.filter(id => !watched.has(id) && id !== booked && th(id)).sort((a, b) => th(b) - th(a) || movie(a).t.localeCompare(movie(b).t)).slice(0, 3);
+  const picks = S.history.length ? Object.entries(PICK_RECORD).filter(([, [, sc]]) => sc > 0).sort((a, b) => b[1][1] - a[1][1]).slice(0, 4) : [];
+  const match = mine >= 3 ? agreement().filter(a => a.inter > 0).slice(0, 3) : [];
+  return `<div class="wide">
+    <div class="stats-head"><h3>Stats</h3><span class="label">The long view</span></div>
+    <ul class="stat-board">${line(S.history.length, 'Night watched', 'Nights watched')}${line(Math.round(minutes / 60), 'Hour of movies', 'Hours of movies')}${line(S.shelf.length, 'Movie added', 'Movies added')}${line(given, 'Thumbs-up', 'Thumbs-ups')}</ul>
+    ${topV ? `<p class="stat-hint">Most thumbs-ups: ${esc(P(topV[0]).name)}${topV[0] === S.me ? ' (you)' : ''} (${topV[1]})</p>` : ''}
+    <div class="stat-grid">
+      <div class="stat-card"><h4 class="label">Most wanted</h4>${wanted.length
+        ? `<ol class="leaders">${wanted.map(id => `<li>${esc(movie(id).t)} <span class="v">${th(id)} ${I.thumb}</span></li>`).join('')}</ol>`
+        : `<p class="hint">${given ? 'Nothing on the shelf has a thumbs-up right now.' : 'No thumbs-ups yet.'} Tap the thumb on a movie you\u2019d watch.</p>`}</div>
+      ${S.me ? `<div class="stat-card"><h4 class="label">Who you agree with</h4>${match.length
+        ? `<ul class="taste-list">${match.map(x => `<li class="taste"><span>You and <b>${esc(P(x.p).name)}</b> agree <span class="v">${x.pct}%</span></span><span class="meter" style="--p:${x.pct}%" aria-hidden="true"></span><span class="hint">${plural(x.inter, 'movie')} in common</span></li>`).join('')}</ul>`
+        : `<p class="hint">${mine < 3 ? 'Thumbs-up a few movies to see who you agree with.' : 'Nobody else has thumbed up enough movies to compare with yet.'}</p>`}</div>` : ''}
+      <div class="stat-card"><h4 class="label">Picks that made it</h4>${picks.length
+        ? `<ol class="leaders">${picks.map(([p, [, sc]]) => `<li>${esc(P(p).name)}${p === S.me ? ' (you)' : ''} <span class="v">${plural(sc, 'pick')}</span></li>`).join('')}</ol>`
+        : '<p class="hint">No shelf pick has made a night yet. Whoever added the first winner tops this board.</p>'}</div>
+    </div>
+  </div>`;
 }
 function pastStub(h){
   const d = Dt(h.date), m = movie(h.movie), a = avg(h.ratings);
@@ -1848,7 +1885,7 @@ function sinceDone(){ S.sinceDone = true; LS.set('since:' + S.scn, true); closeL
 function openBoxOffice(){
   S.ui.sheet = {type:'box'};
   $('#layer').innerHTML = `<div class="boxoffice" role="dialog" aria-modal="true" aria-label="Who are you?">
-    <div class="marquee"><div class="board">${tiles('Weberplex')}${tiles('Box office', 'sm red')}</div><div class="bulbs-low"></div><div class="marquee-foot"><span>Members only</span><span class="flicker">● ${esc(S.season)}</span></div></div>
+    <div class="marquee"><div class="board">${tiles('Weberplex')}${tiles('Box office', 'sm red')}</div><div class="marquee-foot"><span>Members only</span><span class="flicker">● ${esc(S.season)}</span></div></div>
     <div class="window on-stub"><h1>What do your friends call you?</h1><p>No passwords and no accounts. Your name just tells everyone whose vote is whose.</p>
       <form data-form="name"><label class="sr" for="nm">Your name</label><input id="nm" autocomplete="given-name" autocapitalize="words" maxlength="20" placeholder="Your name" required><button class="btn btn-primary notch-x btn-block" type="submit">That’s me</button></form>
       <span class="label">Already on the list? Tap your name</span><div class="chips">${Object.keys(PEOPLE).map(p => `<button class="chip" data-act="pickname" data-id="${p}">${av(p, 'sm')}${esc(P(p).name)}</button>`).join('')}</div>
@@ -2018,7 +2055,7 @@ function openScreen(id){
   o.className = 'screen-overlay';
   o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); o.setAttribute('aria-label', `Trailer: ${m.t}`);
   o.innerHTML = `<div class="screen-room">
-      <div class="marquee screen-marquee"><div class="board" role="img" aria-label="Now showing: ${esc(m.t)}">${tiles('Now showing', 'sm red')}${splitTitle(m.t).map(t => tiles(t)).join('')}</div><div class="bulbs-low" aria-hidden="true"></div></div>
+      <div class="marquee screen-marquee"><div class="board" role="img" aria-label="Now showing: ${esc(m.t)}">${tiles('Now showing', 'sm red')}${splitTitle(m.t).map(t => tiles(t)).join('')}</div></div>
       <div class="screen-frame"><div class="screen-picture"></div><div class="screen-curtain" aria-hidden="true"><span></span><span></span></div></div>
       <div class="screen-actions"><button class="btn btn-primary notch-x" type="button" data-r="close">Close</button><a href="https://www.youtube.com/watch?v=${encodeURIComponent(m.yt)}" target="_blank" rel="noopener">Won\u2019t play? Open it on YouTube</a></div>
     </div><div class="screen-seats" aria-hidden="true"></div>`;
