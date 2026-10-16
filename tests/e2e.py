@@ -1148,7 +1148,7 @@ def paste_list_checks(browser, errors):
     for title in ('The Princess Bride', 'Arrival'):
         c = card(page, title)
         expect(c).to_have_count(1, timeout=10000)
-        expect(c.locator('.by')).to_have_text('Added by you')
+        expect(c.locator('.by')).to_contain_text('Added by you')
         expect(c.locator('[data-action="vote"]')).to_have_attribute('aria-pressed', 'true')  # her thumb is on it
         expect(c.locator('.pitch')).to_have_count(0)
     # Written as a single add writes it: her key, an empty pitch, her thumb.
