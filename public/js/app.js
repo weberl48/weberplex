@@ -915,10 +915,10 @@ function renderCalendar() {
       const label = `${date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}: ${d.count} free${live ? `, ${live.host} hosting` : ''}${mine ? ', you’re free' : ''}`;
       return `
         <button class="day${mine ? ' on' : ''}${sel ? ' sel' : ''}${live ? ' lead' : ''}${S.news?.days.has(d.day) ? ' fresh' : ''}"
-          type="button" role="radio" data-action="day" data-day="${d.day}" aria-checked="${sel}" aria-controls="dayDetail" tabindex="${sel ? 0 : -1}" aria-label="${esc(label)}">
+          type="button" role="radio" data-action="day" data-day="${d.day}" aria-checked="${sel}" aria-controls="dayDetail" tabindex="${sel ? 0 : -1}" aria-label="${esc(label)}" style="--k:${d.count}">
           <span class="d-dow">${first ? esc(date.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()) : '&nbsp;'}</span>
           <span class="d-num">${date.getDate()}</span>
-          <span class="d-meta"><span class="d-count">${d.count || ''}</span>${live ? `<span class="d-host" title="Movie night">${HOUSE}</span>` : ''}</span>
+          <span class="d-meta">${pips(d.count)}<span class="d-count">${d.count || ''}</span>${live ? `<span class="d-host" title="Movie night">${HOUSE}</span>` : ''}</span>
         </button>`;
     }).join('');
   const at = days.findIndex((x) => x.day === S.day);
@@ -983,6 +983,10 @@ function hostSlip(day, free = []) {
       </div>
     </div>`;
 }
+
+// Who's free, at a glance: a dot per person (six, then "+3"); the count also
+// warms the cell (--k), so the busy evenings stand out from across the room.
+const pips = (k) => (k ? `<span class="d-pips" aria-hidden="true">${'<i></i>'.repeat(Math.min(k, 6))}${k > 6 ? `<b>+${k - 6}</b>` : ''}</span>` : '');
 
 // ---- the shelf ------------------------------------------------------------------
 function sorted(list) {

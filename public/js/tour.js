@@ -23,7 +23,7 @@ const STEPS = [
     title: 'Say when you’re free',
     body: 'Tap a day to see who’s free, then say you are: I’m free that evening, or Count me in when someone’s hosting. Anyone can host: pick a time and tap I can host.',
     demo: `<div class="cal tour-cal">
-      ${dayCell('Thu')}${dayCell('Fri', ' on sel', '2')}${dayCell('Sat', ' lead', `3<span class="d-host">${HOUSE}</span>`)}${dayCell('Sun')}
+      ${dayCell('Thu')}${dayCell('Fri', ' on sel', '<span class="d-pips"><i></i><i></i></span>')}${dayCell('Sat', ' lead', `<span class="d-pips"><i></i><i></i><i></i></span><span class="d-host">${HOUSE}</span>`)}${dayCell('Sun')}
     </div>
     <div class="day-detail tour-window"><div class="dd-head"><h3>Friday</h3></div>
       <p class="dd-line">Ava and Ben are free.</p>

@@ -291,27 +291,47 @@ body::after { /* film grain */
 
 /* ---- the calendar: a printed program card --------------------------------- */
 .cal-wrap { padding: 14px 10px 12px; border-radius: 10px; background: var(--ticket); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.9); }
-.cal { gap: 4px; }
-.cal-head { font: 700 10px/1.8 var(--f-body); font-stretch: 75%; letter-spacing: 0.14em; color: var(--dim); }
-.cal .day { background: transparent; border: 1.5px solid var(--rule); border-radius: 6px; color: var(--ticket-ink); }
-.cal .day:hover { border-color: var(--ticket-ink); }
-.cal .d-dow { color: #9c2318; font-stretch: 75%; }
-.cal .d-num { font: 600 clamp(0.85rem, 4.6vw, 1.35rem)/1 var(--f-display); font-variation-settings: 'opsz' 30, 'SOFT' 60; }
-.cal .d-meta { color: var(--dim); font-family: var(--f-mono); font-weight: 500; }
-.cal .day.on { background: var(--bulb); border-color: var(--bulb); }
-.cal .day.on .d-meta { color: var(--ticket-ink); }
-.cal .day.on::before { /* punched */
+#calendar { gap: 4px; }
+#calendar .cal-head { font: 700 10px/1.8 var(--f-body); font-stretch: 75%; letter-spacing: 0.14em; color: var(--dim); }
+#calendar .day {
+  /* the day warms as more people are free (a cool teal, so it never reads as your own amber) */
+  background: color-mix(in srgb, #1f6b62 min(calc(var(--k, 0) * 6%), 30%), transparent);
+  border: 1.5px solid var(--rule); border-radius: 6px; color: var(--ticket-ink);
+}
+#calendar .day:hover { border-color: var(--ticket-ink); }
+#calendar .d-dow { color: #9c2318; font-stretch: 75%; }
+#calendar .d-num { font: 600 clamp(0.85rem, 4.6vw, 1.35rem)/1 var(--f-display); font-variation-settings: 'opsz' 30, 'SOFT' 60; }
+#calendar .d-meta { color: var(--dim); font-family: var(--f-mono); font-weight: 500; }
+#calendar .day.on { background: var(--bulb); border-color: var(--bulb); }
+#calendar .day.on .d-meta { color: var(--ticket-ink); }
+#calendar .day.on::before { /* punched */
   content: ''; position: absolute; left: 4px; top: 4px; width: 7px; height: 7px; border-radius: 50%;
   background: var(--ticket); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
 }
-.cal .day.lead { border: 2px solid var(--ticket-ink); box-shadow: none; }
-.cal .d-host { color: #9c2318; }
-.cal .day.sel { outline: 2.5px solid #b3261e; outline-offset: 1px; }
-.cal .day:focus-visible, .cal .day.sel:focus-visible { outline: 3px solid var(--curtain); outline-offset: 2px; }
-.cal .day.fresh::after { background: #1f6b62; }
+#calendar .day.lead { border: 2px solid var(--ticket-ink); box-shadow: none; }
+/* a movie night's house sits in the top corner, so the row underneath is all dots */
+#calendar .d-host { position: absolute; top: 3px; right: 4px; color: #9c2318; font-size: 12px; }
+#calendar .day.fresh::after { right: auto; left: 50%; translate: -50% 0; }
+#calendar .day.sel { outline: 2.5px solid #b3261e; outline-offset: 1px; }
+#calendar .day:focus-visible, #calendar .day.sel:focus-visible { outline: 3px solid var(--curtain); outline-offset: 2px; }
+#calendar .day.fresh::after { background: #1f6b62; }
 .cal-key { color: var(--dim); padding: 4px 4px 0; }
 .cal-key .k-free { background: var(--bulb); border: 0; }
-.cal-key .k-count { color: var(--dim); }
+.cal-key .k-count { width: auto; display: inline-flex; gap: 2px; }
+.cal-key .k-count b { width: 5px; height: 5px; border-radius: 50%; background: #1f6b62; }
+/* a dot per person free: six, then "+3" */
+.d-pips { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; max-width: 36px; }
+.d-pips i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.d-pips b { font: 500 9px/1 var(--f-mono); }
+#calendar .d-count { display: none; }
+#calendar .d-meta { color: #1f6b62; flex-wrap: wrap; justify-content: center; gap: 2px 3px; }
+#calendar .day.on .d-meta { color: var(--ticket-ink); }
+/* the walkthrough's sample calendar marks things the way the real one does */
+.tour-cal .day.on { background: var(--bulb); border-color: var(--bulb); color: var(--board-ink); }
+.tour-cal .day.on .d-meta { color: var(--board-ink); }
+.tour-cal .day.lead { box-shadow: none; border: 2px solid var(--screen); }
+/* big text: the cells keep only the date; the tint still says how busy the evening is */
+@container cal (max-width: 280px) { .d-pips { display: none; } }
 .cal-key .k-night { border: 2px solid var(--ticket-ink); box-shadow: none; }
 /* the day panel: the program's tear-off */
 .day-detail { background: var(--ticket); border: 0; border-top: 2px dashed var(--rule); border-radius: 0 0 10px 10px; margin-top: 0; padding: 16px 14px; box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.9); }
