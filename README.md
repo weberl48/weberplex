@@ -81,8 +81,10 @@ its examples are stamped SAMPLE and use no real dates or names, so nobody
 mistakes the sample ticket for the real night),
 tickets with **Add to calendar** (Google Calendar's add-event page, with the
 .ics download as a fallback), Stremio links on every card, a season title on
-the marquee, and jump links under it to each section (they scroll without
-adding history). Android's back gesture closes whichever card, overlay or
+the marquee (its title in letter tiles), an admit stub under it (are you in,
+who's coming, a live countdown to the lock or the show) with the one thing to
+do next, and a film strip of jump links that sticks to the top of the screen and
+lights the section you're in (they scroll without adding history). Android's back gesture closes whichever card, overlay or
 hosting slip is open instead of leaving the site. A reveal closed with back
 before it turns stays face down that visit: the card back on its night in Up
 next (**Tap to turn it over**) plays it when you're ready. Good news drops in at the top of the screen for a
@@ -187,6 +189,8 @@ needs no key: locking a due night is something any guest may do.
 
 ```
 public/            static site (Vercel serves it; cleanUrls)
+  css/site.css     the base styles and every behavior rule; the owner console uses it alone
+  css/weberplex.css  the guest page's look (2026-10-16 redesign), layered over site.css
   img/og.png       the link-preview card (1200x630)
   js/logic.js      pure helpers: shelf tally, the pick, stats, calendar, news, .ics
   js/actions.js    every write (injected SDK, shared with the tests)

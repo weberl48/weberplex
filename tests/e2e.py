@@ -32,6 +32,11 @@ SHOTS = Path(sys.argv[1] if len(sys.argv) > 1 else 'e2e-shots')
 SHOTS.mkdir(parents=True, exist_ok=True)
 PHONE = {'width': 390, 'height': 844}
 
+# The film strip (the jump links) sticks to the top of the screen: "at the top"
+# means just under it, or under the screen's edge once it has scrolled away.
+UNDER_STRIP = """(sel) => { const s = document.querySelector('.program').getBoundingClientRect();
+  const cut = s.top <= 1 ? Math.max(0, s.bottom) : 0; return document.querySelector(sel).getBoundingClientRect().top - cut; }"""
+
 
 def emu(method, path, body=None, owner=False):
     headers = {'Content-Type': 'application/json'}
@@ -681,7 +686,7 @@ def reveal_invite_checks(browser, errors):
     toast_box = page.locator('#toast').bounding_box()
     assert toast_box and toast_box['y'] < 80, toast_box
     page.wait_for_timeout(900)  # the scroll to the ticket settles under its heading
-    top = page.evaluate("document.querySelector('#nextSec h2').getBoundingClientRect().top")
+    top = page.evaluate(UNDER_STRIP, '#nextSec h2')
     assert 0 <= top <= 40, top
     assert json.loads(emu('GET', f'{DOCS}/free/{day}__nia', owner=True)).get('fields'), 'Nia is on the list'
     page.context.close()
@@ -721,7 +726,8 @@ def reveal_ending_checks(browser, errors):
     page.wait_for_timeout(1200)
     expect(page.locator('#pass')).to_be_visible()
     expect(page.locator('#toast')).not_to_contain_text('Welcome')
-    box = page.evaluate("() => ({ top: document.querySelector('#pass').getBoundingClientRect().top, field: document.querySelector('#passName').getBoundingClientRect().bottom, h: innerHeight })")
+    box = page.evaluate("() => ({ field: document.querySelector('#passName').getBoundingClientRect().bottom, h: innerHeight })")
+    box['top'] = page.evaluate(UNDER_STRIP, '#pass')
     assert 0 <= box['top'] <= 30 and box['field'] <= box['h'], box
     page.fill('#passName', 'Quentin')  # (not like any name on the list, or it asks 'Is that you?')
     page.click('#passForm button[type=submit]')
@@ -936,7 +942,8 @@ def big_text_checks(browser, errors):
     page.locator('#shelf .card .vote').first.click()
     expect(page.locator('#pass')).to_be_visible()
     page.wait_for_timeout(1200)
-    box = page.evaluate("() => ({ top: document.querySelector('#pass').getBoundingClientRect().top, field: document.querySelector('#passName').getBoundingClientRect().bottom, h: innerHeight })")
+    box = page.evaluate("() => ({ field: document.querySelector('#passName').getBoundingClientRect().bottom, h: innerHeight })")
+    box['top'] = page.evaluate(UNDER_STRIP, '#pass')
     assert 0 <= box['top'] <= 30 and box['field'] <= box['h'], box
     page.context.close()
 

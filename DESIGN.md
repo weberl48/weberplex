@@ -1,82 +1,94 @@
 ---
 name: Weberplex
-description: A neighborhood picture house on a phone. One lit marquee, house lights down below.
+description: A friend's basement theater on a phone. A lit marquee in letter tiles, ticket stock, a film strip, house lights down below.
 colors:
-  bulb: "#ffc76e"
-  bulb-hi: "#ffd590"
-  bulb-soft: "rgba(255, 199, 110, 0.16)"
+  bulb: "#ffbf4f"
+  bulb-hi: "#ffcd73"
+  bulb-soft: "rgba(255, 191, 79, 0.16)"
   bulb-filament: "#fff3d1"
   foreign-ink: "#f0a9b8"
-  curtain: "#7d1b35"
-  curtain-hi: "#9c2747"
-  board: "#fbf3e2"
-  board-ink: "#1b0f0c"
-  ticket: "#f1dbc6"
-  ticket-ink: "#2c1712"
-  ticket-label: "#7a4a3e"
-  admit-red: "#8c2440"
+  curtain: "#a8241c"
+  curtain-hi: "#c2342a"
+  board: "#fff6df"
+  board-ink: "#1a110c"
+  ticket: "#fbf2de"
+  ticket-ink: "#24160f"
+  ticket-label: "#6a5341"
+  admit-red: "#b3261e"
   stripe-cream: "#e8e0d6"
-  marquee-body: "#3a0f1d"
+  marquee-body: "#070403"
+  frame-2: "#1a110c"
+  frame-ink: "#f6e7c8"
+  frame-ink-2: "#a88f6c"
   projection-black: "#050203"
-  go: "#93d9ad"
+  go: "#8fd6b0"
   bad: "#ff8f80"
-  velvet: "#140a0f"
-  velvet-2: "#1e1117"
-  velvet-3: "#2a1720"
-  rule: "#3b2530"
-  rule-strong: "#7a5f6b"
-  screen: "#f3e9dc"
-  dim: "#bba69c"
-  faint: "#9a8389"
+  beam: "#86cfc8"
+  wood: "#8d5b34"
+  wood-2: "#5e3a1f"
+  velvet: "#120b08"
+  velvet-2: "#1d130f"
+  velvet-3: "#2a1c15"
+  rule: "#3b2a20"
+  rule-strong: "#7d6552"
+  screen: "#f2e2c4"
+  dim: "#c4ab8a"
+  faint: "#a08a74"
 typography:
+  marquee:
+    fontFamily: "Bungee, Arial Black, sans-serif"
+    fontSize: "tiles size to the board (max 30px phone, 46px desktop)"
+    fontWeight: 400
+    lineHeight: 1
   display:
-    fontFamily: "Limelight, Georgia, serif"
-    fontSize: "clamp(1.75rem, 7vw, 3rem)"
-    fontWeight: 400
-    lineHeight: 1.05
-    letterSpacing: "0.03em"
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "clamp(1.75rem, 8.5vw, 2.25rem)"
+    fontWeight: 700
+    lineHeight: 1
+    letterSpacing: "-0.015em"
+    fontVariation: "'opsz' 144, 'SOFT' 50, 'WONK' 1"
   headline:
-    fontFamily: "Limelight, Georgia, serif"
-    fontSize: "1.5rem"
-    fontWeight: 400
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "1.625rem"
+    fontWeight: 800
     lineHeight: 1.15
     letterSpacing: "0.02em"
   title:
-    fontFamily: "Limelight, Georgia, serif"
-    fontSize: "1.1875rem"
-    fontWeight: 400
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "1rem"
+    fontWeight: 700
     lineHeight: 1.2
   body:
-    fontFamily: "Archivo, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontFamily: "Bricolage Grotesque, system-ui, -apple-system, Segoe UI, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.5
   body-small:
-    fontFamily: "Archivo, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontFamily: "Bricolage Grotesque, system-ui, -apple-system, Segoe UI, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: 1.5
   caption:
-    fontFamily: "Archivo, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontFamily: "Bricolage Grotesque, system-ui, -apple-system, Segoe UI, sans-serif"
     fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.4
   prompt:
-    fontFamily: "Archivo, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontFamily: "Bricolage Grotesque, system-ui, -apple-system, Segoe UI, sans-serif"
     fontSize: "1rem"
     fontWeight: 600
     lineHeight: 1.3
   label:
-    fontFamily: "Archivo, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontFamily: "Bricolage Grotesque, system-ui, -apple-system, Segoe UI, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 700
     lineHeight: 1.2
     letterSpacing: "0.18em"
     fontVariation: "'wdth' 75"
   numeral:
-    fontFamily: "Courier Prime, Courier New, ui-monospace, monospace"
+    fontFamily: "DM Mono, ui-monospace, Menlo, monospace"
     fontSize: "0.8125rem"
-    fontWeight: 700
+    fontWeight: 500
     lineHeight: 1.4
     letterSpacing: "0.08em"
     fontFeature: "'tnum' 1"
@@ -230,6 +242,22 @@ components:
 
 # Design System: Weberplex
 
+**The 2026-10-16 redesign ("the basement theater").** The guest page took the
+redesign prototype's look without changing what the site does or stores
+(`docs/specs/2026-10-16-redesign.md`). The type is new: Bungee letter tiles on the
+marquee and for stamps, Fraunces for headings and titles, Bricolage Grotesque for
+everything read and tapped, DM Mono for numbers. The palette is warmer: brown-black
+instead of oxblood-velvet, a brighter red curtain, and amber bulbs. New on the page:
+the admit stub and the next-move button under the marquee, a sticky film strip for
+the jump links, outlined frame numbers behind the section heads, numbered ballot
+tickets with a torn vote stub, the calendar printed as a program card, shelf posters
+standing on wooden planks, and concessions as a menu board. On desktop the marquee
+runs across the top with the stub beside it. The guest page loads
+`public/css/weberplex.css` over `site.css`; the owner console (`/host`) still loads
+`site.css` alone, so it keeps the look described below as "Limelight / Archivo".
+Where this document and `weberplex.css` disagree about the guest page, the
+stylesheet and the sections marked **(2026-10-16)** win.
+
 ## Overview
 
 **Creative North Star: "House Lights Down"**
@@ -292,9 +320,11 @@ A warm three-light theater: velvet dark, an oxblood curtain, amber bulbs, and pa
 
 ## Typography
 
-**Display Font:** Limelight (with Georgia, serif)
-**Body Font:** Archivo, variable width 62–125 and weight 400–800 (with system-ui)
-**Label/Mono Font:** Courier Prime 700 (with Courier New, ui-monospace)
+**(2026-10-16)** **Marquee Font:** Bungee (letter tiles, stamps, the stat board, the ticket title)
+**Display Font:** Fraunces, optical size 9–144 with its SOFT and WONK axes (with Georgia, serif)
+**Body Font:** Bricolage Grotesque, width 75–100 and weight 400–800 (with system-ui)
+**Mono Font:** DM Mono 400–500 (with ui-monospace)
+The owner console keeps Limelight, Archivo and Courier Prime.
 
 **Character:** Art-deco marquee capitals name things. Archivo is the workhorse, and its condensed width does the label and stamp duty. Courier Prime is the box-office typewriter for anything counted, timed or printed on a stub.
 
@@ -315,7 +345,9 @@ A warm three-light theater: velvet dark, an oxblood curtain, amber bulbs, and pa
 
 ## Layout
 
-The page is one centered program column, 46rem at most, with 16px gutters and 4rem of room at the bottom. Sections sit 2.5rem apart, and each opens with a Limelight head on the left and a quiet aside or ghost control on the right, aligned on the baseline. The order follows the night: the marquee, a row of jump links (Up next, Calendar, Shelf, Watched, Stats), the news bar, the guest-list form, Up next, the calendar, the shelf, Watched, Stats, then the footer.
+**(2026-10-16)** On a phone the page is still one column with 16px gutters: the top bar, the marquee with the admit stub and next move under it, the film strip, then the sections 3.5rem apart, each head over an outlined frame number (the calendar and Watched heads on the right). From 980px the page widens to 1180px: the marquee and the stub sit side by side, the film strip runs edge to edge, the ballot becomes a grid of poster tickets, the calendar sits beside its day panel and the shelf fills columns of 170px.
+
+Before the redesign: the page is one centered program column, 46rem at most, with 16px gutters and 4rem of room at the bottom. Sections sit 2.5rem apart, and each opens with a Limelight head on the left and a quiet aside or ghost control on the right, aligned on the baseline. The order follows the night: the marquee, a row of jump links (Up next, Calendar, Shelf, Watched, Stats), the news bar, the guest-list form, Up next, the calendar, the shelf, Watched, Stats, then the footer.
 
 Grids are built so a phone shows the right count without breakpoints, and every column minimum is capped at the container (`min(9.5rem, 100%)`), so 200% text never pushes the page sideways. The shelf fills columns of at least 9.5rem (10.5rem from 640px), which gives two cards across at 360–412px. Browse tiles use 8.5rem. The calendar is seven equal columns with 5px gaps, and each day is slightly taller than wide. The letter-board stats are one column, then two from 640px, and stat cards auto-fit at 13rem. Spacing runs on a loose 4px rhythm: 4, 6 and 8px inside controls, 10–14px inside panels, 16px gutters.
 
@@ -381,10 +413,17 @@ Solid and theater-plain. The direction is to give them cinema material, not more
 - **Error:** a message line under the field in spilled soda. Success messages are concession green.
 
 ### Navigation
-A top bar, not a nav bar. The "Weberplex" wordmark (Limelight, amber, 1rem, 0.04em) sits on the left; on the right are "How it works" and who's on this phone (their initial in an amber face, their name, "Not you?"). Under the marquee, a row of jump links in 12px condensed caps (Up next, Calendar, Shelf, Watched, Stats), each 44px tall, works as the page's program and as skip links. The page is one long scroll otherwise. There are no tabs, bottom bar or hamburger. The owner console (`/host`) is a separate page in the same column and materials.
+**(2026-10-16)** The wordmark is WEBERPLEX in nine small letter tiles, each tipped a degree or two. The jump links are a film strip: a dark band with sprocket holes along both edges, one frame per section (a mono frame number over the condensed caps label), stuck to the top of the screen once you scroll past it, the frame for the section on screen lit amber. Sections land just under it (76px). At 200% text (below 300px) it scrolls away with the page instead. On desktop it runs edge to edge.
+
+Before the redesign: a top bar, not a nav bar. The "Weberplex" wordmark (Limelight, amber, 1rem, 0.04em) sits on the left; on the right are "How it works" and who's on this phone (their initial in an amber face, their name, "Not you?"). Under the marquee, a row of jump links in 12px condensed caps (Up next, Calendar, Shelf, Watched, Stats), each 44px tall, works as the page's program and as skip links. The page is one long scroll otherwise. There are no tabs, bottom bar or hamburger. The owner console (`/host`) is a separate page in the same column and materials.
 
 ### The Movie Card
-Every movie on the shelf, one side only (the user chose this over a two-sided lobby card on 2026-10-14). The 2:3 poster on top, with the "new" chip top right and, at its foot, the ribbon: "Leading Nov 3" on the next night's projected pick, or "Most wanted" when no night is planned. Under it on raised velvet: the title, meta line, tags, the pitch in italics, who added it, and who has seen it (only once someone has); then the actions pinned to the card's foot in two fixed rows, so rows of cards line up and a card at 360 never grows a row per pill: the vote pill and Seen it sharing the width, then Trailer, Stremio and Plot as one segmented strip (a 36px pill split by hairlines; Plot lights screen-cream while its plot is open); Remove is a link on the "Added by you" line; then a small thumb and the voters' faces. A movie booked for an upcoming night wears an oxblood ribbon ("BOOKED FRI OCT 16") instead of the crown, and tied leaders read "TIED OCT 19". While a themed night is planned, the Show row gains a chip for its pool ("Fits Hal's Drama night"): the movies that night can actually pick.
+**(2026-10-16)** The poster stands on a wooden plank (a 9px brown strip under each poster, wider than it) with a deep drop shadow; the card itself has no panel. The leader's poster gets an amber edge and glow. Thumbs-up fills amber; Seen it fills projector teal (beam).
+
+Before the redesign: every movie on the shelf, one side only (the user chose this over a two-sided lobby card on 2026-10-14). The 2:3 poster on top, with the "new" chip top right and, at its foot, the ribbon: "Leading Nov 3" on the next night's projected pick, or "Most wanted" when no night is planned. Under it on raised velvet: the title, meta line, tags, the pitch in italics, who added it, and who has seen it (only once someone has); then the actions pinned to the card's foot in two fixed rows, so rows of cards line up and a card at 360 never grows a row per pill: the vote pill and Seen it sharing the width, then Trailer, Stremio and Plot as one segmented strip (a 36px pill split by hairlines; Plot lights screen-cream while its plot is open); Remove is a link on the "Added by you" line; then a small thumb and the voters' faces. A movie booked for an upcoming night wears an oxblood ribbon ("BOOKED FRI OCT 16") instead of the crown, and tied leaders read "TIED OCT 19". While a themed night is planned, the Show row gains a chip for its pool ("Fits Hal's Drama night"): the movies that night can actually pick.
+
+### Tonight's Ballot (2026-10-16)
+Each row is a paper ticket: a rank number in Fraunces behind a dashed perforation, the poster, the title with its thumbs, the tags, the votes; the Vote and Veto buttons sit on a torn stub at the right, behind a second perforation with two notches. Your vote fills amber and edges the ticket amber. On desktop the tickets stand up as poster cards ("No. 1" across the head, the stub along the bottom). Concessions is a dark menu board: the label in amber Bungee, each snack with dotted leaders to who's bringing it.
 
 ### If It Locked Now (signature)
 A mini lobby card at the top of a planned night's card, on plush velvet: a 76px 2:3 poster wearing the same ribbon as the shelf ("Leading Nov 3", or "Tied"), then a small label, the title at title size, and one line saying why, in people's names, naming the pool when a theme narrows it ("Hal only thumbed up vetoed or off-theme movies, so it goes to the group's favorite among Drama movies"). Its Veto sits there when the movie isn't already in the list below, with "one veto each" beside it. The marquee repeats the pick as "Leading:".
@@ -401,14 +440,21 @@ The long view, spelled out like a marquee board: one centered line per number on
 ### The Box-Office Window (signature)
 The panel under the calendar for the day you tapped, with an aisle-edge border. It shows the date in Limelight with ‹ › beside it (44px, Courier arrows) to step to the evening before or after without going back to the grid, who's free, the night if there is one, and the RSVP control. On an evening without a night it shows "I'm free that evening" and a hosting block (start time, theme, I can host) behind a dashed divider.
 
+### The Admit Stub and the Next Move (2026-10-16)
+Under the marquee, display only: a paper stub that hangs off the marquee's bottom edge, perforated 108px from the right with two punched notches. Left: a tilted stamp ("You're in", "You're hosting", "Not on the list", "Locked", "Now showing", "No show yet"), "6 coming · at Sam's" and the faces. Right, the tear-off: "Locks in" or "Showtime" over a live DM Mono countdown (red in the last 6 hours) and the time, or the best open night when nothing is booked. Under it one amber button with notched ends: the next thing to do (Count me in, Vote for Saturday, Add your pick, Call a snack, See my ticket, Turn the card over, Rate Jaws, Pick a night). It reuses the page's own actions and scrolls to the right place; it writes nothing new. At 200% text the tear-off drops under the stub.
+
 ### The Marquee (signature)
-A plush oxblood frame (10px corners) ringed with chasing bulbs around a lit letter board (4px corners, faint grooves, inner glow). The board stacks a spaced oxblood kicker (the season title and status), the display line (the movie or night), an uppercase condensed subline (when and whose house, its lines balanced, the time never split from AM/PM), and a board-ink tag with the countdown in amber Courier. It's the only element that glows and animates at rest. With reduced motion the chase stops and the bulbs hold at 40%. While your reveal for a locked night hasn't played, the display line reads "The movie is…". The tour's small copy of it is still: no chase.
+**(2026-10-16)** A near-black housing (12px corners) ringed with chasing bulbs around a lit board. The title is set in Bungee letter tiles, each tipped a little, in balanced rows of up to three, sized to the board (container units, 30px at most on a phone and 46px on desktop); the text stays in its own case for screen readers and scripts, and the CSS sets it in capitals. A new title flips onto the board. The kicker is spaced red condensed caps; the subline condensed caps; the count a board-ink tag in amber DM Mono.
+
+Before the redesign: a plush oxblood frame (10px corners) ringed with chasing bulbs around a lit letter board (4px corners, faint grooves, inner glow). The board stacks a spaced oxblood kicker (the season title and status), the display line (the movie or night), an uppercase condensed subline (when and whose house, its lines balanced, the time never split from AM/PM), and a board-ink tag with the countdown in amber Courier. It's the only element that glows and animates at rest. With reduced motion the chase stops and the bulbs hold at 40%. While your reveal for a locked night hasn't played, the display line reads "The movie is…". The tour's small copy of it is still: no chase.
 
 ### The Ticket (signature)
 Admit-one paper with two 11px punched notches and a dashed stub perforation. On the left: "ADMIT ONE" in spaced stamp red, the movie in Limelight, and a definition list (When, Where, Guest, Running) with condensed uppercase labels in ticket label brown. On the right, a 74px stub carries a vertical Courier serial number. Once the movie is face up the ticket carries its poster (56px, floated right of ADMIT ONE and the title, 3px corners, a soft drop shadow; the details clear it and run the full width); while it's face down that spot holds a small card back (oxblood, amber "?"), and after a reveal you backed out of, that card back is the button that turns it over ("Tap to turn it over" in 11px condensed caps), so Up next keeps one amber call. A night you're not coming to shows the same art beside its title in Limelight. It shows on a locked night you're coming to, with Add to calendar and the RSVP control underneath, then the trailer and Stremio. Face down ("The movie is…", no running time) until your reveal has played.
 
 ### The Calendar Day (signature)
-A raised-velvet square on a seven-column grid. A tap shows the day in the box-office window below and marks nothing; the arrow keys move between days, and the grid is a single Tab stop. From the top: an 11px day-of-week (or month marker), the date in Limelight, and a Courier meta line with the count and a house icon when someone hosts. Free is a concession-green tint and border. The leading day gets a 2px amber ring, the selected day a projector-light outline, and fresh activity a small green dot.
+**(2026-10-16)** The grid is printed on paper, a program card, with the day panel as its tear-off (beside it on desktop). Days are outlined in rule-tan; free is a solid amber cell with a punched hole; a movie night a 2px ink border and a red house mark; the selected day a red outline.
+
+Before the redesign: a raised-velvet square on a seven-column grid. A tap shows the day in the box-office window below and marks nothing; the arrow keys move between days, and the grid is a single Tab stop. From the top: an 11px day-of-week (or month marker), the date in Limelight, and a Courier meta line with the count and a house icon when someone hosts. Free is a concession-green tint and border. The leading day gets a 2px amber ring, the selected day a projector-light outline, and fresh activity a small green dot.
 
 ### The Screening Room (trailers)
 A trailer plays on the house screen, not in another app. The house goes to near black (#050203, the lights-down fade over 0.6s) and the room comes up out of the dark: a "Now showing" label in spaced condensed caps over the title in amber Limelight with a soft glow and the year in dim; under it the screen, 16:9 in a 6px gilt frame (`#c99a3e`, the valance's gold) with a hairline amber edge and a deep drop shadow. The screen has its own little curtain in the house pleats, which parts from 0.6s as the projector starts (the player loads at 0.7s, so the sound never starts behind a closed curtain); once it rolls, the frame picks up a faint cool projection glow (`0 0 80px rgba(200, 215, 255, 0.16)`, the only cool light in the house: the projector's). Two staggered rows of seat backs (dark velvet domes) line the bottom of the dark. Close is a ghost button with a "Won't play? Open it on YouTube" link beside it. The player is YouTube's privacy-enhanced embed, autoplaying (the tap that opened the room counts as the go-ahead). Back, Esc and Close end the show and focus returns to the Trailer button; a landscape phone gets a smaller room so Close stays on screen; with reduced motion nothing fades or parts.

@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en" style="background:#140a0f">
+<html lang="en" style="background:#120b08">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Weberplex</title>
   <meta name="description" content="Mark when you're free, volunteer to host, add movies to the shelf and vote on what we watch next at the Weberplex.">
-  <meta name="theme-color" content="#140a0f">
+  <meta name="theme-color" content="#120b08">
   <meta property="og:title" content="Weberplex">
   <meta property="og:description" content="Mark your evenings. Host a night. Vote on what we watch next.">
   <meta property="og:type" content="website">
@@ -16,8 +16,9 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23140a0f'/%3E%3Crect x='10' y='18' width='44' height='30' rx='3' fill='%23fbf3e2'/%3E%3Cg fill='%23ffc76e'%3E%3Ccircle cx='14' cy='12' r='3'/%3E%3Ccircle cx='26' cy='12' r='3'/%3E%3Ccircle cx='38' cy='12' r='3'/%3E%3Ccircle cx='50' cy='12' r='3'/%3E%3Ccircle cx='14' cy='54' r='3'/%3E%3Ccircle cx='26' cy='54' r='3'/%3E%3Ccircle cx='38' cy='54' r='3'/%3E%3Ccircle cx='50' cy='54' r='3'/%3E%3C/g%3E%3Cpath d='M18 26h28M18 33h20M18 40h24' stroke='%237d1b35' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Courier+Prime:wght@700&family=Limelight&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Bungee&family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..900,0..100,0..1;1,9..144,400..900,0..100,0..1&display=swap">
   <link rel="stylesheet" href="/css/site.css">
+  <link rel="stylesheet" href="/css/weberplex.css">
 </head>
 <body>
   <div class="curtain" aria-hidden="true"><div class="curtain-l"></div><div class="curtain-r"></div></div>
@@ -25,27 +26,31 @@
   <script>try { const t = performance.getEntriesByType('navigation')[0]?.type; if (t === 'reload' || t === 'back_forward') document.querySelector('.curtain').remove(); } catch (e) { /* old browser: keep it */ }</script>
   <div class="wrap">
     <header class="topbar">
-      <a class="house" href="/">Weberplex</a>
+      <a class="house" href="/" aria-label="Weberplex"><i style="--r:-2deg">W</i><i style="--r:1.5deg">E</i><i style="--r:-1deg">B</i><i style="--r:2deg">E</i><i style="--r:-1.5deg">R</i><i style="--r:1deg">P</i><i style="--r:-2deg">L</i><i style="--r:1.5deg">E</i><i style="--r:-.5deg">X</i></a>
       <div class="topbar-right">
         <button class="linkish" type="button" data-action="tour">How it works</button>
         <div class="whoami" id="whoami"></div>
       </div>
     </header>
 
-    <section class="marquee">
-      <div class="board" id="board">
-        <p class="kicker">Tonight</p>
-        <h1>Weberplex</h1>
-        <p class="sub">Warming up the projector…</p>
-      </div>
-    </section>
+    <div class="hero">
+      <section class="marquee">
+        <div class="board" id="board">
+          <p class="kicker">Tonight</p>
+          <h1>Weberplex</h1>
+          <p class="sub">Warming up the projector…</p>
+        </div>
+      </section>
+      <!-- the admit stub and the next move: display only (app.js renderStatus) -->
+      <div class="status" id="status"></div>
+    </div>
 
     <nav class="program" aria-label="On this page">
-      <a href="#nextSec">Up next</a>
-      <a href="#calSec">Calendar</a>
-      <a href="#shelfSec">Shelf</a>
-      <a href="#watchedSec" id="navWatched" hidden>Watched</a>
-      <a href="#statsSec" id="navStats" hidden>Stats</a>
+      <a href="#nextSec"><b aria-hidden="true">01</b>Up next</a>
+      <a href="#calSec"><b aria-hidden="true">02</b>Calendar</a>
+      <a href="#shelfSec"><b aria-hidden="true">03</b>Shelf</a>
+      <a href="#watchedSec" id="navWatched" hidden><b aria-hidden="true">04</b>Watched</a>
+      <a href="#statsSec" id="navStats" hidden><b aria-hidden="true">05</b>Stats</a>
     </nav>
 
     <section class="news" id="news" hidden aria-live="polite">
@@ -73,13 +78,14 @@
     </section>
 
     <section class="section" id="nextSec">
-      <div class="section-head"><h2>Up next</h2></div>
+      <div class="section-head"><span class="frame-num" aria-hidden="true">01</span><h2>Up next</h2></div>
       <div id="next"></div>
       <div id="moreNights"></div>
     </section>
 
     <section class="section" id="calSec">
-      <div class="section-head">
+      <div class="section-head alt">
+        <span class="frame-num" aria-hidden="true">02</span>
         <h2>The calendar</h2>
         <div class="head-side">
           <span class="aside">Next four weeks</span>
@@ -116,7 +122,7 @@
     </section>
 
     <section class="section" id="shelfSec">
-      <div class="section-head"><h2>The shelf</h2><span class="aside" id="shelfCount"></span></div>
+      <div class="section-head"><span class="frame-num" aria-hidden="true">03</span><h2>The shelf</h2><span class="aside" id="shelfCount"></span></div>
       <p class="hint" style="margin-top:0">Every movie anyone has added. Thumbs-up what you'd watch: each night shows the favorite of the people coming.</p>
       <details class="add-box" id="addBox">
         <summary class="btn btn-bulb">Add a movie</summary>
@@ -159,7 +165,7 @@
     </section>
 
     <section class="section" id="watchedSec" hidden>
-      <div class="section-head"><h2>Watched</h2><span class="aside" id="statsLine"></span></div>
+      <div class="section-head alt"><span class="frame-num" aria-hidden="true">04</span><h2>Watched</h2><span class="aside" id="statsLine"></span></div>
       <div id="rateBox"></div>
       <h3 class="label past-label">Every night so far</h3>
       <div class="past" id="past"></div>
@@ -167,7 +173,7 @@
     </section>
 
     <section class="section" id="statsSec" hidden>
-      <div class="section-head"><h2>Stats</h2><span class="aside">The long view</span></div>
+      <div class="section-head"><span class="frame-num" aria-hidden="true">05</span><h2>Stats</h2><span class="aside">The long view</span></div>
       <ul class="stat-board" id="statTiles"></ul>
       <p class="hint" id="topVoter" hidden></p>
       <div class="stat-grid">

@@ -1,0 +1,504 @@
+/* Weberplex: the basement theater (2026-10-16 redesign)
+   Loaded after site.css on the guest page only (the owner console keeps
+   site.css alone). site.css still carries every behavior rule (toasts,
+   overlays, the walkthrough, the reveal, big-text and landscape fallbacks);
+   this file remaps its tokens and restyles the components.
+   Spec: docs/specs/2026-10-16-redesign.md.
+
+   Type
+     Marquee  Bungee              letter tiles, stamps, the stat board
+     Display  Fraunces            headings, titles, numerals
+     Body     Bricolage Grotesque everything you read and tap
+     Mono     DM Mono             countdowns, counts, ticket numbers
+   The room is Midnight: dark, warm, a projector's glow at the top. Paper
+   things (tickets, the program, the stat board) stay paper. */
+:root {
+  --velvet: #120b08;      /* the room */
+  --velvet-2: #1d130f;    /* raised panels */
+  --velvet-3: #2a1c15;    /* inputs, hover */
+  --rule: #3b2a20;
+  --rule-strong: #7d6552; /* the edge of anything you tap: 3:1 on the room */
+  --curtain: #a8241c;     /* red: confirming calls, vetoes, the lock */
+  --curtain-hi: #c2342a;
+  --bulb: #ffbf4f;        /* amber: the main call, your marks, the bulbs */
+  --bulb-soft: rgba(255, 191, 79, 0.16);
+  --board: #fff6df;
+  --board-ink: #1a110c;
+  --screen: #f2e2c4;      /* text */
+  --dim: #c4ab8a;
+  --faint: #a08a74;       /* 4.5:1 or better on every panel */
+  --ticket: #fbf2de;      /* paper */
+  --ticket-ink: #24160f;
+  --ticket-label: #6a5341;
+  --admit-red: #b3261e;
+  --stripe-cream: #e8e0d6;
+  --go: #8fd6b0;
+  --bad: #ff8f80;
+  --beam: #86cfc8;        /* seen it */
+  --frame: #070403;       /* the marquee's housing, the film strip */
+  --frame-2: #1a110c;
+  --frame-ink: #f6e7c8;
+  --frame-ink-2: #a88f6c;
+  --wood: #8d5b34;
+  --wood-2: #5e3a1f;
+  --glow: rgba(255, 170, 55, 0.30);
+
+  --f-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --f-body: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --f-marquee: 'Bungee', 'Arial Black', sans-serif;
+  --radius: 8px;
+  --gutter: 16px;
+  --pleats:
+    linear-gradient(180deg, rgba(10, 3, 2, 0.35), transparent 22%, transparent 70%, rgba(10, 3, 2, 0.62)),
+    repeating-linear-gradient(90deg, #2e0606 0, #8f1a14 1.6rem, #b8322a 2.3rem, #8f1a14 3rem, #2e0606 4.4rem);
+}
+
+/* Paper: tickets, the program card, the name window, the ballot. The same
+   components read in ink on cream. */
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) {
+  --screen: var(--ticket-ink);
+  --dim: #5f4836;
+  --faint: #6f5845;
+  --rule: #ddc9a2;
+  --rule-strong: #a88d68;
+  --velvet-2: #f3e6c8;
+  --velvet-3: #fffaf0;
+  color: var(--ticket-ink);
+}
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) :is(a, .linkish) { color: var(--ticket-ink); }
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) :focus-visible { outline-color: var(--curtain); }
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) .face { background: #e6d4ae; color: var(--ticket-ink); border-color: var(--ticket); }
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) .face.me { background: var(--bulb); }
+
+/* ---- the room ------------------------------------------------------------ */
+html { background: var(--velvet); scrollbar-color: var(--rule-strong) var(--velvet); }
+body {
+  background: radial-gradient(130% 55% at 50% -12%, var(--glow), transparent 62%) no-repeat, var(--velvet);
+  font-optical-sizing: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+body::before { content: none !important; }
+body::after { /* film grain */
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 200; opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+::selection { background: var(--bulb); color: var(--board-ink); }
+:focus-visible { outline: 3px solid var(--bulb); outline-offset: 2px; border-radius: 4px; }
+/* sections land just under the sticky film strip */
+.section, .pass, #nextSec { scroll-margin-top: 76px; }
+
+/* ---- type ----------------------------------------------------------------- */
+.label { font-family: var(--f-body); font-stretch: 75%; letter-spacing: 0.15em; }
+.hint { line-height: 1.45; }
+.prompt { font-family: var(--f-body); }
+
+/* ---- top bar: the wordmark in letter tiles ---------------------------------- */
+.topbar { padding-block: 14px 10px; }
+.topbar .house { display: inline-flex; gap: 2px; text-decoration: none; }
+.topbar .house i {
+  font: 400 13px/1 var(--f-marquee); font-style: normal; color: var(--board-ink);
+  background: var(--board); padding: 4px 2px 3px; min-width: 15px; text-align: center; border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); transform: rotate(var(--r, 0deg));
+}
+.topbar .linkish { color: var(--dim); }
+.whoami { padding: 3px 10px 3px 3px; border-radius: 999px; background: var(--velvet-2); border: 1px solid var(--rule); }
+.whoami:empty { display: none; }
+.whoami .linkish { color: var(--bulb); }
+
+/* ---- the marquee: letter tiles under a frame of chasing bulbs --------------- */
+.marquee {
+  padding: 18px 18px 20px; border-radius: 12px;
+  background: var(--frame);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 22px 60px -18px var(--glow), 0 0 90px -30px var(--glow);
+}
+.marquee::before, .marquee::after { --b: radial-gradient(circle, #fff3d1 0 2.2px, var(--bulb) 3px, rgba(255, 191, 79, 0) 6px); }
+.board {
+  padding: 12px 10px 12px; border-radius: 3px;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.1), inset 0 0 34px rgba(255, 196, 110, 0.7), 0 0 24px rgba(255, 233, 190, 0.35);
+  background-image: none;
+}
+.board .kicker { font: 700 12px/1.2 var(--f-body); font-stretch: 75%; letter-spacing: 0.3em; color: #b3261e; margin: 2px 0 10px; }
+/* The title: letter tiles, a row per line. The h1's own size only matters to
+   assistive text and the big-text check; the tiles size themselves to the board. */
+.board h1 { font: 400 2.5rem/1 var(--f-marquee); letter-spacing: 0; display: grid; gap: 7px; text-transform: uppercase; }
+.mrow { display: flex; justify-content: center; gap: 2px; padding-bottom: 6px; border-bottom: 1.5px solid rgba(60, 35, 15, 0.13); }
+.mrow:last-child { border-bottom: 0; padding-bottom: 0; }
+.mt {
+  --w: min(var(--max, 30px), calc((100cqi - 4px - (var(--n) - 1) * 2px) / var(--n)));
+  display: inline-grid; place-items: center; width: var(--w); height: calc(var(--w) * 1.22);
+  font: 400 calc(var(--w) * 0.98)/1 var(--f-marquee); color: var(--board-ink);
+  transform: translateY(var(--dy, 0)) rotate(var(--rot, 0deg));
+}
+.mt.sp { width: calc(var(--w) * 0.45); }
+.mt.end { width: 0; overflow: hidden; } /* the space between rows: in the text, not on the board */
+.board .sub { margin: 12px 0 0; font: 700 14px/1.35 var(--f-body); font-stretch: 78%; letter-spacing: 0.12em; color: var(--board-ink); }
+.board .count { margin-top: 12px; padding: 5px 10px; border-radius: 3px; font: 500 12px/1.4 var(--f-mono); letter-spacing: 0.06em; background: var(--board-ink); color: var(--bulb); }
+.marquee.swap .board { animation: flipin 0.5s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes flipin { from { transform: rotateX(70deg); opacity: 0; } }
+
+/* ---- the admit stub and the next move (under the marquee) ------------------ */
+.status { display: grid; gap: 14px; margin-top: -2px; }
+.status:empty { display: none; }
+.status-in { container-type: inline-size; }
+.admit-stub {
+  display: grid; grid-template-columns: minmax(0, 1fr) 108px; min-height: 96px;
+  background: var(--ticket); border-radius: 0 0 10px 10px;
+  -webkit-mask: radial-gradient(circle 8px at calc(100% - 108px) 0, #0000 96%, #000) top / 100% 51% no-repeat,
+                radial-gradient(circle 8px at calc(100% - 108px) 100%, #0000 96%, #000) bottom / 100% 51% no-repeat;
+          mask: radial-gradient(circle 8px at calc(100% - 108px) 0, #0000 96%, #000) top / 100% 51% no-repeat,
+                radial-gradient(circle 8px at calc(100% - 108px) 100%, #0000 96%, #000) bottom / 100% 51% no-repeat;
+}
+.status-in { filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35)); } /* on the wrapper: a mask would cut a shadow of its own */
+.hero:has(.admit-stub) .marquee { border-radius: 12px 12px 4px 4px; }
+.as-main { padding: 14px 12px 12px 16px; display: grid; gap: 8px; align-content: center; min-width: 0; }
+.as-line { margin: 0; font-size: 14px; color: var(--dim); overflow-wrap: anywhere; }
+.as-line b { color: var(--ticket-ink); }
+.as-main .faces .face { border-color: var(--ticket); }
+.as-tear { border-left: 2px dashed var(--rule); padding: 12px 8px; display: grid; gap: 4px; place-content: center; text-align: center; }
+.as-tear .label { font-size: 10px; margin: 0; color: var(--dim); }
+.as-count { font: 500 16px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ticket-ink); }
+.as-count.hot { color: #b3261e; }
+.as-tear small { font: 500 10.5px/1.25 var(--f-mono); color: var(--dim); }
+.stamp {
+  justify-self: start; display: inline-block; font: 400 13px/1 var(--f-marquee); letter-spacing: 0.03em;
+  padding: 6px 8px 4px; border: 2.5px solid currentColor; border-radius: 4px; color: #b3261e; transform: rotate(-3deg);
+}
+.stamp.go { color: #1f6b62; }
+.stamp.ink { color: var(--ticket-ink); }
+@container (max-width: 300px) { /* big text on a phone: the tear goes under */
+  .admit-stub { grid-template-columns: minmax(0, 1fr); -webkit-mask: none; mask: none; border-radius: 0 0 10px 10px; }
+  .as-tear { border-left: 0; border-top: 2px dashed var(--rule); place-content: start; text-align: left; padding: 10px 16px; }
+}
+.next-move { display: flex; align-items: center; gap: 12px; }
+.next-move .btn { flex: 1; min-width: 0; }
+.btn-go {
+  min-height: 54px; font-size: 17px; font-weight: 700; border-radius: 4px; white-space: normal; text-align: center;
+  -webkit-mask: radial-gradient(circle 9px at 0 50%, #0000 96%, #000) left / 51% 100% no-repeat, radial-gradient(circle 9px at 100% 50%, #0000 96%, #000) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle 9px at 0 50%, #0000 96%, #000) left / 51% 100% no-repeat, radial-gradient(circle 9px at 100% 50%, #0000 96%, #000) right / 51% 100% no-repeat;
+}
+.btn-go:focus-visible { outline: 0; box-shadow: inset 0 0 0 3px var(--board-ink), inset 0 0 0 5px var(--bulb); }
+.btn-go.btn-ghost.on { color: var(--go); border-color: var(--go); }
+
+/* ---- the film strip: the jump links, stuck to the top --------------------- */
+.program {
+  position: sticky; top: 0; z-index: 30;
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 5px;
+  margin: 18px calc(var(--gutter) * -1) 0; padding: 11px var(--gutter);
+  background: var(--frame); box-shadow: 0 8px 20px -14px rgba(0, 0, 0, 0.9);
+}
+.program::before, .program::after { /* sprocket holes */
+  content: ''; position: absolute; left: 0; right: 0; height: 4px; opacity: 0.35;
+  background: repeating-linear-gradient(90deg, transparent 0 5px, var(--frame-ink-2) 5px 11px, transparent 11px 16px);
+}
+.program::before { top: 3px; }
+.program::after { bottom: 3px; }
+.program a {
+  position: relative; min-height: 44px; padding: 0 2px; border-radius: 3px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: var(--frame-2); color: var(--frame-ink);
+  font: 700 11.5px/1.1 var(--f-body); font-stretch: 78%; letter-spacing: 0.08em; text-transform: uppercase; text-align: center;
+  transition: background-color 0.25s, color 0.25s, box-shadow 0.25s;
+}
+.program a b { font: 500 10px/1 var(--f-mono); opacity: 0.6; letter-spacing: 0; }
+.program a:hover { color: var(--bulb); }
+.program a[aria-current="true"] { background: var(--bulb); color: var(--board-ink); box-shadow: 0 0 22px var(--glow); }
+.program a[aria-current="true"] b { opacity: 0.8; }
+
+/* ---- since you last looked: the slim bar ----------------------------------- */
+.news { margin-top: 16px; padding: 10px 12px 10px 30px; position: relative; background: var(--frame); border: 0; border-radius: var(--radius); }
+.news::before { content: ''; position: absolute; left: 12px; top: 50%; translate: 0 -50%; width: 9px; height: 9px; border-radius: 50%; background: var(--bulb); box-shadow: 0 0 10px var(--bulb); animation: flicker 4s infinite; }
+@keyframes flicker { 0%, 91%, 95%, 100% { opacity: 1; } 92%, 94% { opacity: 0.2; } 93% { opacity: 0.8; } }
+.news-bar p { color: var(--frame-ink-2); }
+.news-bar b { color: var(--frame-ink); }
+
+/* ---- the name window (box office) ----------------------------------------- */
+.pass {
+  position: relative; margin-top: 18px; padding: 40px 18px 20px; text-align: center;
+  background: var(--ticket); border: 0; border-radius: 110px 110px 10px 10px;
+  box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.8);
+}
+.pass::before { content: ''; position: absolute; left: 50%; top: 14px; translate: -50% 0; width: 70px; height: 10px; border-radius: 5px; background: #e9d8b4; }
+.pass h2 { font: 800 26px/1.05 var(--f-display); font-variation-settings: 'opsz' 96, 'SOFT' 100, 'WONK' 1; color: var(--ticket-ink); text-wrap: balance; }
+.pass form { justify-content: center; }
+.pass .field { background: #fffaf0; border: 2px solid var(--ticket-ink); text-align: center; font: 700 18px/1 var(--f-display); color: var(--ticket-ink); }
+.pass .field::placeholder { color: #8a7258; font-weight: 500; }
+.pass .field-label { font-weight: 500; color: var(--dim); }
+.pass #passPeople .chips { justify-content: center; }
+.pass .guest-chip { background: #fffaf0; border-color: var(--rule-strong); color: var(--ticket-ink); }
+.pass .msg { color: var(--dim); }
+.pass.flash { animation: flash-paper 900ms ease 2; }
+@keyframes flash-paper { 50% { box-shadow: 0 0 0 4px var(--bulb), 0 16px 40px -18px rgba(0, 0, 0, 0.8); } }
+
+/* ---- sections: outlined frame numbers behind each head --------------------- */
+.section { margin-top: 3.5rem; }
+.section-head { position: relative; isolation: isolate; margin-bottom: 1.1rem; padding-top: 18px; }
+.section-head h2 {
+  font: 700 clamp(1.75rem, 8.5vw, 2.25rem)/1 var(--f-display); font-variation-settings: 'opsz' 144, 'SOFT' 50, 'WONK' 1;
+  color: var(--screen); letter-spacing: -0.015em;
+}
+.section-head .aside { font: 700 11.5px/1.3 var(--f-body); font-stretch: 78%; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+.frame-num {
+  position: absolute; z-index: -1; left: -12px; top: -40px; pointer-events: none; user-select: none;
+  font: 800 112px/0.8 var(--f-display); font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1; letter-spacing: -0.04em;
+  color: transparent; -webkit-text-stroke: 1.5px var(--rule);
+}
+/* every other head sits on the right, the way a program alternates */
+.section-head.alt { flex-direction: row-reverse; }
+.section-head.alt .frame-num { left: auto; right: -12px; }
+.section > .hint:first-of-type, .section-head + .hint { color: var(--dim); }
+.empty { border: 2px dashed var(--rule); border-radius: 10px; padding: 1.4rem 1rem; font-size: 14.5px; }
+
+/* ---- buttons, fields, chips --------------------------------------------- */
+.btn { font-weight: 700; border-radius: var(--radius); }
+.btn-bulb { background: var(--bulb); color: var(--board-ink); }
+.btn-bulb:hover { background: #ffcd73; }
+.btn-primary { background: var(--curtain); color: #fff4ea; }
+.btn-primary:hover { background: var(--curtain-hi); }
+.btn-ghost { border-color: var(--rule-strong); }
+.btn-ghost.on { border-color: var(--go); color: var(--go); }
+.field { border-radius: var(--radius); }
+.chip { font-weight: 600; }
+.chip.on { background: var(--screen); border-color: var(--screen); color: var(--velvet); }
+.mini { font-weight: 600; }
+.mini.on { background: var(--go); border-color: var(--go); color: var(--board-ink); }
+.face { font: 700 11px/1 var(--f-display); background: #3a2a20; }
+.face.me { background: var(--bulb); color: var(--board-ink); }
+.linkish { text-underline-offset: 3px; }
+
+/* ---- up next: the night card ---------------------------------------------- */
+#next .night-card, #next .night-face { padding: 18px 16px; border-radius: 14px; background: var(--velvet-2); border: 1px solid var(--rule); gap: 18px; }
+.nc-head h3, .night-face h3 { font: 800 26px/1.05 var(--f-display); font-variation-settings: 'opsz' 96, 'SOFT' 60, 'WONK' 1; color: var(--screen); text-wrap: balance; }
+.nc-head .hint { font-size: 14px; }
+.theme-chip {
+  background: none; color: var(--bulb); border: 2px solid currentColor; border-radius: 4px; padding: 3px 8px 2px;
+  font: 400 12px/1.3 var(--f-marquee); letter-spacing: 0.03em; transform: rotate(-2deg);
+}
+.dd-line { font-size: 14px; }
+/* If it locked now: a lit mini lobby card */
+.pick-now { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; padding: 12px; border-radius: 10px; background: var(--frame); box-shadow: inset 0 0 0 1px var(--frame-2); }
+.pick-poster { border-radius: 3px; box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.8); }
+.pick-line { font: 700 19px/1.15 var(--f-display); color: var(--frame-ink); }
+.pick-now .label { color: var(--frame-ink-2); }
+.ribbon { font: 700 10.5px/1 var(--f-body); font-stretch: 78%; letter-spacing: 0.14em; }
+
+/* Tonight's ballot: numbered tickets with a torn stub for the vote */
+#next ol.ballot { counter-reset: ballot; margin: 10px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+#next .ballot-row {
+  --stub: 92px;
+  counter-increment: ballot; position: relative;
+  display: grid; grid-template-columns: 34px 46px minmax(0, 1fr) var(--stub);
+  grid-template-areas: "rank poster title stub" "rank poster tags stub" "rank poster votes stub";
+  grid-template-rows: auto auto 1fr; column-gap: 10px; row-gap: 4px; align-items: start;
+  padding: 0; border-radius: 6px; box-shadow: 0 8px 14px -8px rgba(0, 0, 0, 0.6);
+  /* the punched notches where the stub tears off, in the card's own color */
+  background:
+    radial-gradient(circle 7px at calc(100% - var(--stub)) 0, var(--velvet-2-card, #1d130f) 98%, transparent 100%),
+    radial-gradient(circle 7px at calc(100% - var(--stub)) 100%, var(--velvet-2-card, #1d130f) 98%, transparent 100%),
+    var(--ticket);
+}
+#next .ballot-row:not(:has(.ballot-actions)) { grid-template-columns: 34px 46px minmax(0, 1fr); grid-template-areas: "rank poster title" "rank poster tags" "rank poster votes"; background: var(--ticket); }
+#next .ballot-row::before {
+  content: counter(ballot); grid-area: rank; align-self: stretch; display: grid; place-items: center;
+  border-right: 2px dashed var(--rule); font: 800 24px/1 var(--f-display); font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1; color: var(--ticket-ink);
+}
+#next .ballot-row.mine { box-shadow: 0 0 0 2.5px var(--bulb), 0 8px 18px -8px var(--glow); }
+#next .ballot-poster { grid-area: poster; margin: 10px 0; border-radius: 2px; }
+#next .ballot-body { display: contents; }
+#next .ballot-row .ballot-title { grid-area: title; margin: 10px 0 0; font: 700 16.5px/1.15 var(--f-display); font-variation-settings: 'opsz' 40, 'SOFT' 50; }
+#next .ballot-row .ballot-title b { font-weight: 700; }
+#next .ballot-row .ballot-title .v { color: var(--dim); font-family: var(--f-mono); }
+#next .ballot-row .ballot-title .v svg { color: #c27a00; }
+#next .ballot-row .ballot-tags { grid-area: tags; margin: 0; }
+#next .ballot-row .ballot-tag { border: 0; background: #e9dcc0; color: #5f4836; border-radius: 3px; font-size: 10.5px; }
+#next .ballot-row .ballot-votes { grid-area: votes; margin: 0 0 10px; font-size: 13px; color: var(--dim); }
+#next .ballot-row .ballot-actions {
+  grid-area: stub; align-self: stretch; margin: 8px 0; padding: 0 8px; /* the tear line stops short of the notches */
+  display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 6px; border-left: 2px dashed var(--rule);
+}
+#next .ballot-row .ballot-actions .mini { justify-content: center; min-height: 40px; padding: 0 6px; border-radius: 999px; font-size: 12.5px; color: var(--ticket-ink); border: 2px dashed var(--rule-strong); background: transparent; }
+#next .ballot-row .ballot-actions .mini.on { background: var(--bulb); border: 2px solid var(--bulb); color: var(--board-ink); }
+#next .ballot-row .ballot-actions .mini.veto { border-style: solid; border-width: 1.5px; border-color: #c9b08a; color: #9c2318; min-height: 34px; }
+.writein-panel { background: var(--velvet-3); border-radius: 10px; }
+.vetoes s { text-decoration-color: var(--bad); text-decoration-thickness: 2px; }
+.host-tools { border-top: 2px dashed var(--rule); padding-top: 14px; }
+
+/* The ticket: admit-one stock, the title in marquee letters */
+.ticket { background: var(--ticket); color: var(--ticket-ink); border-radius: 8px; box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.9); }
+.ticket h3 { font: 400 clamp(1.2rem, 9cqi, 1.9rem)/1.05 var(--f-marquee); letter-spacing: 0.02em; }
+.admit { font-family: var(--f-body); font-stretch: 78%; color: var(--admit-red); }
+.ticket dt { font-family: var(--f-body); font-stretch: 78%; color: var(--ticket-label); }
+.ticket-stub span { font-family: var(--f-mono); font-weight: 500; }
+.ticket-back, .reveal-cover { font-family: var(--f-marquee); }
+
+/* Concessions: a menu board, dotted leaders to who's bringing it */
+#next .snack-box { margin-top: 20px; padding: 16px; border-radius: 12px; background: var(--frame); box-shadow: inset 0 0 0 4px var(--frame-2); gap: 10px; }
+#next .snack-box > .label { font: 400 17px/1 var(--f-marquee); letter-spacing: 0.03em; color: var(--bulb); text-transform: uppercase; }
+#next .snack { background: none; border: 0; border-image: none; border-radius: 0; padding: 7px 0; }
+#next .snack > div { display: flex; align-items: baseline; gap: 8px; color: var(--frame-ink); }
+#next .snack > div::after { content: ''; order: 1; flex: 1 1 16px; min-width: 16px; border-bottom: 2px dotted var(--frame-ink-2); opacity: 0.5; translate: 0 -4px; }
+#next .snack b { order: 0; font-size: 15px; }
+#next .snack span { order: 2; white-space: nowrap; font: 700 11.5px/1 var(--f-body); font-stretch: 78%; letter-spacing: 0.12em; text-transform: uppercase; color: var(--frame-ink-2); }
+#next .snack-box .empty { border-color: var(--frame-2); color: var(--frame-ink-2); }
+#next .snack-box .chip { background: var(--frame-2); border-color: #4a382c; color: var(--frame-ink); }
+#next .snack-box .field { background: transparent; border-color: var(--frame-ink-2); color: var(--frame-ink); }
+
+/* Reviews and the rating stub */
+.review-form { border-radius: 12px; background: var(--velvet-2); padding: 16px; }
+.review-form .prompt { font: 800 21px/1.15 var(--f-display); font-variation-settings: 'opsz' 60, 'SOFT' 60, 'WONK' 1; }
+.star.on { color: var(--bulb); }
+.review .who .s { color: var(--bulb); }
+.date-item { background: var(--velvet-2); border: 1px solid var(--rule); border-radius: var(--radius); }
+
+/* ---- the calendar: a printed program card --------------------------------- */
+.cal-wrap { padding: 14px 10px 12px; border-radius: 10px; background: var(--ticket); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.9); }
+.cal { gap: 4px; }
+.cal-head { font: 700 10px/1.8 var(--f-body); font-stretch: 75%; letter-spacing: 0.14em; color: var(--dim); }
+.cal .day { background: transparent; border: 1.5px solid var(--rule); border-radius: 6px; color: var(--ticket-ink); }
+.cal .day:hover { border-color: var(--ticket-ink); }
+.cal .d-dow { color: #9c2318; font-stretch: 75%; }
+.cal .d-num { font: 600 clamp(0.85rem, 4.6vw, 1.35rem)/1 var(--f-display); font-variation-settings: 'opsz' 30, 'SOFT' 60; }
+.cal .d-meta { color: var(--dim); font-family: var(--f-mono); font-weight: 500; }
+.cal .day.on { background: var(--bulb); border-color: var(--bulb); }
+.cal .day.on .d-meta { color: var(--ticket-ink); }
+.cal .day.on::before { /* punched */
+  content: ''; position: absolute; left: 4px; top: 4px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ticket); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+.cal .day.lead { border: 2px solid var(--ticket-ink); box-shadow: none; }
+.cal .d-host { color: #9c2318; }
+.cal .day.sel { outline: 2.5px solid #b3261e; outline-offset: 1px; }
+.cal .day:focus-visible, .cal .day.sel:focus-visible { outline: 3px solid var(--curtain); outline-offset: 2px; }
+.cal .day.fresh::after { background: #1f6b62; }
+.cal-key { color: var(--dim); padding: 4px 4px 0; }
+.cal-key .k-free { background: var(--bulb); border: 0; }
+.cal-key .k-count { color: var(--dim); }
+.cal-key .k-night { border: 2px solid var(--ticket-ink); box-shadow: none; }
+/* the day panel: the program's tear-off */
+.day-detail { background: var(--ticket); border: 0; border-top: 2px dashed var(--rule); border-radius: 0 0 10px 10px; margin-top: 0; padding: 16px 14px; box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.9); }
+.cal-wrap { border-radius: 10px 10px 0 0; }
+.dd-head h3 { font: 800 22px/1.1 var(--f-display); font-variation-settings: 'opsz' 60, 'SOFT' 60, 'WONK' 1; color: var(--ticket-ink); }
+.day-detail .dd-step { border-color: var(--rule-strong); color: var(--ticket-ink); }
+.day-detail .field { background: #fffaf0; border-color: var(--rule-strong); color: var(--ticket-ink); }
+.day-detail .host-slip { background: #fffaf0; box-shadow: inset 0 0 0 2px var(--rule); }
+.day-detail .dd-host { border-top: 2px dashed var(--rule); }
+.day-detail .btn-ghost.on { color: #1f6b62; border-color: #1f6b62; }
+.sub-panel { background: var(--velvet-2); border-radius: 10px; }
+#calSec > .hint { margin-bottom: 12px; }
+
+/* ---- the shelf: posters standing on wooden planks -------------------------- */
+#addBox > summary.btn { min-height: 52px; padding: 0 26px; font-size: 16px; border-radius: 4px; }
+.search-row .field, #pasteText { background: var(--velvet-2); }
+.results, .surprise, .paste-row, .tile { border-radius: 10px; }
+.chip-row .sort-pick { border-radius: 999px; }
+#shelf { gap: 34px 14px; }
+#shelf .card { background: none; border: 0; border-radius: 0; overflow: visible; }
+#shelf .card .poster { margin-bottom: 18px; border-radius: 4px; box-shadow: 0 12px 18px -10px rgba(0, 0, 0, 0.8); }
+#shelf .card .poster img { border-radius: 4px; }
+#shelf .card .poster::after { /* the plank the poster stands on */
+  content: ''; position: absolute; left: -9px; right: -9px; bottom: -13px; height: 9px; border-radius: 1px; z-index: -1;
+  background: linear-gradient(var(--wood), var(--wood-2)); box-shadow: 0 6px 8px -4px rgba(0, 0, 0, 0.6);
+}
+#shelf .card .poster { isolation: isolate; }
+#shelf .card.lead { box-shadow: none; }
+#shelf .card.lead .poster { box-shadow: 0 0 0 2px var(--bulb), 0 0 28px -4px var(--glow); }
+#shelf .card-body { padding: 0; gap: 6px; }
+#shelf .card h3 { font: 700 16px/1.15 var(--f-display); font-variation-settings: 'opsz' 30, 'SOFT' 50; }
+#shelf .vote { background: var(--velvet-2); }
+#shelf .vote.on { background: var(--bulb); border-color: var(--bulb); color: var(--board-ink); }
+#shelf .card .mini[data-action="seen"].on { background: var(--beam); border-color: var(--beam); color: var(--board-ink); }
+.new-chip { background: var(--go); }
+.tag-chip { border-radius: 3px; }
+
+/* ---- watched: ticket stubs ------------------------------------------------ */
+.past { gap: 8px; }
+.past-row { background: var(--ticket); border-radius: 6px; padding: 8px 14px 8px 8px; box-shadow: 0 8px 14px -8px rgba(0, 0, 0, 0.6); }
+.past-row .t { font: 700 16px/1.15 var(--f-display); }
+.past-row .d { color: var(--dim); }
+.past-row .s { color: #9c2318; font-family: var(--f-mono); font-weight: 500; }
+.past-label { color: var(--faint); }
+
+/* ---- stats: the letter board and three cards -------------------------------- */
+.stat-board { font: 400 17px/36px var(--f-marquee); letter-spacing: 0.06em; padding: 8px 14px; box-shadow: inset 0 0 0 2px rgba(60, 35, 15, 0.1), 0 10px 24px -14px rgba(0, 0, 0, 0.8); }
+.stat-board li + li { border-top: 1.5px solid rgba(60, 35, 15, 0.13); }
+.stat-board b { color: #b3261e; }
+.stat-card { border-radius: 10px; border: 0; background: var(--velvet-2); padding: 14px; }
+.stat-card .label { color: var(--faint); }
+.leaders { font-weight: 600; }
+.leaders li::marker { font-family: var(--f-mono); color: var(--faint); }
+.taste .v { color: var(--bulb); }
+.taste .meter { background: var(--velvet-3); }
+.taste .meter::before { background: var(--bulb); }
+
+/* ---- the event moments: marquee letters for the big words ------------------- */
+.reveal-title, .reel-result { font-family: var(--f-display); font-weight: 800; font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1; }
+.reveal-box h2, .reel-box h2, .tour-card h2 { font-family: var(--f-display); font-weight: 700; font-variation-settings: 'opsz' 96, 'SOFT' 60, 'WONK' 1; }
+.tour-card.news h2 { font-family: var(--f-body); font-weight: 600; }
+.news-name { font: 400 0.92em/1 var(--f-marquee); letter-spacing: 0.02em; }
+.tour-card { border-radius: 14px; border-color: var(--bulb); background: var(--velvet-2); }
+.tour-foot { background: var(--velvet-2); }
+.screen-title { font-family: var(--f-marquee); font-weight: 400; letter-spacing: 0.04em; }
+.toast { border-radius: var(--radius); font-family: var(--f-body); }
+.footer { border-top: 2px dashed var(--rule); }
+
+/* ---- big text on a phone: the heads step down, the marquee title stays biggest */
+@media (max-width: 300px) {
+  /* at 200% text a stuck strip would eat the screen: it scrolls away */
+  .program { position: static; }
+  .section, .pass, #nextSec { scroll-margin-top: 12px; }
+  .section-head h2 { font-size: 1.125rem; }
+  .frame-num { font-size: 64px; top: -22px; }
+  .program a b { display: none; }
+  .program a { font-size: 10px; letter-spacing: 0.02em; }
+}
+
+/* ---- desktop: the marquee across the top ----------------------------------- */
+@media (min-width: 980px) {
+  .wrap { max-width: 1180px; padding-inline: 40px; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; align-items: center; margin-top: 6px; }
+  .hero .marquee { padding: 24px 26px 26px; border-radius: 14px; }
+  .hero .board { padding: 18px 16px 16px; }
+  .mrow { --max: 46px; }
+  .status { margin-top: 0; }
+  .admit-stub { border-radius: 10px; min-height: 124px; }
+  .program {
+    margin: 32px 0 0; padding: 12px 0; gap: 10px;
+    border-image: linear-gradient(var(--frame) 0 0) fill 0 / 0 / 0 100vmax; /* edge to edge, without widening the page */
+  }
+  .program::before, .program::after { background: none; border-image: repeating-linear-gradient(90deg, transparent 0 5px, var(--frame-ink-2) 5px 11px, transparent 11px 16px) fill 0 / 0 / 0 100vmax; }
+  .program a { flex-direction: row; gap: 12px; min-height: 48px; font-size: 13.5px; }
+  .section { margin-top: 4.5rem; }
+  .section-head h2 { font-size: 3.25rem; }
+  .frame-num { font-size: 190px; top: -80px; }
+  /* the ballot: tall poster tickets, the vote stub torn off along the bottom */
+  #next ol.ballot { grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 18px; }
+  #next .ballot-row {
+    --tear: 58px;
+    grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto 1fr auto;
+    grid-template-areas: "rank" "poster" "title" "tags" "votes" "stub"; padding: 0;
+    background:
+      radial-gradient(circle 8px at 0 calc(100% - var(--tear)), var(--velvet-2-card, #1d130f) 98%, transparent 100%),
+      radial-gradient(circle 8px at 100% calc(100% - var(--tear)), var(--velvet-2-card, #1d130f) 98%, transparent 100%),
+      var(--ticket);
+  }
+  #next .ballot-row:not(:has(.ballot-actions)) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rank" "poster" "title" "tags" "votes"; }
+  #next .ballot-row::before { content: 'No. ' counter(ballot); place-items: start; padding: 10px 14px 0; border-right: 0; font-size: 20px; }
+  #next .ballot-row :is(.ballot-title, .ballot-tags, .ballot-votes) { margin-inline: 14px; }
+  #next .ballot-poster { margin: 8px 12px 4px; width: auto; }
+  #next .ballot-row .ballot-title { font-size: 18px; margin-top: 6px; }
+  #next .ballot-row .ballot-actions { height: var(--tear); flex-direction: row; align-items: center; padding: 0 2px; margin: 0 10px !important; border-left: 0; border-top: 2px dashed var(--rule); }
+  #next .ballot-row .ballot-actions .mini { flex: 1; }
+  #next .pick-now { max-width: 640px; }
+  /* the calendar beside its day panel */
+  #calSec { display: grid; grid-template-columns: minmax(0, 1fr) 380px; column-gap: 28px; align-items: start; }
+  #calSec > :not(.cal-wrap, .day-detail) { grid-column: 1 / -1; }
+  #calSec > .cal-wrap { grid-column: 1; border-radius: 10px; }
+  #calSec > .day-detail { grid-column: 2; position: sticky; top: 92px; border-top: 0; border-radius: 10px; }
+  #calSec .day { aspect-ratio: 1 / 0.8; }
+  #shelf { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 40px 18px; }
+  .add-box .search { max-width: 760px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .news::before { animation: none; }
+  .marquee.swap .board { animation: none; }
+}
