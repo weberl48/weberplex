@@ -1,6 +1,6 @@
 ---
 name: Weberplex
-description: A friend's basement theater on a phone. A lit marquee in letter tiles, ticket stock, a film strip, house lights down below.
+description: A friend's basement theater on a phone. The lit marquee, ticket stock, a film strip, house lights down below.
 colors:
   bulb: "#ffbf4f"
   bulb-hi: "#ffcd73"
@@ -35,9 +35,9 @@ colors:
   dim: "#c4ab8a"
   faint: "#a08a74"
 typography:
-  marquee:
+  stamp:
     fontFamily: "Bungee, Arial Black, sans-serif"
-    fontSize: "tiles size to the board (max 30px phone, 46px desktop)"
+    fontSize: "13-17px"
     fontWeight: 400
     lineHeight: 1
   display:
@@ -244,15 +244,13 @@ components:
 
 **The 2026-10-16 redesign ("the basement theater").** The guest page took the
 redesign prototype's look without changing what the site does or stores
-(`docs/specs/2026-10-16-redesign.md`). The type is new: Bungee letter tiles on the
-marquee and for stamps, Fraunces for headings and titles, Bricolage Grotesque for
+(`docs/specs/2026-10-16-redesign.md`). The type is new (except on the marquee, which keeps
+its own): Bungee for stamps and the wordmark tiles, Fraunces for headings and titles, Bricolage Grotesque for
 everything read and tapped, DM Mono for numbers. The palette is warmer: brown-black
 instead of oxblood-velvet, a brighter red curtain, and amber bulbs. New on the page:
-the admit stub and the next-move button under the marquee, a sticky film strip for
-the jump links, outlined frame numbers behind the section heads, numbered ballot
+a sticky film strip for the jump links, outlined frame numbers behind the section heads, numbered ballot
 tickets with a torn vote stub, the calendar printed as a program card, shelf posters
-standing on wooden planks, and concessions as a menu board. On desktop the marquee
-runs across the top with the stub beside it. The guest page loads
+standing on wooden planks, and concessions as a menu board. The marquee itself stays the original (2026-10-17). The guest page loads
 `public/css/weberplex.css` over `site.css`; the owner console (`/host`) still loads
 `site.css` alone, so it keeps the look described below as "Limelight / Archivo".
 Where this document and `weberplex.css` disagree about the guest page, the
@@ -320,7 +318,7 @@ A warm three-light theater: velvet dark, an oxblood curtain, amber bulbs, and pa
 
 ## Typography
 
-**(2026-10-16)** **Marquee Font:** Bungee (letter tiles, stamps, the stat board, the ticket title)
+**(2026-10-16)** **Stamp Font:** Bungee (stamps, the stat board, the ticket title, the wordmark tiles). The marquee keeps Limelight.
 **Display Font:** Fraunces, optical size 9–144 with its SOFT and WONK axes (with Georgia, serif)
 **Body Font:** Bricolage Grotesque, width 75–100 and weight 400–800 (with system-ui)
 **Mono Font:** DM Mono 400–500 (with ui-monospace)
@@ -345,7 +343,7 @@ The owner console keeps Limelight, Archivo and Courier Prime.
 
 ## Layout
 
-**(2026-10-16)** On a phone the page is still one column with 16px gutters: the top bar, the marquee with the admit stub and next move under it, the film strip, then the sections 3.5rem apart, each head over an outlined frame number (the calendar and Watched heads on the right). From 980px the page widens to 1180px: the marquee and the stub sit side by side, the film strip runs edge to edge, the ballot becomes a grid of poster tickets, the calendar sits beside its day panel and the shelf fills columns of 170px.
+**(2026-10-16)** On a phone the page is still one column with 16px gutters: the top bar, the original marquee, the film strip, then the sections 3.5rem apart, each head over an outlined frame number (the calendar and Watched heads on the right). From 980px the page widens to 1180px with nothing beside the marquee (it keeps its 46rem column), the film strip runs edge to edge, the ballot becomes a grid of poster tickets, the calendar sits beside its day panel and the shelf fills columns of 170px.
 
 Before the redesign: the page is one centered program column, 46rem at most, with 16px gutters and 4rem of room at the bottom. Sections sit 2.5rem apart, and each opens with a Limelight head on the left and a quiet aside or ghost control on the right, aligned on the baseline. The order follows the night: the marquee, a row of jump links (Up next, Calendar, Shelf, Watched, Stats), the news bar, the guest-list form, Up next, the calendar, the shelf, Watched, Stats, then the footer.
 
@@ -440,13 +438,8 @@ The long view, spelled out like a marquee board: one centered line per number on
 ### The Box-Office Window (signature)
 The panel under the calendar for the day you tapped, with an aisle-edge border. It shows the date in Limelight with ‹ › beside it (44px, Courier arrows) to step to the evening before or after without going back to the grid, who's free, the night if there is one, and the RSVP control. On an evening without a night it shows "I'm free that evening" and a hosting block (start time, theme, I can host) behind a dashed divider.
 
-### The Admit Stub and the Next Move (2026-10-16)
-Under the marquee, display only: a paper stub that hangs off the marquee's bottom edge, perforated 108px from the right with two punched notches. Left: a tilted stamp ("You're in", "You're hosting", "Not on the list", "Locked", "Now showing", "No show yet"), "6 coming · at Sam's" and the faces. Right, the tear-off: "Locks in" or "Showtime" over a live DM Mono countdown (red in the last 6 hours) and the time, or the best open night when nothing is booked. Under it one amber button with notched ends: the next thing to do (Count me in, Vote for Saturday, Add your pick, Call a snack, See my ticket, Turn the card over, Rate Jaws, Pick a night). It reuses the page's own actions and scrolls to the right place; it writes nothing new. At 200% text the tear-off drops under the stub.
-
 ### The Marquee (signature)
-**(2026-10-16)** A near-black housing (12px corners) ringed with chasing bulbs around a lit board. The title is set in Bungee letter tiles, each tipped a little, in balanced rows of up to three, sized to the board (container units, 30px at most on a phone and 46px on desktop); the text stays in its own case for screen readers and scripts, and the CSS sets it in capitals. A new title flips onto the board. The kicker is spaced red condensed caps; the subline condensed caps; the count a board-ink tag in amber DM Mono.
-
-Before the redesign: a plush oxblood frame (10px corners) ringed with chasing bulbs around a lit letter board (4px corners, faint grooves, inner glow). The board stacks a spaced oxblood kicker (the season title and status), the display line (the movie or night), an uppercase condensed subline (when and whose house, its lines balanced, the time never split from AM/PM), and a board-ink tag with the countdown in amber Courier. It's the only element that glows and animates at rest. With reduced motion the chase stops and the bulbs hold at 40%. While your reveal for a locked night hasn't played, the display line reads "The movie is…". The tour's small copy of it is still: no chase.
+**(2026-10-17)** Unchanged by the redesign (the user's call): the letter-tile title and the admit stub were tried for a day and taken out. `weberplex.css` hands the marquee back its own fonts (Limelight, Archivo, Courier Prime) and colors, and keeps it in its 46rem column on desktop. A plush oxblood frame (10px corners) ringed with chasing bulbs around a lit letter board (4px corners, faint grooves, inner glow). The board stacks a spaced oxblood kicker (the season title and status), the display line (the movie or night), an uppercase condensed subline (when and whose house, its lines balanced, the time never split from AM/PM), and a board-ink tag with the countdown in amber Courier. It's the only element that glows and animates at rest. With reduced motion the chase stops and the bulbs hold at 40%. While your reveal for a locked night hasn't played, the display line reads "The movie is…". The tour's small copy of it is still: no chase.
 
 ### The Ticket (signature)
 Admit-one paper with two 11px punched notches and a dashed stub perforation. On the left: "ADMIT ONE" in spaced stamp red, the movie in Limelight, and a definition list (When, Where, Guest, Running) with condensed uppercase labels in ticket label brown. On the right, a 74px stub carries a vertical Courier serial number. Once the movie is face up the ticket carries its poster (56px, floated right of ADMIT ONE and the title, 3px corners, a soft drop shadow; the details clear it and run the full width); while it's face down that spot holds a small card back (oxblood, amber "?"), and after a reveal you backed out of, that card back is the button that turns it over ("Tap to turn it over" in 11px condensed caps), so Up next keeps one amber call. A night you're not coming to shows the same art beside its title in Limelight. It shows on a locked night you're coming to, with Add to calendar and the RSVP control underneath, then the trailer and Stremio. Face down ("The movie is…", no running time) until your reveal has played.

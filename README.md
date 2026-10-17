@@ -81,10 +81,9 @@ its examples are stamped SAMPLE and use no real dates or names, so nobody
 mistakes the sample ticket for the real night),
 tickets with **Add to calendar** (Google Calendar's add-event page, with the
 .ics download as a fallback), Stremio links on every card, a season title on
-the marquee (its title in letter tiles), an admit stub under it (are you in,
-who's coming, a live countdown to the lock or the show) with the one thing to
-do next, and a film strip of jump links that sticks to the top of the screen and
-lights the section you're in (they scroll without adding history). Android's back gesture closes whichever card, overlay or
+the marquee, and a film strip of jump links under it that sticks to the top of
+the screen and lights the section you're in (they scroll without adding
+history). Android's back gesture closes whichever card, overlay or
 hosting slip is open instead of leaving the site. A reveal closed with back
 before it turns stays face down that visit: the card back on its night in Up
 next (**Tap to turn it over**) plays it when you're ready. Good news drops in at the top of the screen for a

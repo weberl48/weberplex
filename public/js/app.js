@@ -278,7 +278,6 @@ const out = (sel) => ({ set innerHTML(html) { paint($(sel), html); } });function
     const secret = new Set(upcoming.filter((n) => n.status === 'locked' && faceDown(n)).map((n) => n.lockedMovieId));
     S.news = L.sinceLastLook({ nights: S.nights, movies: S.movies, votes: S.votes.filter((v) => !secret.has(v.movie)), free: S.free, people: S.people, subs: S.nightSub, since: S.since, meKey: S.me?.nameKey });
     renderBoard(upcoming[0], shelf);
-    renderStatus(upcoming[0]);
     renderWho();
     renderPass();
     renderNews();
@@ -354,115 +353,10 @@ function renderBoard(n, shelf) {
   }
   out('#board').innerHTML = `
     <p class="kicker">${esc(kicker)}</p>
-    <h1 aria-label="${esc(title)}">${tileRows(title)}</h1>
+    <h1>${esc(title)}</h1>
     ${sub ? `<p class="sub">${esc(sub)}</p>` : ''}
     ${count ? `<span class="count">${esc(count)}</span>` : ''}`;
-  // A new title flips onto the board.
-  if (lastTitle && lastTitle !== title) { const m = $('.marquee'); m.classList.remove('swap'); void m.offsetWidth; m.classList.add('swap'); }
-  lastTitle = title;
 }
-let lastTitle = '';
-// The title in letter tiles, a row per line (balanced, at most 3 rows). The
-// text keeps its own case and spaces, so it reads the same to scripts and
-// screen readers; the CSS sets it in capitals. The space between two rows is
-// a tile of no width: in the text, not on the board.
-function tileRows(text) {
-  const words = String(text).split(/\s+/).filter(Boolean);
-  const len = words.join(' ').length;
-  const rows = Math.min(3, Math.max(1, Math.ceil(len / 13)));
-  const limit = Math.max(...words.map((w) => [...w].length), Math.ceil(len / rows));
-  const lines = [];
-  for (const w of words) {
-    const last = lines[lines.length - 1];
-    if (last != null && [...`${last} ${w}`].length <= limit) lines[lines.length - 1] = `${last} ${w}`;
-    else lines.push(w);
-  }
-  return lines.map((line, i) => {
-    const chars = [...line];
-    const n = chars.reduce((a, c) => a + (c === ' ' ? 0.45 : 1), 0);
-    const tiles = chars.map((c, j) => (c === ' ' ? '<span class="mt sp"> </span>'
-      : `<span class="mt" style="--rot:${(((j * 7 + i * 3) % 7) - 3) * 0.5}deg;--dy:${(j % 3) - 1}px">${esc(c)}</span>`)).join('');
-    return `<span class="mrow" style="--n:${n.toFixed(2)}">${tiles}${i < lines.length - 1 ? '<span class="mt end"> </span>' : ''}</span>`;
-  }).join('');
-}
-
-// ---- the admit stub and the next move (under the marquee) ------------------------
-// Display only: are you in, who's coming, a live countdown to the lock or the
-// show, and the one thing to do next. Its buttons are actions that already
-// exist further down the page (free, goto, reveal-now); nothing new is written.
-const countdownText = (to) => {
-  let s = Math.max(0, Math.floor((to - Date.now()) / 1000));
-  const d = Math.floor(s / 86400); s %= 86400;
-  const p = (x) => String(x).padStart(2, '0');
-  return `${d ? `${d}d ` : ''}${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
-};
-const shortWhen = (d) => d.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-function renderStatus(n) {
-  if (!ready() || !knowsMe()) { out('#status').innerHTML = ''; return; }
-  const meKey = S.me?.nameKey;
-  const go = (label, target) => `<button class="btn btn-bulb btn-go" type="button" data-action="goto" data-target="${target}">${esc(label)} <span aria-hidden="true">↓</span></button>`;
-  // Count me in, the same action as the night's own button (its own id keeps
-  // the two apart when a repaint looks for the one that had focus).
-  const join = (x) => `<button class="btn btn-bulb btn-go" type="button" id="heroGo" data-action="free" data-day="${x.day}" data-night="1" aria-pressed="false">Count me in</button>`;
-  const unrated = recentDone().filter((x) => canRateNight(x) && !myReviewOf(x));
-  const rate = unrated[0] ? go(`Rate ${unrated[0].lockedMovie?.title || 'last night'}`, '#watchedSec') : '';
-  let stamp, line, tear, move, who = '';
-  if (!n) {
-    const best = L.tallyDays(L.calendarDays(), { free: S.free, nights: S.nights })
-      .filter((d) => d.count && !(d.night && d.night.status !== 'done'))
-      .sort((a, b) => b.count - a.count || a.day.localeCompare(b.day))[0];
-    stamp = '<span class="stamp ink">No show yet</span>';
-    line = 'Nobody’s hosting yet. Pick an evening and host one.';
-    tear = best
-      ? `<span class="label">Best night</span><span class="as-count">${esc(L.dayFromKey(best.day).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }))}</span><small>${best.count} free</small>`
-      : '<span class="label">Calendar</span><span class="as-count">Open</span><small>4 weeks</small>';
-    move = rate || go('Pick a night', '#calSec');
-  } else {
-    const coming = comingTo(n.day);
-    const going = imFree(n.day);
-    const start = n.startsAt.toDate();
-    who = faces(coming, meKey, 8, { named: false });
-    line = `<b>${coming.length} coming</b> · at ${esc(placeOf(n))}`;
-    const weekday = L.dayFromKey(n.day).toLocaleDateString(undefined, { weekday: 'long' });
-    if (n.status === 'planned') {
-      stamp = isMine(n) ? '<span class="stamp go">You’re hosting</span>' : going ? '<span class="stamp go">You’re in</span>' : '<span class="stamp ink">Not on the list</span>';
-      const lock = L.lockAt(n);
-      tear = L.lockDue(n)
-        ? '<span class="label">The lock</span><span class="as-count hot">Now</span><small>picking…</small>'
-        : `<span class="label">Locks in</span><span class="as-count${lock - Date.now() < 6 * 3600e3 ? ' hot' : ''}" data-to="${lock.getTime()}">${countdownText(lock)}</span><small>${esc(shortWhen(lock))}</small>`;
-      if (!going && !isMine(n)) move = join(n);
-      else if (!ballotOf(n).length) move = go('See the night', '#nextSec');
-      else if (!n.ballotVotes?.[meKey]) move = go(`Vote for ${weekday}`, '#next .ballot');
-      else if (!n.writeIns?.[meKey] && going) move = go('Add your pick', '#next .writein');
-      else move = rate || go('Call a snack', '#next .snack-box');
-    } else if (!showing(n)) {
-      stamp = '<span class="stamp">Locked</span>';
-      tear = `<span class="label">Showtime</span><span class="as-count" data-to="${start.getTime()}">${countdownText(start)}</span><small>${esc(shortWhen(start))}</small>`;
-      if (pendingShow(n)?.deferred) move = '<button class="btn btn-bulb btn-go" type="button" id="heroGo" data-action="reveal-now">Turn the card over</button>';
-      else if (going && S.me) move = go('See my ticket', '#next .ticket');
-      else if (isMine(n)) move = go('See the night', '#nextSec');
-      else move = join(n);
-    } else {
-      stamp = '<span class="stamp">Now showing</span>';
-      tear = '<span class="label">The show</span><span class="as-count hot">Rolling</span><small>now</small>';
-      move = (going || isMine(n)) && canRateNight(n) ? go(`Rate ${n.lockedMovie?.title || 'it'}`, '#next .review-form') : go('See the night', '#nextSec');
-    }
-  }
-  out('#status').innerHTML = `
-    <div class="status-in"><div class="admit-stub">
-      <div class="as-main">${stamp}<p class="as-line">${line}</p>${who ? `<div>${who}</div>` : ''}</div>
-      <div class="as-tear">${tear}</div>
-    </div></div>
-    <div class="next-move">${move}</div>`;
-}
-// The countdowns tick in place; at zero the page repaints (the lock or the show).
-setInterval(() => {
-  for (const el of document.querySelectorAll('.as-count[data-to]')) {
-    const to = Number(el.dataset.to);
-    el.textContent = countdownText(to);
-    if (to <= Date.now() && !el.dataset.done) { el.dataset.done = '1'; render(); }
-  }
-}, 1000);
 
 // Who this phone is, as their name on the guest list. "Not you?" asks twice:
 // one stray tap shouldn't drop someone off their own phone.

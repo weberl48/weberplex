@@ -56,7 +56,7 @@
 
 /* Paper: tickets, the program card, the name window, the ballot. The same
    components read in ink on cream. */
-:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) {
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row) {
   --screen: var(--ticket-ink);
   --dim: #5f4836;
   --faint: #6f5845;
@@ -66,10 +66,10 @@
   --velvet-3: #fffaf0;
   color: var(--ticket-ink);
 }
-:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) :is(a, .linkish) { color: var(--ticket-ink); }
-:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) :focus-visible { outline-color: var(--curtain); }
-:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) .face { background: #e6d4ae; color: var(--ticket-ink); border-color: var(--ticket); }
-:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row, .admit-stub) .face.me { background: var(--bulb); }
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row) :is(a, .linkish) { color: var(--ticket-ink); }
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row) :focus-visible { outline-color: var(--curtain); }
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row) .face { background: #e6d4ae; color: var(--ticket-ink); border-color: var(--ticket); }
+:is(.pass, .cal-wrap, .day-detail, #next .ballot-row, .past-row) .face.me { background: var(--bulb); }
 
 /* ---- the room ------------------------------------------------------------ */
 html { background: var(--velvet); scrollbar-color: var(--rule-strong) var(--velvet); }
@@ -106,79 +106,18 @@ body::after { /* film grain */
 .whoami:empty { display: none; }
 .whoami .linkish { color: var(--bulb); }
 
-/* ---- the marquee: letter tiles under a frame of chasing bulbs --------------- */
+/* ---- the marquee: the original (2026-10-17, the user's call) ------------------
+   site.css draws it exactly as before the redesign; this only hands it back its
+   own fonts and colors, which the tokens above changed for the rest of the page.
+   One column at every width: on desktop it keeps the old 46rem. */
 .marquee {
-  padding: 18px 18px 20px; border-radius: 12px;
-  background: var(--frame);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 22px 60px -18px var(--glow), 0 0 90px -30px var(--glow);
+  --f-display: 'Limelight', Georgia, serif;
+  --f-body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'Courier Prime', 'Courier New', ui-monospace, monospace;
+  --bulb: #ffc76e;
+  --board: #fbf3e2;
+  --board-ink: #1b0f0c;
 }
-.marquee::before, .marquee::after { --b: radial-gradient(circle, #fff3d1 0 2.2px, var(--bulb) 3px, rgba(255, 191, 79, 0) 6px); }
-.board {
-  padding: 12px 10px 12px; border-radius: 3px;
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.1), inset 0 0 34px rgba(255, 196, 110, 0.7), 0 0 24px rgba(255, 233, 190, 0.35);
-  background-image: none;
-}
-.board .kicker { font: 700 12px/1.2 var(--f-body); font-stretch: 75%; letter-spacing: 0.3em; color: #b3261e; margin: 2px 0 10px; }
-/* The title: letter tiles, a row per line. The h1's own size only matters to
-   assistive text and the big-text check; the tiles size themselves to the board. */
-.board h1 { font: 400 2.5rem/1 var(--f-marquee); letter-spacing: 0; display: grid; gap: 7px; text-transform: uppercase; }
-.mrow { display: flex; justify-content: center; gap: 2px; padding-bottom: 6px; border-bottom: 1.5px solid rgba(60, 35, 15, 0.13); }
-.mrow:last-child { border-bottom: 0; padding-bottom: 0; }
-.mt {
-  --w: min(var(--max, 30px), calc((100cqi - 4px - (var(--n) - 1) * 2px) / var(--n)));
-  display: inline-grid; place-items: center; width: var(--w); height: calc(var(--w) * 1.22);
-  font: 400 calc(var(--w) * 0.98)/1 var(--f-marquee); color: var(--board-ink);
-  transform: translateY(var(--dy, 0)) rotate(var(--rot, 0deg));
-}
-.mt.sp { width: calc(var(--w) * 0.45); }
-.mt.end { width: 0; overflow: hidden; } /* the space between rows: in the text, not on the board */
-.board .sub { margin: 12px 0 0; font: 700 14px/1.35 var(--f-body); font-stretch: 78%; letter-spacing: 0.12em; color: var(--board-ink); }
-.board .count { margin-top: 12px; padding: 5px 10px; border-radius: 3px; font: 500 12px/1.4 var(--f-mono); letter-spacing: 0.06em; background: var(--board-ink); color: var(--bulb); }
-.marquee.swap .board { animation: flipin 0.5s cubic-bezier(.2, .8, .2, 1) both; }
-@keyframes flipin { from { transform: rotateX(70deg); opacity: 0; } }
-
-/* ---- the admit stub and the next move (under the marquee) ------------------ */
-.status { display: grid; gap: 14px; margin-top: -2px; }
-.status:empty { display: none; }
-.status-in { container-type: inline-size; }
-.admit-stub {
-  display: grid; grid-template-columns: minmax(0, 1fr) 108px; min-height: 96px;
-  background: var(--ticket); border-radius: 0 0 10px 10px;
-  -webkit-mask: radial-gradient(circle 8px at calc(100% - 108px) 0, #0000 96%, #000) top / 100% 51% no-repeat,
-                radial-gradient(circle 8px at calc(100% - 108px) 100%, #0000 96%, #000) bottom / 100% 51% no-repeat;
-          mask: radial-gradient(circle 8px at calc(100% - 108px) 0, #0000 96%, #000) top / 100% 51% no-repeat,
-                radial-gradient(circle 8px at calc(100% - 108px) 100%, #0000 96%, #000) bottom / 100% 51% no-repeat;
-}
-.status-in { filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35)); } /* on the wrapper: a mask would cut a shadow of its own */
-.hero:has(.admit-stub) .marquee { border-radius: 12px 12px 4px 4px; }
-.as-main { padding: 14px 12px 12px 16px; display: grid; gap: 8px; align-content: center; min-width: 0; }
-.as-line { margin: 0; font-size: 14px; color: var(--dim); overflow-wrap: anywhere; }
-.as-line b { color: var(--ticket-ink); }
-.as-main .faces .face { border-color: var(--ticket); }
-.as-tear { border-left: 2px dashed var(--rule); padding: 12px 8px; display: grid; gap: 4px; place-content: center; text-align: center; }
-.as-tear .label { font-size: 10px; margin: 0; color: var(--dim); }
-.as-count { font: 500 16px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ticket-ink); }
-.as-count.hot { color: #b3261e; }
-.as-tear small { font: 500 10.5px/1.25 var(--f-mono); color: var(--dim); }
-.stamp {
-  justify-self: start; display: inline-block; font: 400 13px/1 var(--f-marquee); letter-spacing: 0.03em;
-  padding: 6px 8px 4px; border: 2.5px solid currentColor; border-radius: 4px; color: #b3261e; transform: rotate(-3deg);
-}
-.stamp.go { color: #1f6b62; }
-.stamp.ink { color: var(--ticket-ink); }
-@container (max-width: 300px) { /* big text on a phone: the tear goes under */
-  .admit-stub { grid-template-columns: minmax(0, 1fr); -webkit-mask: none; mask: none; border-radius: 0 0 10px 10px; }
-  .as-tear { border-left: 0; border-top: 2px dashed var(--rule); place-content: start; text-align: left; padding: 10px 16px; }
-}
-.next-move { display: flex; align-items: center; gap: 12px; }
-.next-move .btn { flex: 1; min-width: 0; }
-.btn-go {
-  min-height: 54px; font-size: 17px; font-weight: 700; border-radius: 4px; white-space: normal; text-align: center;
-  -webkit-mask: radial-gradient(circle 9px at 0 50%, #0000 96%, #000) left / 51% 100% no-repeat, radial-gradient(circle 9px at 100% 50%, #0000 96%, #000) right / 51% 100% no-repeat;
-          mask: radial-gradient(circle 9px at 0 50%, #0000 96%, #000) left / 51% 100% no-repeat, radial-gradient(circle 9px at 100% 50%, #0000 96%, #000) right / 51% 100% no-repeat;
-}
-.btn-go:focus-visible { outline: 0; box-shadow: inset 0 0 0 3px var(--board-ink), inset 0 0 0 5px var(--bulb); }
-.btn-go.btn-ghost.on { color: var(--go); border-color: var(--go); }
 
 /* ---- the film strip: the jump links, stuck to the top --------------------- */
 .program {
@@ -455,12 +394,7 @@ body::after { /* film grain */
 /* ---- desktop: the marquee across the top ----------------------------------- */
 @media (min-width: 980px) {
   .wrap { max-width: 1180px; padding-inline: 40px; }
-  .hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; align-items: center; margin-top: 6px; }
-  .hero .marquee { padding: 24px 26px 26px; border-radius: 14px; }
-  .hero .board { padding: 18px 16px 16px; }
-  .mrow { --max: 46px; }
-  .status { margin-top: 0; }
-  .admit-stub { border-radius: 10px; min-height: 124px; }
+  .marquee:not(.tour-mini) { max-width: 46rem; margin-inline: auto; }
   .program {
     margin: 32px 0 0; padding: 12px 0; gap: 10px;
     border-image: linear-gradient(var(--frame) 0 0) fill 0 / 0 / 0 100vmax; /* edge to edge, without widening the page */
@@ -468,7 +402,7 @@ body::after { /* film grain */
   .program::before, .program::after { background: none; border-image: repeating-linear-gradient(90deg, transparent 0 5px, var(--frame-ink-2) 5px 11px, transparent 11px 16px) fill 0 / 0 / 0 100vmax; }
   .program a { flex-direction: row; gap: 12px; min-height: 48px; font-size: 13.5px; }
   .section { margin-top: 4.5rem; }
-  .section-head h2 { font-size: 3.25rem; }
+  .section-head h2 { font-size: 2.75rem; } /* the marquee title (3rem) stays the biggest words on the page */
   .frame-num { font-size: 190px; top: -80px; }
   /* the ballot: tall poster tickets, the vote stub torn off along the bottom */
   #next ol.ballot { grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 18px; }
@@ -500,5 +434,4 @@ body::after { /* film grain */
 }
 @media (prefers-reduced-motion: reduce) {
   .news::before { animation: none; }
-  .marquee.swap .board { animation: none; }
 }
